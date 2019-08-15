@@ -94,7 +94,8 @@ architecture rtl of can_rx_fsm is
                         ST_RECV_EOF,
                         ST_CRC_ERROR,
                         ST_FORM_ERROR,
-                        ST_DONE);
+                        ST_DONE,
+                        ST_WAIT_BUS_IDLE);
 
   signal s_fsm_state        : can_rx_fsm_t;
   signal s_reg_rx_msg       : can_msg_t;
@@ -267,6 +268,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state <= ST_FORM_ERROR;
+
             elsif BSP_RX_DATA_COUNT = C_DLC_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
@@ -276,7 +278,13 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_FORM_ERROR;
               else
                 s_reg_rx_msg.data_length <= BSP_RX_DATA(0 to C_DLC_LENGTH-1);
-                s_fsm_state <= ST_RECV_DATA;
+
+                if s_reg_rx_msg.remote_request = '1' then
+                  s_crc_calc  <= BSP_RX_CRC_CALC;
+                  s_fsm_state <= ST_RECV_CRC;
+                else
+                  s_fsm_state <= ST_RECV_DATA;
+                end if;
               end if;
             end if;
 
@@ -387,7 +395,17 @@ begin  -- architecture rtl
 
           when ST_DONE =>
             -- Pulsed one cycle
-            RX_MSG_VALID <= '1';
+            RX_MSG_VALID           <= '1';
+            s_reg_msg_recv_counter <= s_reg_msg_recv_counter + 1;
+            s_fsm_state            <= ST_WAIT_BUS_IDLE;
+
+          when ST_WAIT_BUS_IDLE =>
+            -- TODO:
+            -- This needs a timeout!
+            -- Should not have to wait more than one baud
+            if BSP_RX_ACTIVE = '0' then
+              s_fsm_state <= ST_IDLE;
+            end if;
 
           when others =>
             s_fsm_state <= ST_IDLE;
