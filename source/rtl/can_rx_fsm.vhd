@@ -292,7 +292,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = unsigned(s_reg_rx_msg.data_length) and BSP_RX_DATA_CLEAR = '0' then
+            elsif BSP_RX_DATA_COUNT = unsigned(s_reg_rx_msg.data_length)*8 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               s_reg_rx_msg.data(0) <= BSP_RX_DATA(0 to 7);

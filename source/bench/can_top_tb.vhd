@@ -299,33 +299,37 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Send with BFM, receive with Canola CAN controller", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 false);
+    v_test_num := 0;
 
-    s_xmit_arb_id       <= v_xmit_arb_id;
-    s_xmit_data         <= v_xmit_data;
-    s_xmit_data_length  <= v_xmit_data_length;
-    s_xmit_remote_frame <= v_xmit_remote_frame;
+    while v_test_num < C_NUM_ITERATIONS loop
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   false);
 
-    wait until rising_edge(s_clk);
+      s_xmit_arb_id       <= v_xmit_arb_id;
+      s_xmit_data         <= v_xmit_data;
+      s_xmit_data_length  <= v_xmit_data_length;
+      s_xmit_remote_frame <= v_xmit_remote_frame;
 
-    can_uvvm_write(v_xmit_arb_id,
-                   c_xmit_ext_id,
-                   v_xmit_remote_frame,
-                   v_xmit_data,
-                   v_xmit_data_length,
-                   "Send random message with CAN BFM",
-                   s_clk,
-                   s_can_bfm_tx,
-                   s_can_bfm_rx);
+      wait until rising_edge(s_clk);
 
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Blabla", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
+      can_uvvm_write(v_xmit_arb_id,
+                     c_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send random message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx);
 
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
 
 
     wait for 10000 ns;            -- to allow some time for completion
