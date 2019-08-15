@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-14
+-- Last update: 2019-08-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -31,8 +31,8 @@ package can_pkg is
   constant C_IDE_STD_VALUE      : std_logic := '0';
   constant C_IDE_EXT_VALUE      : std_logic := '1';
   constant C_SRR_VALUE          : std_logic := '1';
-  constant C_R0_VALUE           : std_logic := '1';
-  constant C_R1_VALUE           : std_logic := '1';
+  constant C_R0_VALUE           : std_logic := '0';
+  constant C_R1_VALUE           : std_logic := '0';
   constant C_CRC_DELIM_VALUE    : std_logic := '1';
   constant C_ACK_VALUE          : std_logic := '0'; -- Ack value sent by receiver
   constant C_ACK_TRANSMIT_VALUE : std_logic := '1'; -- Ack value sent by transmitter

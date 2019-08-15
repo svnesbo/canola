@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-08-14
+-- Last update: 2019-08-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -161,10 +161,6 @@ begin  -- architecture rtl
       s_rx_bit_valid_pulse   <= '0';
       s_rx_restart_crc_pulse <= '0';
 
-      -- This delays data count output by one cycle,
-      -- which allows data count output to be in sync with CRC output
-      BSP_RX_DATA_COUNT      <= s_rx_data_counter;
-
       if RESET = '1' then
         BSP_RX_DATA             <= (others => '0');
         BSP_RX_DATA_COUNT       <= 0;
@@ -176,6 +172,14 @@ begin  -- architecture rtl
         -- Start at zero when we haven't received any bits yet
         s_rx_stuff_counter <= 0;
       else
+        if BSP_RX_DATA_CLEAR = '1' then
+          BSP_RX_DATA_COUNT      <= 0;
+          s_rx_data_counter      <= 0;
+        else
+          -- This delays data count output by one cycle,
+          -- which allows data count output to be in sync with CRC output
+          BSP_RX_DATA_COUNT      <= s_rx_data_counter;
+        end if;
         -----------------------------------------------------------------------
         -- BTL synchronized to start of frame
         -----------------------------------------------------------------------
