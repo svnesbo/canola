@@ -15,6 +15,7 @@ quietly set compdirectives_vhdl "-quiet -nologo -nostats -O5 -2008 -lint -work $
 echo "\n\n\n=== Compiling $lib_name source\n"
 
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bfm/can_bfm_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bfm/can_uvvm_bfm_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_tb_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_btl_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bsp_tb.vhd
