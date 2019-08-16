@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-08-15
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -91,19 +91,20 @@ entity can_bsp is
     BSP_TX_RESET             : in  std_logic;  -- Resets bit stuff counter and CRC
 
     -- Interface to Rx FSM
-    BSP_RX_ACTIVE         : out std_logic;
-    BSP_RX_DATA           : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT     : out natural range 0 to C_BSP_DATA_LENGTH;
-    BSP_RX_DATA_CLEAR     : in  std_logic;
-    BSP_RX_DATA_OVERFLOW  : out std_logic;
-    BSP_RX_BIT_DESTUFF_EN : in  std_logic;  -- Enable bit destuffing on data
-                                            -- that is currently being received
-    BSP_RX_CRC_CALC       : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_RX_SEND_ACK       : in  std_logic;  -- Pulsed input
+    BSP_RX_ACTIVE          : out std_logic;
+    BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+    BSP_RX_DATA_COUNT      : out natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_CLEAR      : in  std_logic;
+    BSP_RX_DATA_OVERFLOW   : out std_logic;
+    BSP_RX_BIT_DESTUFF_EN  : in  std_logic;  -- Enable bit destuffing on data
+                                             -- that is currently being received
+    BSP_RX_BIT_STUFF_ERROR : out std_logic;  -- Pulsed on error
+    BSP_RX_CRC_CALC        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_SEND_ACK        : in  std_logic;  -- Pulsed input
 
-    BSP_SEND_ERROR_FRAME  : in  std_logic;  -- When pulsed, BSP cancels
-                                            -- whatever it is doing, and sends
-                                            -- an error frame of 6 dominant bits
+    BSP_SEND_ERROR_FRAME   : in  std_logic;  -- When pulsed, BSP cancels
+                                             -- whatever it is doing, and sends
+                                             -- an error frame of 6 dominant bits
     BSP_ERROR_STATE : in can_error_state_t;  -- Indicates if the CAN controller
                                              -- is in active or passive error
                                              -- state, or bus off state
@@ -155,9 +156,9 @@ begin  -- architecture rtl
 
   proc_rx : process(CLK) is
     variable v_rx_stuff_counter        : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
-    variable v_rx_stuff_error_detected : std_logic;
   begin  -- process proc_fsm
     if rising_edge(CLK) then
+      BSP_RX_BIT_STUFF_ERROR <= '0';
       s_rx_bit_valid_pulse   <= '0';
       s_rx_restart_crc_pulse <= '0';
 
@@ -199,32 +200,31 @@ begin  -- architecture rtl
         -- Receiving data for frame
         -----------------------------------------------------------------------
         elsif BSP_RX_ACTIVE = '1' and BTL_RX_BIT_VALID = '1' then
-          v_rx_stuff_counter        := s_rx_stuff_counter;
-          v_rx_stuff_error_detected := '0';
+          v_rx_stuff_counter     := s_rx_stuff_counter;
 
           ---------------------------------------------------------------------
           -- Consecutive bit count and stuff bit detection
           ---------------------------------------------------------------------
-          if BSP_RX_BIT_DESTUFF_EN = '1' then
-            if s_rx_previous_bit_val = BTL_RX_BIT_VALUE then
-              if s_rx_stuff_bit_expected = '1' then
-                -- Bit stuffing error.
-                -- Already got 5 consecutive bits of same value,
-                -- was expecting a stuff bit of opposite polarity
-                v_rx_stuff_error_detected := '1';
-              else
-                v_rx_stuff_counter := v_rx_stuff_counter + 1;
-              end if;
-            else
-              -- Got bit of opposite polarity, reset stuff counter.
-              -- Start at one, because we have one bit already.
-              v_rx_stuff_counter := 1;
+          --if BSP_RX_BIT_DESTUFF_EN = '1' then
+          if s_rx_previous_bit_val = BTL_RX_BIT_VALUE then
+            if s_rx_stuff_bit_expected = '1' then
+              -- Bit stuffing error.
+              -- Already got 5 consecutive bits of same value,
+              -- was expecting a stuff bit of opposite polarity
+              BSP_RX_BIT_STUFF_ERROR <= '1';
+            elsif BSP_RX_BIT_DESTUFF_EN = '1' then
+              v_rx_stuff_counter := v_rx_stuff_counter + 1;
             end if;
-
-            if v_rx_stuff_counter = C_STUFF_BIT_THRESHOLD then
-              s_rx_stuff_bit_expected <= '1';
-            end if;
+          else
+            -- Got bit of opposite polarity, reset stuff counter.
+            -- Start at one, because we have one bit already.
+            v_rx_stuff_counter := 1;
           end if;
+
+          if v_rx_stuff_counter = C_STUFF_BIT_THRESHOLD and BSP_RX_BIT_DESTUFF_EN = '1' then
+            s_rx_stuff_bit_expected <= '1';
+          end if;
+          --end if;
 
           s_rx_stuff_counter    <= v_rx_stuff_counter;
           s_rx_previous_bit_val <= BTL_RX_BIT_VALUE;
@@ -232,7 +232,7 @@ begin  -- architecture rtl
           ---------------------------------------------------------------------
           -- Shift bits into shift register as they are received
           ---------------------------------------------------------------------
-          if BSP_RX_BIT_DESTUFF_EN = '0' or s_rx_stuff_bit_expected = '0'then
+          if s_rx_stuff_bit_expected = '0' then
             if s_rx_data_counter < C_BSP_DATA_LENGTH then
               BSP_RX_DATA(s_rx_data_counter) <= BTL_RX_BIT_VALUE;
               s_rx_data_counter              <= s_rx_data_counter+1;
@@ -246,7 +246,7 @@ begin  -- architecture rtl
           ---------------------------------------------------------------------
           -- Ignore stuff bits
           ---------------------------------------------------------------------
-          elsif s_rx_stuff_bit_expected = '1' and v_rx_stuff_error_detected = '0' then
+          elsif s_rx_stuff_bit_expected = '1' then
             s_rx_stuff_bit_expected <= '0';
           end if;
 

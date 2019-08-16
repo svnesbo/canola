@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-08-14
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -97,6 +97,7 @@ architecture struct of can_top is
   signal s_bsp_rx_data_clear           : std_logic;
   signal s_bsp_rx_data_overflow        : std_logic;
   signal s_bsp_rx_bit_destuff_en       : std_logic;
+  signal s_bsp_rx_bit_stuff_error      : std_logic;
   signal s_bsp_rx_crc_calc             : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_rx_send_ack             : std_logic;
   signal s_bsp_send_error_frame        : std_logic;
@@ -169,22 +170,23 @@ begin  -- architecture struct
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
     port map (
-      CLK                   => CLK,
-      RESET                 => RESET,
-      RX_MSG_OUT            => RX_MSG,
-      RX_MSG_VALID          => RX_MSG_VALID,
-      BSP_RX_ACTIVE         => s_bsp_rx_active,
-      BSP_RX_DATA           => s_bsp_rx_data,
-      BSP_RX_DATA_COUNT     => s_bsp_rx_data_count,
-      BSP_RX_DATA_CLEAR     => s_bsp_rx_data_clear,
-      BSP_RX_DATA_OVERFLOW  => s_bsp_rx_data_overflow,
-      BSP_RX_BIT_DESTUFF_EN => s_bsp_rx_bit_destuff_en,
-      BSP_RX_CRC_CALC       => s_bsp_rx_crc_calc,
-      BSP_RX_SEND_ACK       => s_bsp_rx_send_ack,
-      BSP_SEND_ERROR_FRAME  => s_bsp_send_error_frame_rx_fsm,
-      REG_MSG_RECV_COUNT    => s_rx_fsm_msg_recv_count,
-      REG_CRC_ERROR_COUNT   => s_rx_fsm_crc_error_count,
-      REG_FORM_ERROR_COUNT  => s_rx_fsm_form_error_count);
+      CLK                    => CLK,
+      RESET                  => RESET,
+      RX_MSG_OUT             => RX_MSG,
+      RX_MSG_VALID           => RX_MSG_VALID,
+      BSP_RX_ACTIVE          => s_bsp_rx_active,
+      BSP_RX_DATA            => s_bsp_rx_data,
+      BSP_RX_DATA_COUNT      => s_bsp_rx_data_count,
+      BSP_RX_DATA_CLEAR      => s_bsp_rx_data_clear,
+      BSP_RX_DATA_OVERFLOW   => s_bsp_rx_data_overflow,
+      BSP_RX_BIT_DESTUFF_EN  => s_bsp_rx_bit_destuff_en,
+      BSP_RX_BIT_STUFF_ERROR => s_bsp_rx_bit_stuff_error,
+      BSP_RX_CRC_CALC        => s_bsp_rx_crc_calc,
+      BSP_RX_SEND_ACK        => s_bsp_rx_send_ack,
+      BSP_SEND_ERROR_FRAME   => s_bsp_send_error_frame_rx_fsm,
+      REG_MSG_RECV_COUNT     => s_rx_fsm_msg_recv_count,
+      REG_CRC_ERROR_COUNT    => s_rx_fsm_crc_error_count,
+      REG_FORM_ERROR_COUNT   => s_rx_fsm_form_error_count);
 
 
   INST_can_bsp : entity work.can_bsp
@@ -206,6 +208,7 @@ begin  -- architecture struct
       BSP_RX_DATA_CLEAR        => s_bsp_rx_data_clear,
       BSP_RX_DATA_OVERFLOW     => s_bsp_rx_data_overflow,
       BSP_RX_BIT_DESTUFF_EN    => s_bsp_rx_bit_destuff_en,
+      BSP_RX_BIT_STUFF_ERROR   => s_bsp_rx_bit_stuff_error,
       BSP_RX_CRC_CALC          => s_bsp_rx_crc_calc,
       BSP_RX_SEND_ACK          => s_bsp_rx_send_ack,
       BSP_SEND_ERROR_FRAME     => s_bsp_send_error_frame,

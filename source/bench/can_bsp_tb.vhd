@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-08-14
+-- Last update: 2019-08-16
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -113,6 +113,7 @@ architecture tb of can_bsp_tb is
   signal s_bsp_rx_data_clear        : std_logic := '0';
   signal s_bsp_rx_data_overflow     : std_logic;
   signal s_bsp_rx_bit_destuff_en    : std_logic := '0';
+  signal s_bsp_rx_bit_stuff_error   : std_logic;
   signal s_bsp_rx_crc_calc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_rx_send_ack          : std_logic := '0';
   signal s_bsp_send_error_frame     : std_logic := '0';
@@ -166,6 +167,7 @@ begin
       BSP_RX_DATA_CLEAR        => s_bsp_rx_data_clear,
       BSP_RX_DATA_OVERFLOW     => s_bsp_rx_data_overflow,
       BSP_RX_BIT_DESTUFF_EN    => s_bsp_rx_bit_destuff_en,
+      BSP_RX_BIT_STUFF_ERROR   => s_bsp_rx_bit_stuff_error,
       BSP_RX_CRC_CALC          => s_bsp_rx_crc_calc,
       BSP_RX_SEND_ACK          => s_bsp_rx_send_ack,
       BSP_SEND_ERROR_FRAME     => s_bsp_send_error_frame,

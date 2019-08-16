@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-08-15
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -52,19 +52,20 @@ entity can_rx_fsm is
     RX_MSG_VALID     : out std_logic;
 
     -- Signals to/from BSP
-    BSP_RX_ACTIVE         : in  std_logic;
-    BSP_RX_DATA           : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT     : in  natural range 0 to C_BSP_DATA_LENGTH;
-    BSP_RX_DATA_CLEAR     : out std_logic;
-    BSP_RX_DATA_OVERFLOW  : in  std_logic;
-    BSP_RX_BIT_DESTUFF_EN : out std_logic;  -- Enable bit destuffing on data
+    BSP_RX_ACTIVE          : in  std_logic;
+    BSP_RX_DATA            : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+    BSP_RX_DATA_COUNT      : in  natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_CLEAR      : out std_logic;
+    BSP_RX_DATA_OVERFLOW   : in  std_logic;
+    BSP_RX_BIT_DESTUFF_EN  : out std_logic;  -- Enable bit destuffing on data
                                             -- that is currently being received
-    BSP_RX_CRC_CALC       : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_RX_SEND_ACK       : out std_logic;
+    BSP_RX_BIT_STUFF_ERROR : in std_logic;  -- Pulsed on error
+    BSP_RX_CRC_CALC        : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_SEND_ACK        : out std_logic;
 
-    BSP_SEND_ERROR_FRAME  : out std_logic;  -- When pulsed, BSP cancels
-                                            -- whatever it is doing, and sends
-                                            -- an error frame of 6 dominant bits
+    BSP_SEND_ERROR_FRAME   : out std_logic;  -- When pulsed, BSP cancels
+                                             -- whatever it is doing, and sends
+                                             -- an error frame of 6 dominant bits
 
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -93,6 +94,7 @@ architecture rtl of can_rx_fsm is
                         ST_RECV_ACK_DELIM,
                         ST_RECV_EOF,
                         ST_CRC_ERROR,
+                        ST_STUFF_ERROR,
                         ST_FORM_ERROR,
                         ST_DONE,
                         ST_WAIT_BUS_IDLE);
@@ -131,13 +133,13 @@ begin  -- architecture rtl
           s_reg_rx_msg.data(0) <= (others => '0');
         end loop;
 
-        s_fsm_state              <= ST_IDLE;
-        s_crc_mismatch           <= '0';
-        s_reg_msg_recv_counter   <= (others => '0');
-        s_reg_crc_error_counter  <= (others => '0');
-        s_reg_form_error_counter <= (others => '0');
-        BSP_RX_BIT_DESTUFF_EN    <= '1';
-        RX_MSG_VALID             <= '0';
+        s_fsm_state                <= ST_IDLE;
+        s_crc_mismatch             <= '0';
+        s_reg_msg_recv_counter     <= (others => '0');
+        s_reg_crc_error_counter    <= (others => '0');
+        s_reg_form_error_counter   <= (others => '0');
+        BSP_RX_BIT_DESTUFF_EN      <= '1';
+        RX_MSG_VALID               <= '0';
       else
         RX_MSG_VALID          <= '0';
         BSP_RX_SEND_ACK       <= '0';
@@ -339,7 +341,7 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_FORM_ERROR;
               else
                 -- Send ACK only if CRC was ok
-                if s_crc_mismatch <= '0' then
+                if s_crc_mismatch = '0' then
                   -- Pulsing this signal makes the BSP send an ack pulse
                   BSP_RX_SEND_ACK <= '1';
                 end if;
@@ -389,9 +391,31 @@ begin  -- architecture rtl
               end if;
             end if;
 
+
+          -- Error handling summary:
+          --
+          -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
+          -- "A node detecting an error condition signals this by transmitting an Error flag. An error-active node
+          --  will transmit an ACTIVE Error flag; an error-passive node will transmit a PASSIVE Error flag.
+          --  Whenever a Bit error, a Stuff error, a Form error or an Acknowledgement error is detected by any
+          --  node, that node will start transmission of an Error flag at the next bit time.
+          --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
+          --  ACK Delimiter, unless an Error flag for another error condition has already been started."
+
           when ST_FORM_ERROR =>
             -- Form Error applies to bit errors in any fixed field from SOF to
             -- CRC delimiter.
+
+            -- TODO:
+            -- Signal error here...
+            -- Increase counters...
+
+          --when ST_CRC_ERROR =>
+
+          when ST_STUFF_ERROR =>
+            -- TODO:
+            -- Handle this error
+            s_fsm_state <= ST_IDLE;
 
           when ST_DONE =>
             -- Pulsed one cycle
@@ -411,6 +435,12 @@ begin  -- architecture rtl
             s_fsm_state <= ST_IDLE;
 
         end case;
+
+        -- Always go to stuff error state when bit stuffing error is detected
+        if BSP_RX_BIT_STUFF_ERROR = '1' then
+          s_fsm_state <= ST_STUFF_ERROR;
+        end if;
+
       end if;
     end if;
   end process proc_fsm;
