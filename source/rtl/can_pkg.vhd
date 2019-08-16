@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-15
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -53,6 +53,7 @@ package can_pkg is
   constant C_BASIC_ARB_ID_LENGTH : natural := 11;
   constant C_EXT_ARB_ID_LENGTH   : natural := 29;
 
+  constant C_CAN_CRC_WIDTH : natural := 15;
 
   -----------------------------------------------------------------------------
   -- Definitions specific for the Canola CAN controller implementation
@@ -70,11 +71,7 @@ package can_pkg is
 
   constant C_STUFF_BIT_THRESHOLD : natural := 5;
 
-
-
   constant C_ACCEPTANCE_FILTERS_MAX : natural := 256;
-
-  constant C_CAN_CRC_WIDTH : natural := 15;
 
   -- TODO: Set this to whatever value the CANbus standard specifies
   constant C_RETRANSMIT_COUNT_MAX : natural := 4;

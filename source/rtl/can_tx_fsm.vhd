@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-14
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -60,6 +60,7 @@ entity can_tx_fsm is
     TX_ARB_LOST      : out std_logic;  -- Arbitration was lost
     TX_ERROR         : out std_logic;  -- Error while transmitting frame
     TX_FAILED        : out std_logic;  -- (Re)transmit failed (arb lost or error)
+    TX_ACTIVE        : out std_logic;  -- Signaled to BSP, BTL, and Rx FSM
 
     -- Signals to/from BSP
     BSP_TX_DATA                : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -67,9 +68,9 @@ entity can_tx_fsm is
     BSP_TX_WRITE_EN            : out std_logic;
     BSP_TX_BIT_STUFF_EN        : out std_logic;
     BSP_TX_RX_MISMATCH         : in  std_logic;
-    BSP_TX_DONE                : out std_logic;
-    BSP_TX_CRC_CALC            : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_TX_RESET               : in  std_logic;
+    BSP_TX_RX_STUFF_MISMATCH   : in  std_logic;
+    BSP_TX_DONE                : in  std_logic;
+    BSP_TX_CRC_CALC            : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_ACTIVE              : in  std_logic;
     BSP_SEND_ERROR_FRAME       : out std_logic;
 
@@ -98,6 +99,7 @@ architecture rtl of can_tx_fsm is
                         ST_SETUP_DLC,
                         ST_SETUP_DATA,
                         ST_SETUP_CRC,
+                        ST_SETUP_CRC_DELIM,
                         ST_SETUP_ACK_SLOT,
                         ST_SETUP_ACK_DELIM,
                         ST_SETUP_EOF,
@@ -112,6 +114,7 @@ architecture rtl of can_tx_fsm is
                         ST_SEND_DLC,
                         ST_SEND_DATA,
                         ST_SEND_CRC,
+                        ST_SEND_CRC_DELIM,
                         ST_SEND_RECV_ACK_SLOT,
                         ST_SEND_ACK_DELIM,
                         ST_SEND_EOF,
@@ -153,6 +156,8 @@ begin  -- architecture rtl
       if RESET = '1' then
         s_fsm_state            <= ST_IDLE;
         TX_BUSY                <= '0';
+        BSP_TX_DATA            <= (others => '0');
+        TX_ACTIVE              <= '0';
         s_tx_ack_recv          <= '0';
         s_reg_msg_sent_counter <= (others => '0');
         s_reg_ack_recv_counter <= (others => '0');
@@ -162,6 +167,7 @@ begin  -- architecture rtl
       else
         BSP_SEND_ERROR_FRAME <= '0';
         BSP_TX_WRITE_EN      <= '0';
+        BSP_TX_BIT_STUFF_EN  <= '1';
 
         case s_fsm_state is
           when ST_IDLE =>
@@ -170,11 +176,11 @@ begin  -- architecture rtl
             s_retransmit_attempts <= 0;
 
             if TX_START = '1' then
-              TX_BUSY      <= '1';
-              TX_ACK_RECV  <= '0';
-              TX_ARB_LOST  <= '0';
-              s_reg_tx_msg <= TX_MSG_IN;
-              s_fsm_state  <= ST_WAIT_FOR_BUS_IDLE;
+              TX_BUSY       <= '1';
+              TX_ACK_RECV   <= '0';
+              TX_ARB_LOST   <= '0';
+              s_reg_tx_msg  <= TX_MSG_IN;
+              s_fsm_state   <= ST_WAIT_FOR_BUS_IDLE;
             end if;
 
           when ST_WAIT_FOR_BUS_IDLE =>
@@ -182,7 +188,8 @@ begin  -- architecture rtl
             -- Should there be a timeout here?
             -- Can we wait forever?
             if BSP_RX_ACTIVE = '0' then
-              s_fsm_state <= ST_SEND_SOF;
+              TX_ACTIVE     <= '1';
+              s_fsm_state   <= ST_SETUP_SOF;
             end if;
 
           when ST_SETUP_SOF =>
@@ -229,7 +236,7 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_IDE;
+              s_fsm_state     <= ST_SETUP_IDE;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -273,7 +280,7 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_RTR;
+              s_fsm_state     <= ST_SETUP_RTR;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -307,7 +314,7 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_R0;
+              s_fsm_state     <= ST_SETUP_R0;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -322,7 +329,7 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_DLC;
+              s_fsm_state     <= ST_SETUP_DLC;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -337,7 +344,11 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_DATA;
+              if s_reg_tx_msg.remote_request = '1' then
+                s_fsm_state <= ST_SETUP_CRC;
+              else
+                s_fsm_state <= ST_SETUP_DATA;
+              end if;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -359,7 +370,7 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_CRC;
+              s_fsm_state     <= ST_SETUP_CRC;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
@@ -367,7 +378,7 @@ begin  -- architecture rtl
           when ST_SETUP_CRC =>
             -- CRC and CRC delimiter
             BSP_TX_DATA(0 to C_CAN_CRC_WIDTH-1) <= BSP_TX_CRC_CALC;
-            BSP_TX_DATA(C_CAN_CRC_WIDTH)        <= C_CRC_DELIM_VALUE;
+            BSP_TX_DATA_COUNT                   <= C_CAN_CRC_WIDTH;
             BSP_TX_WRITE_EN                     <= '1';
             s_fsm_state                         <= ST_SEND_CRC;
 
@@ -375,18 +386,40 @@ begin  -- architecture rtl
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_ACK_SLOT;
+              s_fsm_state     <= ST_SETUP_CRC_DELIM;
+            else
+              BSP_TX_WRITE_EN <= '1';
+            end if;
+
+          when ST_SETUP_CRC_DELIM =>
+            -- CRC and CRC delimiter
+            BSP_TX_BIT_STUFF_EN   <= '0';
+            BSP_TX_DATA(0)        <= C_CRC_DELIM_VALUE;
+            BSP_TX_DATA_COUNT     <= 1;
+            BSP_TX_WRITE_EN       <= '1';
+            s_fsm_state           <= ST_SEND_CRC_DELIM;
+
+          when ST_SEND_CRC_DELIM =>
+            BSP_TX_BIT_STUFF_EN   <= '0';
+
+            if BSP_TX_RX_MISMATCH = '1' then
+              s_fsm_state <= ST_FORM_ERROR;
+            elsif BSP_TX_DONE = '1' then
+              s_fsm_state     <= ST_SETUP_ACK_SLOT;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
 
           when ST_SETUP_ACK_SLOT =>
-            BSP_TX_DATA(0)    <= C_ACK_TRANSMIT_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
-            s_fsm_state       <= ST_SEND_RECV_ACK_SLOT;
+            BSP_TX_BIT_STUFF_EN <= '0';
+            BSP_TX_DATA(0)      <= C_ACK_TRANSMIT_VALUE;
+            BSP_TX_DATA_COUNT   <= 1;
+            BSP_TX_WRITE_EN     <= '1';
+            s_fsm_state         <= ST_SEND_RECV_ACK_SLOT;
 
           when ST_SEND_RECV_ACK_SLOT =>
+            BSP_TX_BIT_STUFF_EN <= '0';
+
             if BSP_TX_RX_MISMATCH = '1' then
               -- In this case for the ACK we actually want to receive
               -- the opposite value of what we sent
@@ -394,33 +427,39 @@ begin  -- architecture rtl
             end if;
 
             if BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SEND_ACK_DELIM;
+              s_fsm_state     <= ST_SETUP_ACK_DELIM;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
 
           when ST_SETUP_ACK_DELIM =>
-            BSP_TX_DATA(0)    <= C_ACK_DELIM_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
-            s_fsm_state       <= ST_SEND_ACK_DELIM;
+            BSP_TX_BIT_STUFF_EN <= '0';
+            BSP_TX_DATA(0)      <= C_ACK_DELIM_VALUE;
+            BSP_TX_DATA_COUNT   <= 1;
+            BSP_TX_WRITE_EN     <= '1';
+            s_fsm_state         <= ST_SEND_ACK_DELIM;
 
           when ST_SEND_ACK_DELIM =>
+            BSP_TX_BIT_STUFF_EN <= '0';
+
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SEND_EOF;
+              s_fsm_state <= ST_SETUP_EOF;
             else
               BSP_TX_WRITE_EN <= '1';
             end if;
 
           when ST_SETUP_EOF =>
+            BSP_TX_BIT_STUFF_EN              <= '0';
             BSP_TX_DATA(0 to C_EOF_LENGTH-1) <= C_EOF;
             BSP_TX_DATA_COUNT                <= C_EOF_LENGTH;
             BSP_TX_WRITE_EN                  <= '1';
             s_fsm_state                      <= ST_SEND_EOF;
 
           when ST_SEND_EOF =>
+            BSP_TX_BIT_STUFF_EN <= '0';
+
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_TX_DONE = '1' then
@@ -439,8 +478,30 @@ begin  -- architecture rtl
             s_reg_error_counter  <= s_reg_error_counter + 1;
             s_fsm_state          <= ST_RETRANSMIT;
 
+            --when ST_ACK_ERROR =>
+            -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
+            --"An Acknowledgement error must be detected by a transmitter whenever it does not monitor a
+            -- dominant bit during ACK Slot"
+            --
+            -- "A node detecting an error condition signals this by transmitting an Error flag. An error-active node
+            --  will transmit an ACTIVE Error flag; an error-passive node will transmit a PASSIVE Error flag.
+            --  Whenever a Bit error, a Stuff error, a Form error or an Acknowledgement error is detected by any
+            --  node, that node will start transmission of an Error flag at the next bit time.
+            --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
+            --  ACK Delimiter, unless an Error flag for another error condition has already been started."
+
+            --when ST_BIT_ERROR =>
+            -- Page 49: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
+            -- "A node which is sending a bit on the bus also monitors the bus. The node must detect, and interpret
+            --  as a Bit error, the situation where the bit value monitored is different from the bit value being sent.
+            --  An exception to this is the sending of a recessive bit during the stuffed bit-stream of the Arbitration
+            --  field or during the ACK Slot; in this case no Bit error occurs when a dominant bit is monitored.
+            --  A transmitter sending a PASSIVE Error flag and detecting a dominant bit does not interpret this
+            --  as a Bit error"
+
           when ST_RETRANSMIT =>
             -- Retry transmission until retransmit count is reached
+            -- TODO: Need to respect IFS etc. before retransmitting....
             if s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then
               TX_FAILED   <= '1';
               s_fsm_state <= ST_IDLE;
@@ -456,12 +517,16 @@ begin  -- architecture rtl
 
             if s_tx_ack_recv = '1' then
               s_reg_ack_recv_counter <= s_reg_ack_recv_counter + 1;
+              TX_ACTIVE              <= '0';
               TX_ACK_RECV            <= '1';
               TX_DONE                <= '1';
               s_fsm_state            <= ST_IDLE;
             else
-              -- Did not receive ACK
-              s_fsm_state <= ST_RETRANSMIT;
+              -- Did not receive ACK..
+              -- Pulsing TX_ACTIVE allows BSP to reset CRC etc.,
+              -- and prevents BTL from syncing
+              TX_ACTIVE     <= '0';
+              s_fsm_state   <= ST_RETRANSMIT;
             end if;
 
         end case;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-08-15
+-- Last update: 2019-08-16
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -92,7 +92,7 @@ architecture tb of can_top_tb is
   signal s_can_ctrl_rx_msg       : can_msg_t;
   signal s_can_ctrl_tx_msg       : can_msg_t;
   signal s_can_ctrl_rx_msg_valid : std_logic;
-  signal s_can_ctrl_tx_start     : std_logic;
+  signal s_can_ctrl_tx_start     : std_logic := '0';
   signal s_can_ctrl_tx_busy      : std_logic;
   signal s_can_ctrl_tx_done      : std_logic;
   signal s_can_ctrl_tx_error     : std_logic;
@@ -110,6 +110,11 @@ architecture tb of can_top_tb is
   signal s_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
   signal s_xmit_data_length  : natural;
   signal s_xmit_remote_frame : std_logic;
+  signal s_recv_arb_id       : std_logic_vector(28 downto 0);
+  signal s_recv_ext_id       : std_logic                      := '0';
+  signal s_recv_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
+  signal s_recv_data_length  : natural;
+  signal s_recv_remote_frame : std_logic;
 
   -- Shared CAN bus signal
   signal s_can_bus_signal    : std_logic;
@@ -272,13 +277,14 @@ begin
     variable v_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
     variable v_xmit_data_length  : natural;
     variable v_xmit_remote_frame : std_logic;
+    variable v_xmit_arb_lost     : std_logic     := '0';
 
     variable v_recv_arb_id       : std_logic_vector(28 downto 0);
     variable v_recv_data         : work.can_bfm_pkg.can_payload_t;
     variable v_recv_ext_id       : std_logic     := '0';
     variable v_recv_remote_frame : std_logic     := '0';
     variable v_recv_data_length  : natural       := 0;
-    variable v_arb_lost          : std_logic     := '0';
+    variable v_recv_timeout      : std_logic;
 
   begin
     -- Print the configuration to the log
@@ -324,6 +330,50 @@ begin
                      s_clk,
                      s_can_bfm_tx,
                      s_can_bfm_rx);
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+
+-----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Send with Canola CAN controller, receive with BFM", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num := 0;
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   false);
+
+      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.ext_id         <= '0';
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      can_uvvm_read(v_recv_arb_id,
+                    v_recv_ext_id,
+                    v_recv_remote_frame,
+                    v_recv_data,
+                    v_recv_data_length,
+                    "Receive random message with CAN BFM",
+                    s_clk,
+                    s_can_bfm_tx,
+                    s_can_bfm_rx,
+                    v_recv_timeout);
 
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);

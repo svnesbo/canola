@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-08-14
+-- Last update: 2019-08-16
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -43,6 +43,9 @@ entity can_btl is
     BTL_TX_BIT_VALUE        : in  std_logic;  -- Value of bit to transmit
     BTL_TX_BIT_VALID        : in  std_logic;  -- BTL should transmit this bit
     BTL_TX_RDY              : out std_logic;  -- BTL is ready to transmit next bit
+    BTL_TX_DONE             : out std_logic;  -- BTL has outputted the bit on the bus
+    BTL_TX_ACTIVE           : in  std_logic;  -- We want to transmit on the
+                                              -- bus, avoid Rx syncing
 
     BTL_RX_BIT_VALUE        : out std_logic;  -- Received bit value
     BTL_RX_BIT_VALID        : out std_logic;  -- Received bit value is valid
@@ -112,7 +115,6 @@ architecture rtl of can_btl is
   signal s_resync_allowed       : std_logic;
   signal s_resync_done          : std_logic;
   signal s_rx_active            : std_logic;
-  signal s_tx_active            : std_logic := '0';
   signal s_phase_error          : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
   signal s_sample_point_rx      : std_logic;
   signal s_sample_point_tx      : std_logic;
@@ -193,7 +195,7 @@ begin  -- architecture rtl
         -- Hard sync (ie. jump to SYNC_SEG, reset baud gen) to incoming frame
         -- when we are not already receiving a frame, and not transmitting
         -----------------------------------------------------------------------
-        if s_rx_active = '0' and s_tx_active = '0' and v_got_rx_bit_falling_edge = '1' then
+        if s_rx_active = '0' and BTL_TX_ACTIVE = '0' and v_got_rx_bit_falling_edge = '1' then
           -- This will reset the time quanta generator, and next time quanta pulse
           -- should be in exactly one time quanta from now.
           -- s_rx_active and s_got_rx_bit_falling_edge should both be '1' by then,
@@ -345,13 +347,14 @@ begin  -- architecture rtl
   begin
     if rising_edge(CLK) then
       if RESET = '1' then
-        BTL_TX_RDY <= '1';
+        BTL_TX_RDY  <= '1';
+        BTL_TX_DONE <= '0';
 
         -- Recessive bit value (1) is default
         CAN_TX       <= '1';
         s_btl_tx_bit <= '1';
       else
-        --BTL_TX_DONE <= '0';
+        BTL_TX_DONE <= '0';
 
         if BTL_TX_BIT_VALID = '1' then
           BTL_TX_RDY   <= '0';
@@ -362,7 +365,7 @@ begin  -- architecture rtl
         if s_sample_point_tx = '1' then
           if BTL_TX_RDY = '0' then
             CAN_TX      <= s_btl_tx_bit;
-            --BTL_TX_DONE <= '1';
+            BTL_TX_DONE <= '1';
             BTL_TX_RDY  <= '1';
           else
             -- Revert CAN_TX back to recessive bit value (1)
@@ -477,12 +480,8 @@ begin  -- architecture rtl
             s_dominant_bit_count <= s_dominant_bit_count + 1;
           end if;
 
-          s_sampled_bit <= v_sampled_bit;
-
-          -- Output bit only when we are in Rx sync
-          if s_rx_active = '1' then
-            s_output_rx_bit_pulse    <= '1';
-          end if;
+          s_sampled_bit         <= v_sampled_bit;
+          s_output_rx_bit_pulse <= '1';
         end if;
       end if;
     end if;
@@ -502,7 +501,7 @@ begin  -- architecture rtl
       else
         BTL_RX_BIT_VALID <= '0';
 
-        if s_rx_active = '1' and s_output_rx_bit_pulse = '1' then
+        if s_output_rx_bit_pulse = '1' then
           BTL_RX_BIT_VALID <= '1';
           BTL_RX_BIT_VALUE <= s_sampled_bit;
         end if;

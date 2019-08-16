@@ -23,6 +23,10 @@
 --              - Send ACK
 --              CRC generation is also tested, and verified against CRC
 --              function in CAN bus BFM.
+-- Todo       : BSP testbench is broken..
+--              With recent changes to BSP I can't both receive and transmit
+--              at the same time with the same BSP. So have to rethink this
+--              testbench, or make some changes to the BSP..
 -------------------------------------------------------------------------------
 -- Copyright (c) 2019
 -------------------------------------------------------------------------------
@@ -106,7 +110,7 @@ architecture tb of can_bsp_tb is
   signal s_bsp_tx_rx_stuff_mismatch : std_logic;
   signal s_bsp_tx_done              : std_logic;
   signal s_bsp_tx_crc_calc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_tx_reset             : std_logic := '0';
+  signal s_bsp_tx_active            : std_logic := '0';
   signal s_bsp_rx_active            : std_logic;
   signal s_bsp_rx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
   signal s_bsp_rx_data_count        : natural range 0 to C_BSP_DATA_LENGTH;
@@ -121,6 +125,7 @@ architecture tb of can_bsp_tb is
   signal s_btl_tx_bit_value         : std_logic := '0';
   signal s_btl_tx_bit_valid         : std_logic := '0';
   signal s_btl_tx_rdy               : std_logic := '0';
+  signal s_btl_tx_done              : std_logic := '0';
   signal s_btl_rx_bit_value         : std_logic := '0';
   signal s_btl_rx_bit_valid         : std_logic := '0';
   signal s_btl_rx_synced            : std_logic := '0';
@@ -160,7 +165,7 @@ begin
       BSP_TX_RX_STUFF_MISMATCH => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE              => s_bsp_tx_done,
       BSP_TX_CRC_CALC          => s_bsp_tx_crc_calc,
-      BSP_TX_RESET             => s_bsp_tx_reset,
+      BSP_TX_ACTIVE            => s_bsp_tx_active,
       BSP_RX_ACTIVE            => s_bsp_rx_active,
       BSP_RX_DATA              => s_bsp_rx_data,
       BSP_RX_DATA_COUNT        => s_bsp_rx_data_count,
@@ -175,6 +180,7 @@ begin
       BTL_TX_BIT_VALUE         => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID         => s_btl_tx_bit_valid,
       BTL_TX_RDY               => s_btl_tx_rdy,
+      BTL_TX_DONE              => s_btl_tx_done,
       BTL_RX_BIT_VALUE         => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID         => s_btl_rx_bit_valid,
       BTL_RX_SYNCED            => s_btl_rx_synced);
@@ -188,6 +194,8 @@ begin
       BTL_TX_BIT_VALUE        => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID        => s_btl_tx_bit_valid,
       BTL_TX_RDY              => s_btl_tx_rdy,
+      BTL_TX_DONE             => s_btl_tx_done,
+      BTL_TX_ACTIVE           => s_bsp_tx_active,
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
@@ -277,17 +285,16 @@ begin
     end;
 
 
-    -- purpose: Reset BSP Tx and Rx CRC and data outputs
-    procedure reset_bsp_crc_and_data is
+    -- purpose: Reset Rx CRC and data outputs
+    procedure reset_rx_bsp_crc_and_data is
     begin
       wait until rising_edge(s_clk);
-      s_bsp_tx_reset      <= '1';
+      s_bsp_tx_active     <= '0';
       s_bsp_rx_data_clear <= '1';
       wait until rising_edge(s_clk);
-      s_bsp_tx_reset      <= '0';
       s_bsp_rx_data_clear <= '0';
       wait until rising_edge(s_clk);
-    end procedure reset_bsp_crc_and_data;
+    end procedure reset_rx_bsp_crc_and_data;
 
     variable seed1         : positive := 53267458;
     variable seed2         : positive := 90832486;
@@ -326,12 +333,17 @@ begin
 
       s_crc_exp <= calc_can_crc15(s_bsp_tx_data(0 to v_data_length-1));
 
-      reset_bsp_crc_and_data;
+      reset_rx_bsp_crc_and_data;
 
+      wait until rising_edge(s_clk);
+      s_bsp_tx_active         <= '0';
+      wait until rising_edge(s_clk);
+      s_bsp_tx_active         <= '1';
       wait until rising_edge(s_clk);
       s_bsp_tx_data_count     <= v_data_length;
       s_bsp_tx_bit_stuff_en   <= '0';
       s_bsp_rx_bit_destuff_en <= '0';
+      --s_bsp_tx_active         <= '1';
       s_bsp_tx_write_en       <= '1';
       s_rx_tx_mismatch_rst    <= '1';
 
@@ -363,6 +375,8 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
+    s_bsp_tx_active <= '0';
+
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test sending random sequence with bit stuffing", C_SCOPE);
     -----------------------------------------------------------------------------------------------
@@ -385,13 +399,15 @@ begin
       s_bsp_tx_data(0 to v_data_length-(1+work.can_pkg.C_EOF_LENGTH)) <=
         s_rand_bsp_data(0 to v_data_length-(1+work.can_pkg.C_EOF_LENGTH));
 
-      reset_bsp_crc_and_data;
+      reset_rx_bsp_crc_and_data;
 
       wait until rising_edge(s_clk);
-
+      s_bsp_tx_active         <= '0';
+      wait until rising_edge(s_clk);
       s_bsp_tx_data_count     <= v_data_length-work.can_pkg.C_EOF_LENGTH;
       s_bsp_tx_bit_stuff_en   <= '1';
       s_bsp_rx_bit_destuff_en <= '1';
+      s_bsp_tx_active         <= '1';
       s_bsp_tx_write_en       <= '1';
       s_rx_tx_mismatch_rst    <= '1';
 
@@ -442,6 +458,8 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
+    s_bsp_tx_active <= '0';
+
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test sending ACK", C_SCOPE);
     -----------------------------------------------------------------------------------------------
@@ -454,10 +472,12 @@ begin
     -- transmission before ack slot, and then use BSP_RX_SEND_ACK_PULSE at the
     -- ACK slot.
 
-    reset_bsp_crc_and_data;
+    reset_rx_bsp_crc_and_data;
 
     s_crc_exp <= calc_can_crc15(C_ACK_TEST_SEQUENCE_EXP);
 
+    wait until rising_edge(s_clk);
+    s_bsp_tx_active         <= '0';
     wait until rising_edge(s_clk);
     -- Setup data before ack slot
     s_bsp_tx_data <= (others => '0');
@@ -467,6 +487,7 @@ begin
     s_bsp_tx_data_count     <= C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX;
     s_bsp_tx_bit_stuff_en   <= '0';
     s_bsp_rx_bit_destuff_en <= '0';
+    s_bsp_tx_active         <= '1';
     s_bsp_tx_write_en       <= '1';
     s_rx_tx_mismatch_rst    <= '1';
 

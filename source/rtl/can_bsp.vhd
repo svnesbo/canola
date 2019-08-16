@@ -88,7 +88,7 @@ entity can_bsp is
     BSP_TX_RX_STUFF_MISMATCH : out std_logic;  -- Mismatch Tx and Rx for stuff bit
     BSP_TX_DONE              : out std_logic;
     BSP_TX_CRC_CALC          : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_TX_RESET             : in  std_logic;  -- Resets bit stuff counter and CRC
+    BSP_TX_ACTIVE            : in  std_logic;  -- Resets bit stuff counter and CRC
 
     -- Interface to Rx FSM
     BSP_RX_ACTIVE          : out std_logic;
@@ -113,6 +113,7 @@ entity can_bsp is
     BTL_TX_BIT_VALUE           : out std_logic;
     BTL_TX_BIT_VALID           : out std_logic;
     BTL_TX_RDY                 : in  std_logic;
+    BTL_TX_DONE                : in  std_logic;
     BTL_RX_BIT_VALUE           : in  std_logic;
     BTL_RX_BIT_VALID           : in  std_logic;
     BTL_RX_SYNCED              : in  std_logic);
@@ -140,14 +141,16 @@ architecture rtl of can_bsp is
   signal s_tx_write_counter      : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_tx_stuff_counter      : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
   signal s_tx_restart_crc_pulse  : std_logic;
-  signal s_tx_bit_valid          : std_logic;
+  signal s_tx_active_reg         : std_logic;
   signal s_tx_bit_sent           : std_logic;
+  signal s_tx_bit_queued         : std_logic;
   signal s_tx_stuff_bit_sent     : std_logic;
+  signal s_tx_stuff_bit_queued   : std_logic;
 
   -- Indicates that we are ready to send next bit.
   -- Initially high when setting up BSP for a chunk of data,
   -- and goes high every time a bit has been fully transmitted and read back
-  signal s_tx_bit_done           : std_logic;
+  signal s_tx_bit_rdy            : std_logic;
 
   signal s_send_ack              : std_logic;
 
@@ -224,7 +227,6 @@ begin  -- architecture rtl
           if v_rx_stuff_counter = C_STUFF_BIT_THRESHOLD and BSP_RX_BIT_DESTUFF_EN = '1' then
             s_rx_stuff_bit_expected <= '1';
           end if;
-          --end if;
 
           s_rx_stuff_counter    <= v_rx_stuff_counter;
           s_rx_previous_bit_val <= BTL_RX_BIT_VALUE;
@@ -256,8 +258,8 @@ begin  -- architecture rtl
         elsif BTL_RX_SYNCED = '0' then
           BSP_RX_ACTIVE     <= '0';
         end if;
-      end if;
-    end if;
+      end if; -- RESET = '0'
+    end if; -- rising_edge(CLK)
   end process proc_rx;
 
 
@@ -265,13 +267,14 @@ begin  -- architecture rtl
   proc_tx : process(CLK) is
   begin  -- process proc_fsm
     if rising_edge(CLK) then
-      if RESET = '1' or BSP_TX_RESET = '1' then
+      if RESET = '1' then
         s_tx_write_counter       <= 0;
-        s_tx_stuff_counter       <= 1;
+        s_tx_stuff_counter       <= 0;
         s_tx_restart_crc_pulse   <= '1';
-        s_tx_bit_valid           <= '0';
         s_tx_bit_sent            <= '0';
+        s_tx_bit_queued          <= '0';
         s_tx_stuff_bit_sent      <= '0';
+        s_tx_stuff_bit_queued    <= '0';
         s_send_ack               <= '0';
         BTL_TX_BIT_VALUE         <= '1'; -- Recessive
         BTL_TX_BIT_VALID         <= '0';
@@ -291,14 +294,23 @@ begin  -- architecture rtl
           s_send_ack <= '1';
         end if;
 
-        if BSP_TX_WRITE_EN = '0' then
-          s_tx_write_counter <= 0;
-          s_tx_bit_done      <= '1';
+        s_tx_active_reg <= BSP_TX_ACTIVE;
+
+        -- Reset stuff counter and CRC calculator at start of transmission
+        if BSP_TX_ACTIVE = '1' and s_tx_active_reg = '0' then
+          s_tx_stuff_counter     <= 0;
+          s_tx_restart_crc_pulse <= '1';
         end if;
 
-        --if s_send_data = '0' then
-        --  s_tx_write_counter <= 0;
-        --end if;
+        -- Prepare for next chunk of data when BSP_TX_WRITE_EN goes low
+        if BSP_TX_WRITE_EN = '0' then
+          s_tx_write_counter    <= 0;
+          s_tx_bit_rdy          <= '1';
+          s_tx_bit_sent         <= '0';
+          s_tx_bit_queued       <= '0';
+          s_tx_stuff_bit_sent   <= '0';
+          s_tx_stuff_bit_queued <= '0';
+        end if;
 
         if s_send_ack = '1' then
           -- Acknowledge a received frame by asserting ACK
@@ -307,9 +319,9 @@ begin  -- architecture rtl
             BTL_TX_BIT_VALID <= '1';
             s_send_ack       <= '0';
           end if;
-        elsif BSP_TX_WRITE_EN = '1' then
+        elsif BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1' then
           if s_tx_write_counter < BSP_TX_DATA_COUNT then
-            if BTL_TX_RDY = '1' and s_tx_bit_done = '1' then
+            if BTL_TX_RDY = '1' and s_tx_bit_rdy = '1' then
               if BSP_TX_BIT_STUFF_EN = '1' and s_tx_stuff_counter = C_STUFF_BIT_THRESHOLD then
                 -- The CAN protocol requires a transition after 5 bits of same
                 -- value, by inserting a "stuff bit" of opposite value, even if
@@ -319,11 +331,11 @@ begin  -- architecture rtl
                 -- The bit stuffing is not performed for the EOF etc. of the
                 -- CAN frame, so the Tx FSM is responsible for setting
                 -- BSP_TX_BIT_STUFF_EN low for these parts of the message.
-                BTL_TX_BIT_VALUE    <= not BTL_TX_BIT_VALUE;
-                BTL_TX_BIT_VALID    <= '1';
-                s_tx_stuff_counter  <= 1;
-                s_tx_stuff_bit_sent <= '1';
-                s_tx_bit_done       <= '0';
+                BTL_TX_BIT_VALUE      <= not BTL_TX_BIT_VALUE;
+                BTL_TX_BIT_VALID      <= '1';
+                s_tx_stuff_counter    <= 1;
+                s_tx_stuff_bit_queued <= '1';
+                s_tx_bit_rdy          <= '0';
               else
                 -- BTL_TX_BIT_VALUE should still hold the previous bit value at this point..
                 if BTL_TX_BIT_VALUE = BSP_TX_DATA(s_tx_write_counter) and BSP_TX_BIT_STUFF_EN = '1' then
@@ -336,10 +348,22 @@ begin  -- architecture rtl
 
                 BTL_TX_BIT_VALUE <= BSP_TX_DATA(s_tx_write_counter);
                 BTL_TX_BIT_VALID <= '1';
-                s_tx_bit_sent    <= '1';
-                s_tx_bit_done    <= '0';
+                s_tx_bit_queued  <= '1';
+                s_tx_bit_rdy     <= '0';
               end if;
             end if;
+
+            if BTL_TX_DONE = '1' then
+              if s_tx_bit_queued = '1' then
+                s_tx_bit_queued <= '0';
+                s_tx_bit_sent   <= '1';
+
+              elsif s_tx_stuff_bit_queued = '1' then
+                s_tx_stuff_bit_queued <= '0';
+                s_tx_stuff_bit_sent   <= '1';
+              end if;
+            end if;
+
 
             if s_tx_bit_sent = '1' and BTL_RX_BIT_VALID = '1' then
               -- Did we receive the same bit we transmitted previously?
@@ -348,7 +372,7 @@ begin  -- architecture rtl
               end if;
 
               s_tx_bit_sent      <= '0';
-              s_tx_bit_done      <= '1';
+              s_tx_bit_rdy       <= '1';
               s_tx_write_counter <= s_tx_write_counter + 1;
 
             elsif s_tx_stuff_bit_sent = '1' and BTL_RX_BIT_VALID = '1' then
@@ -358,16 +382,16 @@ begin  -- architecture rtl
               end if;
 
               s_tx_stuff_bit_sent <= '0';
-              s_tx_bit_done       <= '1';
+              s_tx_bit_rdy        <= '1';
             end if;
-          elsif s_tx_bit_done = '1' then
+          elsif s_tx_bit_rdy = '1' then
             -- s_tx_write_counter has reached BSP_TX_DATA_COUNT,
             -- and we are done transmitting and reading back the last bit
             BSP_TX_DONE       <= '1';
           end if;
-        end if;
-      end if;
-    end if;
+        end if; -- BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1'
+      end if; -- if/else RESET = '0'
+    end if; -- rising_edge(CLK)
   end process proc_tx;
 
 
@@ -384,7 +408,7 @@ begin  -- architecture rtl
       CLK       => CLK,
       RESET     => RESET or s_tx_restart_crc_pulse,
       BIT_IN    => BTL_TX_BIT_VALUE,
-      BIT_VALID => BTL_TX_BIT_VALID and s_tx_bit_sent,
+      BIT_VALID => BTL_TX_BIT_VALID and s_tx_bit_queued,
       CRC_OUT   => BSP_TX_CRC_CALC);
 
 end architecture rtl;

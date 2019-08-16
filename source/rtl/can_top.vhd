@@ -69,6 +69,7 @@ architecture struct of can_top is
   -- Signals for Tx FSM
   signal s_tx_fsm_ack_recv           : std_logic;  -- Acknowledge was received
   signal s_tx_fsm_arb_lost           : std_logic;  -- Arbitration was lost
+  signal s_tx_fsm_active             : std_logic;  -- Tx FSM wants to transmit
   signal s_tx_fsm_reg_msg_sent_count : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
   signal s_tx_fsm_reg_ack_recv_count : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
   signal s_tx_fsm_reg_arb_lost_count : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -88,7 +89,7 @@ architecture struct of can_top is
   signal s_bsp_tx_rx_stuff_mismatch : std_logic;  -- Mismatch Tx/Rx (stuff bit)
   signal s_bsp_tx_done              : std_logic;
   signal s_bsp_tx_crc_calc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_tx_reset             : std_logic;  -- Resets bit stuff counter and CRC
+  signal s_bsp_tx_active            : std_logic;  -- Resets bit stuff counter and CRC
 
   -- BSP interface to Rx FSM
   signal s_bsp_rx_active               : std_logic;
@@ -109,6 +110,7 @@ architecture struct of can_top is
   signal s_btl_tx_bit_value    : std_logic;
   signal s_btl_tx_bit_valid    : std_logic;
   signal s_btl_tx_rdy          : std_logic;
+  signal s_btl_tx_done         : std_logic;
   signal s_btl_rx_bit_value    : std_logic;
   signal s_btl_rx_bit_valid    : std_logic;
   signal s_btl_rx_synced       : std_logic;
@@ -150,14 +152,15 @@ begin  -- architecture struct
       TX_ACK_RECV                => s_tx_fsm_ack_recv,
       TX_ARB_LOST                => s_tx_fsm_arb_lost,
       TX_ERROR                   => TX_ERROR,
+      TX_ACTIVE                  => s_tx_fsm_active,
       BSP_TX_DATA                => s_bsp_tx_data,
       BSP_TX_DATA_COUNT          => s_bsp_tx_data_count,
       BSP_TX_WRITE_EN            => s_bsp_tx_write_en,
       BSP_TX_BIT_STUFF_EN        => s_bsp_tx_bit_stuff_en,
       BSP_TX_RX_MISMATCH         => s_bsp_tx_rx_mismatch,
+      BSP_TX_RX_STUFF_MISMATCH   => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE                => s_bsp_tx_done,
       BSP_TX_CRC_CALC            => s_bsp_tx_crc_calc,
-      BSP_TX_RESET               => s_bsp_tx_reset,
       BSP_RX_ACTIVE              => s_bsp_rx_active,
       BSP_SEND_ERROR_FRAME       => s_bsp_send_error_frame_tx_fsm,
       REG_MSG_SENT_COUNT         => s_tx_fsm_reg_msg_sent_count,
@@ -201,7 +204,7 @@ begin  -- architecture struct
       BSP_TX_RX_STUFF_MISMATCH => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE              => s_bsp_tx_done,
       BSP_TX_CRC_CALC          => s_bsp_tx_crc_calc,
-      BSP_TX_RESET             => s_bsp_tx_reset,
+      BSP_TX_ACTIVE            => s_tx_fsm_active,
       BSP_RX_ACTIVE            => s_bsp_rx_active,
       BSP_RX_DATA              => s_bsp_rx_data,
       BSP_RX_DATA_COUNT        => s_bsp_rx_data_count,
@@ -216,6 +219,7 @@ begin  -- architecture struct
       BTL_TX_BIT_VALUE         => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID         => s_btl_tx_bit_valid,
       BTL_TX_RDY               => s_btl_tx_rdy,
+      BTL_TX_DONE              => s_btl_tx_done,
       BTL_RX_BIT_VALUE         => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID         => s_btl_rx_bit_valid,
       BTL_RX_SYNCED            => s_btl_rx_synced);
@@ -229,6 +233,8 @@ begin  -- architecture struct
       BTL_TX_BIT_VALUE        => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID        => s_btl_tx_bit_valid,
       BTL_TX_RDY              => s_btl_tx_rdy,
+      BTL_TX_DONE             => s_btl_tx_done,
+      BTL_TX_ACTIVE           => s_tx_fsm_active,
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,

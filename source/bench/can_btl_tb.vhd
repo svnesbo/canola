@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2019-08-14
+-- Last update: 2019-08-16
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -117,6 +117,7 @@ architecture tb of can_btl_tb is
   signal s_btl_tx_bit_value : std_logic := '0';
   signal s_btl_tx_bit_valid : std_logic := '0';
   signal s_btl_tx_rdy       : std_logic;
+  signal s_btl_tx_active    : std_logic := '0';
   signal s_btl_rx_bit_value : std_logic;
   signal s_btl_rx_bit_valid : std_logic;
   signal s_btl_rx_synced    : std_logic;
@@ -159,6 +160,7 @@ begin
       BTL_TX_BIT_VALUE        => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID        => s_btl_tx_bit_valid,
       BTL_TX_RDY              => s_btl_tx_rdy,
+      BTL_TX_ACTIVE           => s_btl_tx_active,
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
