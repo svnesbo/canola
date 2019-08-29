@@ -416,16 +416,18 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      can_uvvm_read(v_recv_arb_id,
-                    v_recv_ext_id,
-                    v_recv_remote_frame,
-                    v_recv_data,
-                    v_recv_data_length,
-                    "Receive random message with CAN BFM",
-                    s_clk,
-                    s_can_bfm_tx,
-                    s_can_bfm_rx,
-                    v_recv_timeout);
+      can_uvvm_check(v_xmit_arb_id,
+                     --v_xmit_ext_id,
+                     '0', -- No extended ID
+                     v_xmit_remote_frame,
+                     '0', -- Don't send remote request and expect response
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Receive and check message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     error);
 
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
