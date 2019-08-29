@@ -55,7 +55,7 @@ architecture tb of can_top_tb is
   constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
-  constant C_NUM_ITERATIONS  : natural := 10;
+  constant C_NUM_ITERATIONS  : natural := 100;
 
   -- Generate a clock with a given period,
   -- based on clock_gen from Bitvis IRQC testbench

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2018-08-10
+-- Last update: 2019-08-29
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ package can_bfm_pkg is
     signal can_tx             : out std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    constant bit_stuff_en     : in  std_logic;
+    constant bit_stuff_en     : in  std_logic; -- Todo: remove, not used
     variable timeout          : out std_logic;
     variable crc_error        : out std_logic;
     constant clock_period     : in  time;
@@ -108,6 +108,7 @@ package can_bfm_pkg is
   constant C_ACK_DELIM_INDEX : natural := 17; -- ACK delimiter (recessive 1)
   constant C_EOF_INDEX       : natural := 18; -- End Of Frame (recessive 1)
 
+  constant C_CRC_SIZE        : natural := 15;
   constant C_EOF_SIZE        : natural := 7;  -- 7 End Of Frame bits (recessive 1)
   constant C_IFS_SIZE        : natural := 3;  -- 3 Interframe Spacing bits (recessive 1)
 
@@ -147,7 +148,7 @@ package body can_bfm_pkg is
 
     -- Bit start index for crc in bit_buffer (depends on data size)
     variable crc_start_index  : natural;
-    variable crc              : std_logic_vector(14 downto 0);
+    variable crc              : std_logic_vector(C_CRC_SIZE-1 downto 0);
 
     variable frame_end_index : natural;
 
@@ -203,7 +204,7 @@ package body can_bfm_pkg is
       end if;
 
       crc := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
-      bit_buffer(crc_start_index to crc_start_index+14) := crc;
+      bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1) := crc;
 
       bit_buffer(crc_start_index+C_CRC_DELIM_INDEX) := '1';
       bit_buffer(crc_start_index+C_ACK_SLOT_INDEX) := '1';
@@ -243,7 +244,7 @@ package body can_bfm_pkg is
       end if;
 
       crc := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
-      bit_buffer(crc_start_index to crc_start_index+14) := crc;
+      bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1) := crc;
 
       bit_buffer(crc_start_index+C_CRC_DELIM_INDEX) := '1';
       bit_buffer(crc_start_index+C_ACK_SLOT_INDEX) := '1';
@@ -348,7 +349,7 @@ package body can_bfm_pkg is
     signal can_tx             : out std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    constant bit_stuff_en     : in  std_logic;
+    constant bit_stuff_en     : in  std_logic; -- Todo: remove, not used
     variable timeout          : out std_logic;
     variable crc_error        : out std_logic;
     constant clock_period     : in  time;
@@ -381,8 +382,8 @@ package body can_bfm_pkg is
 
     -- Bit start index for crc in bit_buffer (depends on data size)
     variable crc_start_index  : natural;
-    variable crc_calc         : std_logic_vector(14 downto 0);
-    variable crc_received     : std_logic_vector(14 downto 0);
+    variable crc_calc         : std_logic_vector(C_CRC_SIZE-1 downto 0);
+    variable crc_received     : std_logic_vector(C_CRC_SIZE-1 downto 0);
 
     constant bit_period        : time    := 1 sec /bit_rate;
     constant bit_quanta        : time    := bit_period / 10;
@@ -430,31 +431,27 @@ package body can_bfm_pkg is
 
       sample_point_dbg := '1';
 
-      -- TODO: Check for bit stuffing errors...
+      -- After 5 consecutive bits of same value, a stuffing bit is sent
+      if bit_stuffing_counter = 5 then
+        -- Discard stuff bits
+        bit_stuffing_dbg     := '1';
+        bit_stuffing_counter := 1;
 
-      if bit_stuff_en = '1' then
-        -- After 5 consecutive bits of same value, a stuffing bit is sent
-        if bit_stuffing_counter = 5 then
-          -- Discard stuff bits
-          bit_stuffing_dbg     := '1';
+        assert previous_bit_value /= can_rx report "Stuff bit with wrong polarity received" severity failure;
+
+        previous_bit_value := can_rx;
+      else
+        -- Data bits
+        bit_buffer(bit_counter) := can_rx;
+        bit_counter             := bit_counter + 1;
+
+        if previous_bit_value /= can_rx or bit_counter = 0 then
+          -- Reset bit stuffing counter when bit differs from previous bit
           bit_stuffing_counter := 1;
-
-          assert previous_bit_value /= can_rx report "Stuff bit with wrong polarity received" severity failure;
-
           previous_bit_value   := can_rx;
         else
-          -- Data bits
-          bit_buffer(bit_counter) := can_rx;
-          bit_counter             := bit_counter + 1;
-
-          if previous_bit_value /= can_rx or bit_counter = 0 then
-            -- Reset bit stuffing counter when bit differs from previous bit
-            bit_stuffing_counter := 1;
-            previous_bit_value   := can_rx;
-          else
-            -- Increase bit stuffing counter for consecutive bits of same value
-            bit_stuffing_counter := bit_stuffing_counter + 1;
-          end if;
+          -- Increase bit stuffing counter for consecutive bits of same value
+          bit_stuffing_counter := bit_stuffing_counter + 1;
         end if;
       end if;
 
@@ -471,7 +468,7 @@ package body can_bfm_pkg is
             data_length_bits := 8 * to_integer(unsigned(bit_buffer(C_STD_DLC_INDEX to C_STD_DLC_INDEX+3)));
           end if;
 
-          can_frame_bit_size := data_length_bits + C_STD_DATA_INDEX + C_CRC_DELIM_INDEX + 1;
+          can_frame_bit_size := data_length_bits + C_STD_DATA_INDEX + C_CRC_SIZE;
 
         elsif bit_buffer(C_EXT_IDE_INDEX) = '1' and bit_counter = C_EXT_DLC_INDEX+4 then
           data_length := to_integer(unsigned(bit_buffer(C_EXT_DLC_INDEX to C_EXT_DLC_INDEX+3)));
@@ -483,7 +480,7 @@ package body can_bfm_pkg is
             data_length_bits := 8 * to_integer(unsigned(bit_buffer(C_EXT_DLC_INDEX to C_EXT_DLC_INDEX+3)));
           end if;
 
-          can_frame_bit_size := data_length_bits + C_EXT_DATA_INDEX + C_CRC_DELIM_INDEX + 1;
+          can_frame_bit_size := data_length_bits + C_EXT_DATA_INDEX + C_CRC_SIZE;
         end if;
       end if;
 
@@ -501,11 +498,32 @@ package body can_bfm_pkg is
     end loop;
 
     -- -------------------------------------------------------------------------
+    -- Receive CRC delimiter
+    -- -------------------------------------------------------------------------
+
+    -- Wait for sampling point before sampling CAN RX
+    for cycle_count in 0 to sample_point_cycles-1 loop
+      wait until rising_edge(clk);
+    end loop;
+    sample_point_dbg := '1';
+
+    assert can_rx = '1'
+      report "can_read(): CRC delimiter was 0, expected 1" severity error;
+
+    -- Wait for the remaining time (phase 2) of this bit
+    for cycle_count in 0 to phase2_cycles-1 loop
+      wait until rising_edge(clk);
+      sample_point_dbg := '0';
+    end loop;  -- cycle_count
+
+    -- -------------------------------------------------------------------------
     -- Verify CRC and CRC delimiter value
     -- -------------------------------------------------------------------------
-    crc_start_index := can_frame_bit_size - (C_CRC_DELIM_INDEX+1);
-    crc_calc := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
-    crc_received := bit_buffer(crc_start_index to crc_start_index+14);
+    crc_start_index := can_frame_bit_size - C_CRC_SIZE;
+
+    -- bit_buffer holds frame data up to and including CRC, but not CRC delim
+    crc_calc     := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
+    crc_received := bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1);
 
     if crc_calc /= crc_received then
       crc_error := '1';
@@ -514,9 +532,6 @@ package body can_bfm_pkg is
       wait until rising_edge(clk);
       return;
     end if;
-
-    assert bit_buffer(crc_start_index + C_CRC_DELIM_INDEX) = '1'
-      report "can_read(): CRC delimiter was 0, expected 1" severity error;
 
     -- -------------------------------------------------------------------------
     -- Send ACK signal
