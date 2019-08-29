@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-08-16
+-- Last update: 2019-08-29
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -46,7 +46,7 @@ architecture tb of can_top_tb is
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
 
   constant C_CAN_BAUD_PERIOD  : time    := 10000 ns;  -- 100 kHz
-  constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CLK_PERIOD;
+  constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
 
   -- Indicates where in a bit the Rx sample point should be
   -- Real value from 0.0 to 1.0.
@@ -119,6 +119,13 @@ architecture tb of can_top_tb is
   -- Shared CAN bus signal
   signal s_can_bus_signal    : std_logic;
 
+  -- Used by p_can_ctrl_rx_msg which monitors
+  -- when the CAN controller receives a message
+  signal s_msg_received : std_logic := '0';
+  signal s_msg_reset    : std_logic := '0';
+  signal s_msg          : can_msg_t;
+
+
 begin
 
   -- Set up clock generators
@@ -157,6 +164,17 @@ begin
       BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                  C_TIME_QUANTA_WIDTH)
       );
+
+  -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
+  p_can_ctrl_rx_msg: process (s_can_ctrl_rx_msg_valid, s_msg_reset) is
+  begin
+    if s_msg_reset = '1' then
+      s_msg_received <= '0';
+    elsif s_can_ctrl_rx_msg_valid = '1' then
+      s_msg_received <= '1';
+      s_msg          <= s_can_ctrl_rx_msg;
+    end if;
+  end process p_can_ctrl_rx_msg;
 
 
   p_main: process
@@ -308,6 +326,11 @@ begin
     v_test_num := 0;
 
     while v_test_num < C_NUM_ITERATIONS loop
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
+
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
                                    v_xmit_data_length,
@@ -330,6 +353,35 @@ begin
                      s_clk,
                      s_can_bfm_tx,
                      s_can_bfm_rx);
+
+      wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+
+      check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
+      check_value(s_msg.ext_id, c_xmit_ext_id, error, "Check extended ID bit");
+
+      -- Todo: Replace with variable and test both basic and extended ID
+      if c_xmit_ext_id = '1' then
+        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+      else
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
+                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+                    error,
+                    "Check received ID");
+      end if;
+
+      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+      check_value(s_msg.data_length,
+                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                  error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
 
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
