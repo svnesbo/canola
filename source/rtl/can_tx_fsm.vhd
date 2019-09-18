@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-16
+-- Last update: 2019-09-18
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -50,17 +50,20 @@ entity can_tx_fsm is
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
   port (
-    CLK              : in  std_logic;
-    RESET            : in  std_logic;
-    TX_MSG_IN        : in  can_msg_t;
-    TX_START         : in  std_logic;  -- Start sending TX_MSG
-    TX_BUSY          : out std_logic;  -- FSM busy
-    TX_DONE          : out std_logic;  -- Transmit complete
-    TX_ACK_RECV      : out std_logic;  -- Acknowledge was received
-    TX_ARB_LOST      : out std_logic;  -- Arbitration was lost
-    TX_ERROR         : out std_logic;  -- Error while transmitting frame
-    TX_FAILED        : out std_logic;  -- (Re)transmit failed (arb lost or error)
-    TX_ACTIVE        : out std_logic;  -- Signaled to BSP, BTL, and Rx FSM
+    CLK                            : in  std_logic;
+    RESET                          : in  std_logic;
+    TX_MSG_IN                      : in  can_msg_t;
+    TX_START                       : in  std_logic;  -- Start sending TX_MSG
+    TX_BUSY                        : out std_logic;  -- FSM busy
+    TX_DONE                        : out std_logic;  -- Transmit complete
+    TX_ACK_RECV                    : out std_logic;  -- Acknowledge was received
+    TX_ARB_LOST                    : out std_logic;  -- Arbitration was lost
+    TX_BIT_ERROR                   : out std_logic;  -- Mismatch transmitted vs. monitored bit
+    TX_ACK_ERROR                   : out std_logic;  -- No ack received
+    TX_ARB_STUFF_ERROR             : out std_logic;  -- Stuff error during arbitration field
+    TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
+    TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
+    TX_ACTIVE                      : out std_logic;  -- Signaled to BSP,   BTL,   and Rx FSM
 
     -- Signals to/from BSP
     BSP_TX_DATA                : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -72,7 +75,7 @@ entity can_tx_fsm is
     BSP_TX_DONE                : in  std_logic;
     BSP_TX_CRC_CALC            : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_ACTIVE              : in  std_logic;
-    BSP_SEND_ERROR_FRAME       : out std_logic;
+    BSP_SEND_ERROR_FLAG        : out std_logic;
 
     -- Counter registers for FSM
     REG_MSG_SENT_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -103,6 +106,7 @@ architecture rtl of can_tx_fsm is
                         ST_SETUP_ACK_SLOT,
                         ST_SETUP_ACK_DELIM,
                         ST_SETUP_EOF,
+                        ST_SETUP_ERROR_FLAG,
                         ST_SEND_SOF,
                         ST_SEND_ID_A,
                         ST_SEND_SRR,
@@ -118,8 +122,10 @@ architecture rtl of can_tx_fsm is
                         ST_SEND_RECV_ACK_SLOT,
                         ST_SEND_ACK_DELIM,
                         ST_SEND_EOF,
+                        ST_SEND_ERROR_FLAG,
                         ST_ARB_LOST,
-                        ST_FORM_ERROR,
+                        ST_BIT_ERROR,
+                        ST_ACK_ERROR,
                         ST_RETRANSMIT,
                         ST_DONE);
 
@@ -200,7 +206,7 @@ begin  -- architecture rtl
 
           when ST_SEND_SOF =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ID_A;
             else
@@ -214,6 +220,11 @@ begin  -- architecture rtl
             s_fsm_state                       <= ST_SEND_ID_A;
 
           when ST_SEND_ID_A =>
+            -- TODO: Check for stuff errors
+            --       If
+            if BSP_TX_RX_STUFF_MISMATCH = '1' then
+
+              s_fsm_state <= ST_SEND_ERROR_FLAG;
             if BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
@@ -234,7 +245,7 @@ begin  -- architecture rtl
 
           when ST_SEND_SRR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_IDE;
             else
@@ -258,7 +269,7 @@ begin  -- architecture rtl
               if s_reg_tx_msg.ext_id = '1' then
                 s_fsm_state <= ST_ARB_LOST;
               else
-                s_fsm_state <= ST_FORM_ERROR;
+                s_fsm_state <= ST_BIT_ERROR;
               end if;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
@@ -293,7 +304,7 @@ begin  -- architecture rtl
 
           when ST_SEND_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
                 s_fsm_state <= ST_SETUP_R1;
@@ -312,7 +323,7 @@ begin  -- architecture rtl
 
           when ST_SEND_R1 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_R0;
             else
@@ -327,7 +338,7 @@ begin  -- architecture rtl
 
           when ST_SEND_R0 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_DLC;
             else
@@ -342,7 +353,7 @@ begin  -- architecture rtl
 
           when ST_SEND_DLC =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.remote_request = '1' then
                 s_fsm_state <= ST_SETUP_CRC;
@@ -368,7 +379,7 @@ begin  -- architecture rtl
 
           when ST_SEND_DATA =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC;
             else
@@ -384,7 +395,7 @@ begin  -- architecture rtl
 
           when ST_SEND_CRC =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC_DELIM;
             else
@@ -403,7 +414,7 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN   <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ACK_SLOT;
             else
@@ -443,7 +454,7 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_SETUP_EOF;
             else
@@ -461,11 +472,28 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_FORM_ERROR;
+              s_fsm_state <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_DONE;
             else
               BSP_TX_WRITE_EN <= '1';
+            end if;
+
+          when ST_SETUP_ERROR_FLAG =>
+            -- Pulse send error flag output to BSP here
+            -- UNLESS we are in BUS_OFF state
+            BSP_SEND_ERROR_FLAG <= '1';
+            s_fsm_state         <= ST_SEND_ERROR_FLAG;
+
+          when ST_SEND_ERROR_FLAG =>
+            if BSP_ERROR_STATE = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+              -- CAN specification 7.1:
+              -- Bit errors while sending active error flag should be detected,
+              -- and leads to an increase in transmit error count by 8 in the EML
+              TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '1';
+              s_fsm_state                    <= ST_RETRANSMIT;
+            elsif BSP_ERROR_FLAG_DONE = '1' then
+              s_fsm_state <= ST_RETRANSMIT;
             end if;
 
           when ST_ARB_LOST =>
@@ -473,12 +501,12 @@ begin  -- architecture rtl
             s_reg_arb_lost_counter <= s_reg_arb_lost_counter + 1;
             s_fsm_state            <= ST_RETRANSMIT;
 
-          when ST_FORM_ERROR =>
+          when ST_BIT_ERROR =>
             BSP_SEND_ERROR_FRAME <= '1';
             s_reg_error_counter  <= s_reg_error_counter + 1;
             s_fsm_state          <= ST_RETRANSMIT;
 
-            --when ST_ACK_ERROR =>
+          when ST_ACK_ERROR =>
             -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
             --"An Acknowledgement error must be detected by a transmitter whenever it does not monitor a
             -- dominant bit during ACK Slot"
@@ -500,6 +528,10 @@ begin  -- architecture rtl
             --  as a Bit error"
 
           when ST_RETRANSMIT =>
+            -- TODO:
+            -- Find out WHEN we are allowed to retransmit.....
+            -- Check CAN specification
+
             -- Retry transmission until retransmit count is reached
             -- TODO: Need to respect IFS etc. before retransmitting....
             if s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then

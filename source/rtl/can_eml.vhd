@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-08-14
+-- Last update: 2019-09-18
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -28,17 +28,25 @@ use work.can_pkg.all;
 
 entity can_eml is
   port (
-    CLK                  : in  std_logic;
-    RESET                : in  std_logic;
-    BIT_ERROR            : in  std_logic;
-    STUFF_ERROR          : in  std_logic;
-    CRC_ERROR            : in  std_logic;
-    FORM_ERROR           : in  std_logic;
-    ACK_ERROR            : in  std_logic;
-    XMIT_SUCCESS         : in  std_logic;
-    RECV_SUCCESS         : in  std_logic;
-    XMIT_FAIL            : in  std_logic;
-    RECV_FAIL            : in  std_logic;
+    CLK   : in std_logic;
+    RESET : in std_logic;
+
+    -- Error and success inputs should all be pulsed
+    RX_STUFF_ERROR                   : in std_logic;
+    RX_CRC_ERROR                     : in std_logic;
+    RX_FORM_ERROR                    : in std_logic;
+    RX_ACTIVE_ERROR_FLAG_BIT_ERROR   : in std_logic;
+    RX_OVERLOAD_FLAG_BIT_ERROR       : in std_logic;
+    RX_DOMINANT_BIT_AFTER_ERROR_FLAG : in std_logic;
+    TX_BIT_ERROR                     : in std_logic;
+    TX_ACK_ERROR                     : in std_logic;
+    TX_ACK_PASSIVE_ERROR             : in std_logic;
+    TX_ACTIVE_ERROR_FLAG_BIT_ERROR   : in std_logic;
+    TRANSMIT_SUCCESS                 : in std_logic;
+    RECEIVE_SUCCESS                  : in std_logic;
+    RECV_11_RECESSIVE_BITS           : in std_logic;  -- Received/detected a sequence of
+                                                      -- 11 recessive bits.
+
     ERROR_STATE          : out can_error_state_t;
     TRANSMIT_ERROR_COUNT : out unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
     RECEIVE_ERROR_COUNT  : out unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)
@@ -47,21 +55,23 @@ entity can_eml is
 end entity can_eml;
 
 architecture rtl of can_eml is
-  signal s_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_transmit_error_count     : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_receive_error_count      : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_receive_11_passive_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
 begin  -- architecture rtl
 
   TRANSMIT_ERROR_COUNT <= s_transmit_error_count;
   RECEIVE_ERROR_COUNT  <= s_receive_error_count;
 
-  proc_error_manager : process(CLK) is
+  proc_error_counters : process(CLK) is
   begin  -- process proc_fsm
     if rising_edge(CLK) then
       -- Synchronous reset
       if RESET = '1' then
-        s_transmit_error_count <= (others => '0');
-        s_receive_error_count  <= (others => '0');
+        s_transmit_error_count     <= (others => '0');
+        s_receive_error_count      <= (others => '0');
+        s_receive_11_passive_count <= (others => '0');
       else
         if XMIT_SUCCESS = '1' then
           if s_transmit_error_count >= C_ERROR_PASSIVE_THRESHOLD then
@@ -90,6 +100,12 @@ begin  -- architecture rtl
             s_receive_error_count <= s_receive_error_count + 1;
           end if;
         end if;
+
+        if RECV_11_PASSIVES = '1' then
+          if s_receive_11_passive_count < (2**C_ERROR_COUNT_LENGTH)-1 then
+            s_receive_11_passive_count <= s_receive_11_passive_count + 1;
+          end if;
+        end if;
       end if;
 
       -- TODO:
@@ -111,6 +127,18 @@ begin  -- architecture rtl
       -- An error count value greater than about 96 indicates a heavily disturbed bus. It may be
       -- of advantage to provide means to test for this condition.
     end if;
-  end process proc_error_manager;
+  end process proc_error_counters;
+
+
+  proc_error_status : process(CLK) is
+  begin  -- process proc_fsm
+    if rising_edge(CLK) then
+      -- Synchronous reset
+      if RESET = '1' then
+
+      else
+
+    end if;
+  end process proc_error_counters;
 
 end architecture rtl;

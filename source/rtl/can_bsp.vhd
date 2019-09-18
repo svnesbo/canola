@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-08-16
+-- Last update: 2019-09-17
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -102,12 +102,17 @@ entity can_bsp is
     BSP_RX_CRC_CALC        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK        : in  std_logic;  -- Pulsed input
 
-    BSP_SEND_ERROR_FRAME   : in  std_logic;  -- When pulsed, BSP cancels
+    BSP_SEND_ERROR_FLAG    : in  std_logic;  -- When pulsed, BSP cancels
                                              -- whatever it is doing, and sends
-                                             -- an error frame of 6 dominant bits
+                                             -- an error flag. The type of flag
+                                             -- depends on BSP_ERROR_STATE input
     BSP_ERROR_STATE : in can_error_state_t;  -- Indicates if the CAN controller
                                              -- is in active or passive error
                                              -- state, or bus off state
+    BSP_ERROR_FLAG_DONE      : out std_logic; -- Pulsed
+    BSP_ERROR_FLAG_BIT_ERROR : out std_logic; -- Bit error was detected while
+                                              -- transmitting error flag
+                                              -- Note: Only for ACTIVE error flag
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;

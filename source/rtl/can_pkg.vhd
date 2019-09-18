@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-16
+-- Last update: 2019-09-18
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -96,7 +96,15 @@ package can_pkg is
   constant C_ERROR_PASSIVE_THRESHOLD : natural := 128;
   constant C_BUS_OFF_THRESHOLD       : natural := 256;
 
-  constant C_ERROR_COUNT_LENGTH      : natural := 10;
+  -- Number of counts of 11 consecutive recessive bits required to exit BUS OFF
+  constant C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD : natural := 128;
+
+  -- Receive error counter will jump to this value when successfully receiving
+  -- a message, but only in the case when the receive error counter is equal to
+  -- or higher than 128 (C_ERROR_PASSIVE_THRESHOLD).
+  constant C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE : natural := 120;
+
+  constant C_ERROR_COUNT_LENGTH      : natural := 8;
 
   constant C_ACTIVE_ERROR_FLAG_DATA  : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "000000";
   constant C_PASSIVE_ERROR_FLAG_DATA : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "111111";
