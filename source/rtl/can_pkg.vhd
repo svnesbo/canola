@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-09-18
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ package can_pkg is
   -- or higher than 128 (C_ERROR_PASSIVE_THRESHOLD).
   constant C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE : natural := 120;
 
-  constant C_ERROR_COUNT_LENGTH      : natural := 8;
+  constant C_ERROR_COUNT_LENGTH      : natural := 10;
 
   constant C_ACTIVE_ERROR_FLAG_DATA  : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "000000";
   constant C_PASSIVE_ERROR_FLAG_DATA : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "111111";

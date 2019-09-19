@@ -65,7 +65,14 @@ begin  -- architecture rtl
   RECEIVE_ERROR_COUNT  <= s_receive_error_count;
 
   proc_error_counters : process(CLK) is
-  begin  -- process proc_fsm
+    -- Transmit and receive counter variables are 1 bit larger
+    -- than corresponding signals to check for overflow
+    -- Counter for sequences of 11 recessive bits should never overflow
+    variable v_transmit_error_count            : unsigned(C_ERROR_COUNT_LENGTH downto 0);
+    variable v_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH downto 0);
+    variable v_receive_11_recessive_bits_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    variable v_exit_bus_off                    : std_logic;
+  begin
     if rising_edge(CLK) then
       -- Synchronous reset
       if RESET = '1' then
@@ -73,72 +80,130 @@ begin  -- architecture rtl
         s_receive_error_count             <= (others => '0');
         s_receive_11_recessive_bits_count <= (others => '0');
       else
-        if TRANSMIT_SUCCESS = '1' then
-          if s_transmit_error_count >= C_ERROR_PASSIVE_THRESHOLD then
-            s_transmit_error_count <= to_unsigned(119, C_ERROR_COUNT_LENGTH); -- Todo: add constant
-          elsif s_transmit_error_count > 0 then
-            s_transmit_error_count <= s_transmit_error_count - 1;
+        v_receive_error_count                                := (others => '0');
+        v_receive_error_count(s_receive_error_count'range)   := s_receive_error_count;
+        v_transmit_error_count                               := (others => '0');
+        v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+        v_exit_bus_off                                       := '0';
+
+        ------------------------------------------------------------------------
+        -- Transmit error counter logic
+        ------------------------------------------------------------------------
+        if TX_BIT_ERROR = '1' then
+          v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+          v_transmit_error_count                               := v_transmit_error_count + 8;
+
+        elsif TX_ACK_ERROR = '1' then
+          v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+          v_transmit_error_count                               := v_transmit_error_count + 8;
+
+        elsif TX_ACK_PASSIVE_ERROR = '1' then
+          v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+          v_transmit_error_count                               := v_transmit_error_count + 8;
+        -- Todo: Just rename TX_ERROR_FLAG_BIT_ERROR and let EML do checking if
+          -- we are ERROR ACTIVE or ERROR PASSIVE
+
+        elsif TX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
+          v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+          v_transmit_error_count                               := v_transmit_error_count + 8;
+
+        elsif TRANSMIT_SUCCESS = '1' then
+          if s_transmit_error_count > 0 then
+            v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
+            v_transmit_error_count                               := v_transmit_error_count - 1;
           end if;
         end if;
 
-        --if XMIT_FAIL = '1' then
-        --  if s_transmit_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-        --    s_transmit_error_count <= s_transmit_error_count + 1;
-        --  end if;
-        --end if;
 
-        if RECEIVE_SUCCESS = '1' then
+
+        ------------------------------------------------------------------------
+        -- Receive error counter logic
+        ------------------------------------------------------------------------
+        if RX_STUFF_ERROR = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 1;
+
+        elsif RX_CRC_ERROR = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 1;
+
+        elsif RX_FORM_ERROR = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 1;
+
+        elsif RX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 8;
+
+        elsif RX_OVERLOAD_FLAG_BIT_ERROR = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 8;
+
+        elsif RX_DOMINANT_BIT_AFTER_ERROR_FLAG = '1' then
+          v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+          v_receive_error_count                              := v_receive_error_count + 8;
+
+        elsif RECEIVE_SUCCESS = '1' then
           if s_receive_error_count >= C_ERROR_PASSIVE_THRESHOLD then
-            s_receive_error_count <= to_unsigned(119, C_ERROR_COUNT_LENGTH); -- Todo: add constant
+            v_receive_error_count := to_unsigned(C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE,
+                                                 v_receive_error_count'length);
           elsif s_receive_error_count > 0 then
-            s_receive_error_count <= s_receive_error_count - 1;
+            v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
+            v_receive_error_count                              := v_receive_error_count + 1;
           end if;
         end if;
 
-        --if RECV_FAIL = '1' then
-        --  if s_receive_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-        --    s_receive_error_count <= s_receive_error_count + 1;
-        --  end if;
-        --end if;
+        ------------------------------------------------------------------------
+        -- 11 successive recessive bit counter logic
+        ------------------------------------------------------------------------
+        if ERROR_STATE = BUS_OFF then
+          if RECV_11_RECESSIVE_BITS = '1' then
+            v_receive_11_recessive_bits_count := s_receive_11_recessive_bits_count + 1;
 
-        if RECV_11_RECESSIVE_BITS = '1' then
-          if s_receive_11_recessive_bits_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-            s_receive_11_recessive_bits_count <= s_receive_11_recessive_bits_count + 1;
+            if v_receive_11_recessive_bits_count = C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD then
+              v_exit_bus_off := '1';
+            end if;
           end if;
-        end if;
-      end if;
-
-      -- TODO:
-      -- 12. An node which is ’bus off’ is permitted to become ’error active’ (no longer ’bus off’)
-      -- with its error counters both set to 0 after 128 occurrence of 11 consecutive
-      --  ’recessive’ bits have been monitored on the bus.
-      if s_transmit_error_count >= C_BUS_OFF_THRESHOLD then
-        ERROR_STATE <= BUS_OFF;
-      elsif ERROR_STATE /= BUS_OFF then
-        if s_transmit_error_count > C_ERROR_PASSIVE_THRESHOLD then
-          ERROR_STATE <= ERROR_PASSIVE;
         else
-          ERROR_STATE <= ERROR_ACTIVE;
+          -- Don't start counts of 11 recessive bit sequences
+          -- before we are in bus off
+          v_receive_11_recessive_bits_count := (others => '0');
         end if;
-      end if;
 
+        ------------------------------------------------------------------------
+        -- Update counter registers
+        ------------------------------------------------------------------------
+        s_receive_11_recessive_bits_count <= v_receive_11_recessive_bits_count;
 
-      -- TODO:
-      -- An error count value greater than about 96 indicates a heavily disturbed bus. It may be
-      -- of advantage to provide means to test for this condition.
-    end if;
+        if v_exit_bus_off = '1' then
+          s_transmit_error_count            <= (others => '0');
+          s_receive_error_count             <= (others => '0');
+        else
+          s_transmit_error_count            <= v_transmit_error_count(s_transmit_error_count'range);
+          s_receive_error_count             <= v_receive_error_count(s_receive_error_count'range);
+        end if;
+
+      end if; -- reset
+    end if; -- rising_edge(clk)
   end process proc_error_counters;
 
+  ------------------------------------------------------------------------
+  -- Update error state based on error counter values
+  ------------------------------------------------------------------------
+  proc_error_state : process(s_transmit_error_count, s_receive_error_count) is
+  begin
+    if s_transmit_error_count >= C_BUS_OFF_THRESHOLD then
+      ERROR_STATE <= BUS_OFF;
 
-  proc_error_status : process(CLK) is
-  begin  -- process proc_fsm
-    if rising_edge(CLK) then
-      -- Synchronous reset
-      if RESET = '1' then
+    elsif s_transmit_error_count >= C_ERROR_PASSIVE_THRESHOLD then
+      ERROR_STATE <= ERROR_PASSIVE;
 
-      else
-      end if;
+    elsif s_receive_error_count >= C_ERROR_PASSIVE_THRESHOLD then
+      ERROR_STATE <= ERROR_PASSIVE;
+
+    else
+      ERROR_STATE <= ERROR_ACTIVE;
     end if;
-  end process proc_error_status;
+  end process proc_error_state;
 
 end architecture rtl;
