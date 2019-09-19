@@ -93,7 +93,7 @@ begin  -- architecture rtl
           v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
           v_transmit_error_count                               := v_transmit_error_count + 8;
 
-        elsif TX_ACK_ERROR = '1' then
+        elsif TX_ACK_ERROR = '1' and ERROR_STATE = ERROR_ACTIVE then
           v_transmit_error_count(s_transmit_error_count'range) := s_transmit_error_count;
           v_transmit_error_count                               := v_transmit_error_count + 8;
 
@@ -114,6 +114,11 @@ begin  -- architecture rtl
           end if;
         end if;
 
+        -- Saturate transmit error counter at maximum value the register can hold
+        if v_transmit_error_count > 2**s_transmit_error_count'length-1 then
+          v_transmit_error_count := to_unsigned(2**s_transmit_error_count'length-1,
+                                                v_transmit_error_count'length);
+        end if;
 
 
         ------------------------------------------------------------------------
@@ -149,8 +154,14 @@ begin  -- architecture rtl
                                                  v_receive_error_count'length);
           elsif s_receive_error_count > 0 then
             v_receive_error_count(s_receive_error_count'range) := s_receive_error_count;
-            v_receive_error_count                              := v_receive_error_count + 1;
+            v_receive_error_count                              := v_receive_error_count - 1;
           end if;
+        end if;
+
+        -- Saturate receive error counter at maximum value the register can hold
+        if v_receive_error_count > 2**s_receive_error_count'length-1 then
+          v_receive_error_count := to_unsigned(2**s_receive_error_count'length-1,
+                                               v_receive_error_count'length);
         end if;
 
         ------------------------------------------------------------------------
