@@ -19,4 +19,5 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bfm/can_uvvm_
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_tb_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_btl_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bsp_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_eml_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_top_tb.vhd

@@ -6,6 +6,10 @@
 #do 00-wave_can_ctrl.do
 #run -all
 
-vsim -gui -t ps -novopt work.can_top_tb
+vsim -gui -t ps -novopt work.can_eml_tb
 do 00-wave_can_ctrl.do
 run -all
+
+#vsim -gui -t ps -novopt work.can_top_tb
+#do 00-wave_can_ctrl.do
+#run -all
