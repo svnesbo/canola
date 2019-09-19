@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2019-09-18
+-- Last update: 2019-09-19
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -160,19 +160,22 @@ architecture tb of can_btl_tb is
   signal s_clk              : std_logic := '0';
 
   -- EML signals
-  s_eml_bit_error            : std_logic;
-  s_eml_stuff_error          : std_logic;
-  s_eml_crc_error            : std_logic;
-  s_eml_form_error           : std_logic;
-  s_eml_ack_error            : std_logic;
-  s_eml_xmit_success         : std_logic;
-  s_eml_recv_success         : std_logic;
-  s_eml_xmit_fail            : std_logic;
-  s_eml_recv_fail            : std_logic;
-  s_eml_recv_11_passives     : std_logic;
-  s_eml_error_state          : can_error_state_t;
-  s_eml_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  s_eml_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  s_eml_rx_stuff_error                   : std_logic;
+  s_eml_rx_crc_error                     : std_logic;
+  s_eml_rx_form_error                    : std_logic;
+  s_eml_rx_active_error_flag_bit_error   : std_logic;
+  s_eml_rx_overload_flag_bit_error       : std_logic;
+  s_eml_rx_dominant_bit_after_error_flag : std_logic;
+  s_eml_tx_bit_error                     : std_logic;
+  s_eml_tx_ack_error                     : std_logic;
+  s_eml_tx_ack_passive_error             : std_logic;
+  s_eml_tx_active_error_flag_bit_error   : std_logic;
+  s_eml_transmit_success                 : std_logic;
+  s_eml_receive_success                  : std_logic;
+  s_eml_recv_11_recessive_bits           : std_logic;
+  s_eml_error_state                      : can_error_state_t;
+  s_eml_transmit_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  s_eml_receive_error_count              : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
   --shared variable seed1     : positive := 32564482;
   --shared variable seed2     : positive := 89536898;
@@ -185,23 +188,26 @@ begin
   -- Set up clock generators
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
 
-  can_eml_1: entity work.can_eml
+  INST_can_eml: entity work.can_eml
     port map (
-      CLK                  => s_clk,
-      RESET                => s_reset,
-      BIT_ERROR            => s_eml_bit_error,
-      STUFF_ERROR          => s_eml_stuff_error,
-      CRC_ERROR            => s_eml_crc_error,
-      FORM_ERROR           => s_eml_form_error,
-      ACK_ERROR            => s_eml_ack_error,
-      XMIT_SUCCESS         => s_eml_xmit_success,
-      RECV_SUCCESS         => s_eml_recv_success,
-      XMIT_FAIL            => s_eml_xmit_fail,
-      RECV_FAIL            => s_eml_recv_fail,
-      RECV_11_PASSIVES     => s_eml_recv_11_passives,
-      ERROR_STATE          => s_eml_error_state,
-      TRANSMIT_ERROR_COUNT => s_eml_transmit_error_count,
-      RECEIVE_ERROR_COUNT  => s_eml_receive_error_count);
+      CLK                              => s_clk,
+      RESET                            => s_reset,
+      RX_STUFF_ERROR                   => s_eml_rx_stuff_error,
+      RX_CRC_ERROR                     => s_eml_rx_crc_error,
+      RX_FORM_ERROR                    => s_eml_rx_form_error,
+      RX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_rx_active_error_flag_bit_error,
+      RX_OVERLOAD_FLAG_BIT_ERROR       => s_eml_rx_overload_flag_bit_error,
+      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => s_eml_rx_dominant_bit_after_error_flag,
+      TX_BIT_ERROR                     => s_eml_tx_bit_error,
+      TX_ACK_ERROR                     => s_eml_tx_ack_error,
+      TX_ACK_PASSIVE_ERROR             => s_eml_tx_ack_passive_error,
+      TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,
+      TRANSMIT_SUCCESS                 => s_eml_transmit_success,
+      RECEIVE_SUCCESS                  => s_eml_receive_success,
+      RECV_11_RECESSIVE_BITS           => s_eml_recv_11_recessive_bits,
+      ERROR_STATE                      => s_eml_error_state,
+      TRANSMIT_ERROR_COUNT             => s_eml_transmit_error_count,
+      RECEIVE_ERROR_COUNT              => s_eml_receive_error_count);
 
 
   p_main: process
@@ -253,6 +259,27 @@ begin
       log(ID_SEQUENCER_SUB, "Pulsed to " & to_string(pulse_value, HEX, AS_IS, INCL_RADIX) & ". " & msg, C_SCOPE);
     end;
 
+    impure function check_value(
+      constant value       : can_error_state_t;
+      constant exp         : can_error_state_t;
+      constant alert_level : t_alert_level;
+      constant msg         : string;
+      constant scope       : string          := C_TB_SCOPE_DEFAULT;
+      constant msg_id      : t_msg_id        := ID_POS_ACK;
+      constant msg_id_panel: t_msg_id_panel  := shared_msg_id_panel;
+      constant caller_name : string          := "check_value()"
+      ) return boolean is
+      constant v_value_str : string := can_error_state_t'image(can_error_state_t'pos(value));
+      constant v_exp_str   : string := can_error_state_t'image(can_error_state_t'pos(exp));
+    begin
+      if value = exp then
+        log(msg_id, caller_name & " => OK, for can_error_state_t " & v_value_str & ". " & add_msg_delimiter(msg), scope, msg_id_panel);
+        return true;
+      else
+        alert(alert_level, caller_name & " => Failed. can_error_state_t was " & v_value_str & ". Expected " & v_exp_str & ". " & LF & msg, scope);
+        return false;
+      end if;
+    end;
 
     -- Log overloads for simplification
     procedure log(
@@ -307,9 +334,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high loop
       wait for rising_edge(CLK);
-      RX_STUFF_ERROR <= '1';
+      s_eml_rx_stuff_error <= '1';
       wait for rising_edge(CLK);
-      RX_STUFF_ERROR <= '0';
+      s_eml_rx_stuff_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -317,9 +344,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_STUFF_ERROR <= '1';
+    s_eml_rx_stuff_error <= '1';
     wait for rising_edge(CLK);
-    RX_STUFF_ERROR <= '0';
+    s_eml_rx_stuff_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -338,9 +365,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high loop
       wait for rising_edge(CLK);
-      RX_CRC_ERROR <= '1';
+      s_eml_rx_crc_error <= '1';
       wait for rising_edge(CLK);
-      RX_CRC_ERROR <= '0';
+      s_eml_rx_crc_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -348,9 +375,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_CRC_ERROR <= '1';
+    s_eml_rx_crc_error <= '1';
     wait for rising_edge(CLK);
-    RX_CRC_ERROR <= '0';
+    s_eml_rx_crc_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -369,9 +396,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high loop
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '1';
+      s_eml_rx_form_error <= '1';
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '0';
+      s_eml_rx_form_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -379,9 +406,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '1';
+    s_eml_rx_form_error <= '1';
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '0';
+    s_eml_rx_form_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -406,9 +433,9 @@ begin
 
     for i in 1 to s_eml_transmit_error_count'high/8 loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
@@ -416,9 +443,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '1';
+    s_eml_tx_bit_error <= '1';
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '0';
+    s_eml_tx_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -440,9 +467,9 @@ begin
                   ERROR, "Check that error state is ERROR ACTIVE");
 
       wait for rising_edge(CLK);
-      TX_ACK_ERROR <= '1';
+      s_eml_tx_ack_error <= '1';
       wait for rising_edge(CLK);
-      TX_ACK_ERROR <= '0';
+      s_eml_tx_ack_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
@@ -453,9 +480,9 @@ begin
                 ERROR, "Check that error state is now ERROR PASSIVE");
 
     wait for rising_edge(CLK);
-    TX_ACK_ERROR <= '1';
+    s_eml_tx_ack_error <= '1';
     wait for rising_edge(CLK);
-    TX_ACK_ERROR <= '0';
+    s_eml_tx_ack_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -463,9 +490,9 @@ begin
                 ERROR, "Transmit error count should not increase on ACK error in ERROR PASSIVE.");
 
     wait for rising_edge(CLK);
-    TX_ACK_PASSIVE_ERROR <= '1';
+    s_eml_tx_ack_passive_error <= '1';
     wait for rising_edge(CLK);
-    TX_ACK_PASSIVE_ERROR <= '0';
+    s_eml_tx_ack_passive_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -483,9 +510,9 @@ begin
 
     for i in 1 to s_eml_transmit_error_count'high/8 loop
       wait for rising_edge(CLK);
-      TX_ACTIVE_ERRROR_FLAG_BIT_ERROR <= '1';
+      s_eml_tx_active_errror_flag_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_ACTIVE_ERRROR_FLAG_BIT_ERROR <= '0';
+      s_eml_tx_active_errror_flag_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
@@ -493,9 +520,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    TX_ACTIVE_ERRROR_FLAG_BIT_ERROR <= '1';
+    s_eml_tx_active_errror_flag_bit_error <= '1';
     wait for rising_edge(CLK);
-    TX_ACTIVE_ERRROR_FLAG_BIT_ERROR <= '0';
+    s_eml_tx_active_errror_flag_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -517,9 +544,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high/8 loop
       wait for rising_edge(CLK);
-      RX_DOMINANT_BIT_AFTER_ERROR_FLAG <= '1';
+      s_eml_rx_dominant_bit_after_error_flag <= '1';
       wait for rising_edge(CLK);
-      RX_DOMINANT_BIT_AFTER_ERROR_FLAG <= '0';
+      s_eml_rx_dominant_bit_after_error_flag <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
@@ -527,9 +554,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_DOMINANT_BIT_AFTER_ERROR_FLAG <= '1';
+    s_eml_rx_dominant_bit_after_error_flag <= '1';
     wait for rising_edge(CLK);
-    RX_DOMINANT_BIT_AFTER_ERROR_FLAG <= '0';
+    s_eml_rx_dominant_bit_after_error_flag <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -547,9 +574,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high/8 loop
       wait for rising_edge(CLK);
-      RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '1';
+      s_eml_rx_active_error_flag_bit_error <= '1';
       wait for rising_edge(CLK);
-      RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+      s_eml_rx_active_error_flag_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
@@ -557,9 +584,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '1';
+    s_eml_rx_active_error_flag_bit_error <= '1';
     wait for rising_edge(CLK);
-    RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+    s_eml_rx_active_error_flag_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -577,9 +604,9 @@ begin
 
     for i in 1 to s_eml_receive_error_count'high/8 loop
       wait for rising_edge(CLK);
-      RX_OVERLOAD_FLAG_BIT_ERROR <= '1';
+      s_eml_rx_overload_flag_bit_error <= '1';
       wait for rising_edge(CLK);
-      RX_OVERLOAD_FLAG_BIT_ERROR <= '0';
+      s_eml_rx_overload_flag_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
@@ -587,9 +614,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RX_OVERLOAD_FLAG_BIT_ERROR <= '1';
+    s_eml_rx_overload_flag_bit_error <= '1';
     wait for rising_edge(CLK);
-    RX_OVERLOAD_FLAG_BIT_ERROR <= '0';
+    s_eml_rx_overload_flag_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -612,9 +639,9 @@ begin
     -- Count up to 10 receive errors
     for i in 1 to 10 loop
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '1';
+      s_eml_rx_form_error <= '1';
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '0';
+      s_eml_rx_form_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -624,9 +651,9 @@ begin
     -- Count down 10 receive errors on receive success
     for i in 9 downto 0 loop
       wait for rising_edge(CLK);
-      RECEIVE_SUCCESS <= '1';
+      s_eml_receive_success <= '1';
       wait for rising_edge(CLK);
-      RECEIVE_SUCCESS <= '0';
+      s_eml_receive_success <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -638,9 +665,9 @@ begin
                 ERROR, "Check receive error count is zero.");
 
     wait for rising_edge(CLK);
-    RECEIVE_SUCCESS <= '1';
+    s_eml_receive_success <= '1';
     wait for rising_edge(CLK);
-    RECEIVE_SUCCESS <= '0';
+    s_eml_receive_success <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -660,9 +687,9 @@ begin
     -- Count up to 128 (ERROR PASSIVE threshold) + 10 receive errors
     for i in 1 to C_ERROR_PASSIVE_THRESHOLD+10 loop
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '1';
+      s_eml_rx_form_error <= '1';
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '0';
+      s_eml_rx_form_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -670,9 +697,9 @@ begin
     end loop;
 
     wait for rising_edge(CLK);
-    RECEIVE_SUCCESS <= '1';
+    s_eml_receive_success <= '1';
     wait for rising_edge(CLK);
-    RECEIVE_SUCCESS <= '0';
+    s_eml_receive_success <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count, C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE,
@@ -694,9 +721,9 @@ begin
     -- Count up to 10 transmit errors
     for i in 1 to 10 loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i, s_eml_transmit_error_count'length),
@@ -706,9 +733,9 @@ begin
     -- Count down 10 transmit errors on transmit success
     for i in 9 downto 0 loop
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '1';
+      s_eml_transmit_success <= '1';
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '0';
+      s_eml_transmit_success <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i, s_eml_transmit_error_count'length),
@@ -720,9 +747,9 @@ begin
                 ERROR, "Check transmit error count is zero.");
 
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '1';
+    s_eml_transmit_success <= '1';
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '0';
+    s_eml_transmit_success <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -748,11 +775,11 @@ begin
     for i in 1 to C_ERROR_PASSIVE_THRESHOLD-1 loop
       -- Pulse signals that lead to increase by 1 in both Rx and Tx error counters
       wait for rising_edge(CLK);
-      RX_STUFF_ERROR <= '1';
-      TX_BIT_ERROR   <= '1';
+      s_eml_rx_stuff_error <= '1';
+      s_eml_tx_bit_error   <= '1';
       wait for rising_edge(CLK);
-      RX_STUFF_ERROR <= '0';
-      TX_BIT_ERROR   <= '0';
+      s_eml_rx_stuff_error <= '0';
+      s_eml_tx_bit_error   <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_error_state, ERROR_ACTIVE,
@@ -770,9 +797,9 @@ begin
     -- Bring Rx error counter up to 128, which should bring
     -- the error state to ERROR PASSIVE
     wait for rising_edge(CLK);
-    RX_STUFF_ERROR <= '1';
+    s_eml_rx_stuff_error <= '1';
     wait for rising_edge(CLK);
-    RX_STUFF_ERROR <= '0';
+    s_eml_rx_stuff_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count,
@@ -810,9 +837,9 @@ begin
     for i in 1 to C_ERROR_PASSIVE_THRESHOLD-1 loop
       -- Pulse signals that lead to increase by 1 in both Rx and Tx error counters
       wait for rising_edge(CLK);
-      TX_BIT_ERROR   <= '1';
+      s_eml_tx_bit_error   <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR   <= '0';
+      s_eml_tx_bit_error   <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_error_state, ERROR_ACTIVE,
@@ -826,9 +853,9 @@ begin
     -- Bring Tx error counter up to 128 (ERROR PASSIVE threshold),
     -- which should bring the error state to ERROR PASSIVE
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '1';
+    s_eml_tx_bit_error <= '1';
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '0';
+    s_eml_tx_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -856,9 +883,9 @@ begin
     -- Count up receive error counter to maximum value
     for i in 1 to s_eml_receive_error_count'high loop
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '1';
+      s_eml_rx_form_error <= '1';
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '0';
+      s_eml_rx_form_error <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -874,9 +901,9 @@ begin
     -- Count up transmit error counter to just below BUS OFF threshold
     for i in 1 to C_BUS_OFF_THRESHOLD-1 loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -888,9 +915,9 @@ begin
                 ERROR, "Check that error state is still ERROR PASSIVE");
 
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '1';
+    s_eml_tx_bit_error <= '1';
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '0';
+    s_eml_tx_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_transmit_error_count,
@@ -904,9 +931,9 @@ begin
     -- verify that error state is still BUS OFF
     for i in C_BUS_OFF_THRESHOLD to s_eml_transmit_error_count'high loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
 
       check_value(s_eml_error_state, BUS_OFF,
@@ -931,9 +958,9 @@ begin
     -- Count up transmit error counter to just below BUS OFF threshold
     for i in 1 to C_BUS_OFF_THRESHOLD-1 loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -942,9 +969,9 @@ begin
     -- Count down transmit error to ERROR PASSIVE threshold
     for i in C_BUS_OFF_THRESHOLD-1 downto C_ERROR_PASSIVE_THRESHOLD loop
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '1';
+      s_eml_transmit_success <= '1';
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '0';
+      s_eml_transmit_success <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -952,9 +979,9 @@ begin
 
     -- Count down transmit error by one, bringing it below ERROR PASSIVE threshold
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '1';
+    s_eml_transmit_success <= '1';
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '0';
+    s_eml_transmit_success <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_error_state, ERROR_ACTIVE, ERROR, "Check that error state is now ERROR ACTIVE");
@@ -974,18 +1001,18 @@ begin
     -- Count up receive error counter to one above ERROR PASSIVE threshold
     for i in 1 to C_ERROR_PASSIVE+1 loop
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '1';
+      s_eml_rx_form_error <= '1';
       wait for rising_edge(CLK);
-      RX_FORM_ERROR <= '0';
+      s_eml_rx_form_error <= '0';
       wait for rising_edge(CLK);
     end loop;
 
     check_value(s_eml_error_state, ERROR_PASSIVE, ERROR, "Check that error state is ERROR PASSIVE");
 
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '1';
+    s_eml_rx_form_error <= '1';
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '0';
+    s_eml_rx_form_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count, to_unsigned(C_ERROR_PASSIVE, s_eml_receive_error_count'length),
@@ -993,9 +1020,9 @@ begin
     check_value(s_eml_error_state, ERROR_PASSIVE, ERROR, "Check that error state is ERROR PASSIVE");
 
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '1';
+    s_eml_rx_form_error <= '1';
     wait for rising_edge(CLK);
-    RX_FORM_ERROR <= '0';
+    s_eml_rx_form_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_receive_error_count, to_unsigned(C_ERROR_PASSIVE-1, s_eml_receive_error_count'length),
@@ -1005,9 +1032,9 @@ begin
     -- Count down transmit error to ERROR PASSIVE threshold
     for i in C_BUS_OFF_THRESHOLD-1 downto C_ERROR_PASSIVE_THRESHOLD loop
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '1';
+      s_eml_transmit_success <= '1';
       wait for rising_edge(CLK);
-      TRANSMIT_SUCCESS <= '0';
+      s_eml_transmit_success <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -1015,9 +1042,9 @@ begin
 
     -- Count down transmit error by one, bringing it below ERROR PASSIVE threshold
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '1';
+    s_eml_transmit_success <= '1';
     wait for rising_edge(CLK);
-    TRANSMIT_SUCCESS <= '0';
+    s_eml_transmit_success <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_error_state, ERROR_ACTIVE, ERROR, "Check that error state is now ERROR ACTIVE");
@@ -1045,18 +1072,18 @@ begin
     -- is required AFTER entering BUS OFF
     for i in 1 to 10 loop
       wait for rising_edge(CLK);
-      RECV_11_RECESSIVE_BITS <= '1';
+      s_eml_recv_11_recessive_bits <= '1';
       wait for rising_edge(CLK);
-      RECV_11_RECESSIVE_BITS <= '0';
+      s_eml_recv_11_recessive_bits <= '0';
       wait for rising_edge(CLK);
     end loop;
 
     -- Bring number of transmit errors up to just below BUS OFF threshold
     for i in 1 to C_BUS_OFF_THRESHOLD-1 loop
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '1';
+      s_eml_tx_bit_error <= '1';
       wait for rising_edge(CLK);
-      TX_BIT_ERROR <= '0';
+      s_eml_tx_bit_error <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -1064,9 +1091,9 @@ begin
                 ERROR, "Check that error state is ERROR PASSIVE");
 
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '1';
+    s_eml_tx_bit_error <= '1';
     wait for rising_edge(CLK);
-    TX_BIT_ERROR <= '0';
+    s_eml_tx_bit_error <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_error_state, BUS_OFF,
@@ -1076,9 +1103,9 @@ begin
     -- threshold required to bring controller out of BUS OFF
     for i in 1 to C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD-1 loop
       wait for rising_edge(CLK);
-      RECV_11_RECESSIVE_BITS <= '1';
+      s_eml_recv_11_recessive_bits <= '1';
       wait for rising_edge(CLK);
-      RECV_11_RECESSIVE_BITS <= '0';
+      s_eml_recv_11_recessive_bits <= '0';
       wait for rising_edge(CLK);
     end loop;
 
@@ -1086,9 +1113,9 @@ begin
                 ERROR, "Check that error state is still bus OFF");
 
     wait for rising_edge(CLK);
-    RECV_11_RECESSIVE_BITS <= '1';
+    s_eml_recv_11_recessive_bits <= '1';
     wait for rising_edge(CLK);
-    RECV_11_RECESSIVE_BITS <= '0';
+    s_eml_recv_11_recessive_bits <= '0';
     wait for rising_edge(CLK);
 
     check_value(s_eml_error_state, ERROR_ACTIVE,
