@@ -284,7 +284,7 @@ begin
       variable data         : out work.can_bfm_pkg.can_payload_t;
       variable data_length  : out natural;
       variable remote_frame : out std_logic;
-      constant extended_id  : in  boolean := false
+      constant extended_id  : in  std_logic := '0'
       ) is
       variable rand_real : real;
       variable rand_id   : natural;
@@ -301,7 +301,7 @@ begin
       end if;
 
       uniform(seed1, seed2, rand_real);
-      if extended_id = true then
+      if extended_id = '1' then
         rand_id             := natural(round(rand_real * real(2**29-1)));
         arb_id(28 downto 0) := std_logic_vector(to_unsigned(rand_id, 29));
       else
@@ -327,7 +327,7 @@ begin
     variable v_can_bfm_tx        : std_logic                      := '1';
     variable v_can_bfm_rx        : std_logic                      := '1';
     variable v_xmit_arb_id       : std_logic_vector(28 downto 0);
-    constant c_xmit_ext_id     : std_logic                      := '0';
+    variable v_xmit_ext_id       : std_logic                      := '0';
     variable v_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
     variable v_xmit_data_length  : natural;
     variable v_xmit_remote_frame : std_logic;
@@ -357,9 +357,10 @@ begin
     pulse(s_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Send with BFM, receive with Canola CAN controller", C_SCOPE);
+    log(ID_LOG_HDR, "Test #1: Basic ID msg from BFM to Canola CAN controller", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    v_test_num := 0;
+    v_test_num    := 0;
+    v_xmit_ext_id := '0';
 
     while v_test_num < C_NUM_ITERATIONS loop
       s_msg_reset <= '1';
@@ -367,11 +368,13 @@ begin
       s_msg_reset <= '0';
       wait until rising_edge(s_clk);
 
+
+
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
                                    v_xmit_data_length,
                                    v_xmit_remote_frame,
-                                   false);
+                                   v_xmit_ext_id);
 
       s_xmit_arb_id       <= v_xmit_arb_id;
       s_xmit_data         <= v_xmit_data;
@@ -381,7 +384,7 @@ begin
       wait until rising_edge(s_clk);
 
       can_uvvm_write(v_xmit_arb_id,
-                     c_xmit_ext_id,
+                     v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
                      v_xmit_data_length,
@@ -393,10 +396,10 @@ begin
       wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
       check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
-      check_value(s_msg.ext_id, c_xmit_ext_id, error, "Check extended ID bit");
+      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       -- Todo: Replace with variable and test both basic and extended ID
-      if c_xmit_ext_id = '1' then
+      if v_xmit_ext_id = '1' then
         check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
@@ -425,21 +428,25 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
+    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS,
+                error, "Check number of received messages in CAN controller.");
 
------------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Send with Canola CAN controller, receive with BFM", C_SCOPE);
+
     -----------------------------------------------------------------------------------------------
-    v_test_num := 0;
+    log(ID_LOG_HDR, "Test #2: Basic ID msg from Canola CAN controller to BFM", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '0';
 
     while v_test_num < C_NUM_ITERATIONS loop
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
                                    v_xmit_data_length,
                                    v_xmit_remote_frame,
-                                   false);
+                                   v_xmit_ext_id);
 
       s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
-      s_can_ctrl_tx_msg.ext_id         <= '0';
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
       s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
 
@@ -453,8 +460,7 @@ begin
       s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
 
       can_uvvm_check(v_xmit_arb_id,
-                     --v_xmit_ext_id,
-                     '0', -- No extended ID
+                     v_xmit_ext_id,
                      v_xmit_remote_frame,
                      '0', -- Don't send remote request and expect response
                      v_xmit_data,
@@ -471,7 +477,138 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_msg_sent_count)), C_NUM_ITERATIONS,
+                error, "Check number of transmitted messages from CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_ack_recv_count)), C_NUM_ITERATIONS,
+                error, "Check number of acknowledged messages in CAN controller.");
 
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #3: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      s_xmit_arb_id       <= v_xmit_arb_id;
+      s_xmit_data         <= v_xmit_data;
+      s_xmit_data_length  <= v_xmit_data_length;
+      s_xmit_remote_frame <= v_xmit_remote_frame;
+
+      wait until rising_edge(s_clk);
+
+      can_uvvm_write(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send random message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx);
+
+      wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+
+      check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
+      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+      -- Todo: Replace with variable and test both basic and extended ID
+      if v_xmit_ext_id = '1' then
+        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+      else
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
+                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+                    error,
+                    "Check received ID");
+      end if;
+
+      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+      check_value(s_msg.data_length,
+                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                  error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*2,
+                error, "Check number of received messages in CAN controller.");
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #4: Extended ID msg from Canola CAN controller to BFM", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      can_uvvm_check(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     '0', -- Don't send remote request and expect response
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Receive and check message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     error);
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_msg_sent_count)), C_NUM_ITERATIONS*2,
+                error, "Check number of transmitted messages from CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_ack_recv_count)), C_NUM_ITERATIONS*2,
+                error, "Check number of acknowledged messages in CAN controller.");
+
+
+    -----------------------------------------------------------------------------------------------
+    -- Simulation complete
+    -----------------------------------------------------------------------------------------------
     wait for 10000 ns;            -- to allow some time for completion
     report_alert_counters(FINAL); -- Report final counters and print conclusion for simulation (Success/Fail)
     log(ID_LOG_HDR, "SIMULATION COMPLETED", C_SCOPE);
