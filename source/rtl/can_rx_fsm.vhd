@@ -68,9 +68,10 @@ entity can_rx_fsm is
                                              -- an error flag of 6 bits
 
     -- Counter registers for FSM
-    REG_MSG_RECV_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_CRC_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_FORM_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
+    REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
 end entity can_rx_fsm;

@@ -21,6 +21,8 @@
 -- Revisions  :
 -- Date        Version  Author  Description
 -- 2019-07-10  1.0      svn     Created
+-- 2019-09-19  1.1      svn     Add outputs for counter register, error
+--                              counters and error state
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -38,7 +40,7 @@ entity can_top is
     CLK   : in std_logic;
     RESET : in std_logic;
 
-    -- CANbus interface signals
+    -- CAN bus interface signals
     CAN_TX : out std_logic;
     CAN_RX : in  std_logic;
 
@@ -59,7 +61,25 @@ entity can_top is
     BTL_PHASE_SEG1              : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     BTL_PHASE_SEG2              : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     BTL_SYNC_JUMP_WIDTH         : in natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
-    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(C_TIME_QUANTA_WIDTH-1 downto 0)
+    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+
+    -- Error state and counters
+    -- Note: transmit/receive error counters do not hold absolute of the
+    -- number of tx/rx errors, they are internal count registers controlled and
+    -- used by the EML to determine the error state.
+    TRANSMIT_ERROR_COUNT : out unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    RECEIVE_ERROR_COUNT  : out unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    ERROR_STATE          : out can_error_state_t;
+
+    -- Registers/counters
+    REG_TX_MSG_SENT_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_ACK_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_ARB_LOST_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_ERROR_COUNT       : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_RX_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_RX_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_RX_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
 end entity can_top;
@@ -71,15 +91,9 @@ architecture struct of can_top is
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
   signal s_tx_fsm_active                      : std_logic;  -- Tx FSM wants to transmit
   signal s_tx_fsm_failed                      : std_logic;
-  signal s_tx_fsm_reg_msg_sent_count          : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_tx_fsm_reg_ack_recv_count          : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_tx_fsm_reg_arb_lost_count          : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_tx_fsm_reg_error_count             : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
 
   -- Signals for Rx FSM
-  signal s_rx_fsm_msg_recv_count   : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_rx_fsm_crc_error_count  : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_rx_fsm_form_error_count : std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+  -- ...
 
   -- BSP interface to Tx FSM
   signal s_bsp_tx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -102,6 +116,8 @@ architecture struct of can_top is
   signal s_bsp_rx_bit_stuff_error      : std_logic;
   signal s_bsp_rx_crc_calc             : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_rx_send_ack             : std_logic;
+
+  -- BSP interface for error flag
   signal s_bsp_send_error_flag         : std_logic;
   signal s_bsp_send_error_flag_tx_fsm  : std_logic;
   signal s_bsp_send_error_flag_rx_fsm  : std_logic;
@@ -143,8 +159,13 @@ architecture struct of can_top is
 
 begin  -- architecture struct
 
+  TRANSMIT_ERROR_COUNT <= s_eml_transmit_error_count;
+  RECEIVE_ERROR_COUNT  <= s_eml_receive_error_count;
+  ERROR_STATE          <= s_eml_error_state;
+
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
+  -- Transmit state machine
   INST_can_tx_fsm : entity work.can_tx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
@@ -177,11 +198,12 @@ begin  -- architecture struct
       BSP_SEND_ERROR_FLAG            => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE            => s_bsp_error_flag_done,
       BSP_ERROR_FLAG_BIT_ERROR       => s_bsp_error_flag_bit_error,
-      REG_MSG_SENT_COUNT             => s_tx_fsm_reg_msg_sent_count,
-      REG_ACK_RECV_COUNT             => s_tx_fsm_reg_ack_recv_count,
-      REG_ARB_LOST_COUNT             => s_tx_fsm_reg_arb_lost_count,
-      REG_ERROR_COUNT                => s_tx_fsm_reg_error_count);
+      REG_MSG_SENT_COUNT             => REG_TX_MSG_SENT_COUNT,
+      REG_ACK_RECV_COUNT             => REG_TX_ACK_RECV_COUNT,
+      REG_ARB_LOST_COUNT             => REG_TX_ARB_LOST_COUNT,
+      REG_ERROR_COUNT                => REG_TX_ERROR_COUNT);
 
+  -- Receive state machine
   INST_can_rx_fsm : entity work.can_rx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
@@ -201,11 +223,15 @@ begin  -- architecture struct
       BSP_RX_CRC_CALC        => s_bsp_rx_crc_calc,
       BSP_RX_SEND_ACK        => s_bsp_rx_send_ack,
       BSP_SEND_ERROR_FLAG    => s_bsp_send_error_flag_rx_fsm,
-      REG_MSG_RECV_COUNT     => s_rx_fsm_msg_recv_count,
-      REG_CRC_ERROR_COUNT    => s_rx_fsm_crc_error_count,
-      REG_FORM_ERROR_COUNT   => s_rx_fsm_form_error_count);
+      REG_MSG_RECV_COUNT     => REG_RX_MSG_RECV_COUNT,
+      REG_CRC_ERROR_COUNT    => REG_RX_CRC_ERROR_COUNT,
+      REG_FORM_ERROR_COUNT   => REG_RX_FORM_ERROR_COUNT,
+      REG_STUFF_ERROR_COUNT  => REG_RX_STUFF_ERROR_COUNT);
 
-
+  -- Bit Stream Processor (BSP)
+  -- Responsible for bit stuffing/destuffing and
+  -- CRC calculation of larger stream of bits.
+  -- Acts as a layer between the BTL and Tx/Rx state machines
   INST_can_bsp : entity work.can_bsp
     port map (
       CLK                      => CLK,
@@ -240,6 +266,9 @@ begin  -- architecture struct
       BTL_RX_BIT_VALID         => s_btl_rx_bit_valid,
       BTL_RX_SYNCED            => s_btl_rx_synced);
 
+  -- Bit Timing Logic (BTL)
+  -- Responsible for bit timing, synchronization
+  -- and input/output of individual bits.
   INST_can_btl : entity work.can_btl
     port map (
       CLK                     => CLK,
@@ -261,6 +290,11 @@ begin  -- architecture struct
       SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
       TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE);
 
+  -- Error Management Logic (EML)
+  -- Keeps track of errors occuring in other modules,
+  -- and calculates an "error state" for the whole system,
+  -- which determines to what degree the controller is allowed to interface
+  -- with the BUS.
   INST_can_eml: entity work.can_eml
     port map (
       CLK                              => CLK,

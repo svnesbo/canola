@@ -57,6 +57,8 @@ architecture tb of can_top_tb is
   constant C_DATA_LENGTH_MAX : natural := 1000;
   constant C_NUM_ITERATIONS  : natural := 100;
 
+  constant C_BUS_REG_WIDTH : natural := 16;
+
   -- Generate a clock with a given period,
   -- based on clock_gen from Bitvis IRQC testbench
   procedure clock_gen(
@@ -101,6 +103,20 @@ architecture tb of can_top_tb is
   signal s_can_ctrl_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
   signal s_can_ctrl_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
 
+  signal s_can_ctrl_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl_error_state          : can_error_state_t;
+
+  -- Registers/counters
+  signal s_can_ctrl_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
   signal s_can_bfm_rx        : std_logic                      := '1';
@@ -141,26 +157,48 @@ begin
 
   INST_can_top : entity work.can_top
     generic map (
-      G_BUS_REG_WIDTH => 16,
+      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
     port map (
-      CLK                         => s_clk,
-      RESET                       => s_reset,
-      CAN_TX                      => s_can_ctrl_tx,
-      CAN_RX                      => s_can_ctrl_rx,
-      RX_MSG                      => s_can_ctrl_rx_msg,
-      RX_MSG_VALID                => s_can_ctrl_rx_msg_valid,
-      TX_MSG                      => s_can_ctrl_tx_msg,
-      TX_START                    => s_can_ctrl_tx_start,
-      TX_BUSY                     => s_can_ctrl_tx_busy,
-      TX_DONE                     => s_can_ctrl_tx_done,
+      CLK   => s_clk,
+      RESET => s_reset,
+
+      -- CAN bus interface signals
+      CAN_TX => s_can_ctrl_tx,
+      CAN_RX => s_can_ctrl_rx,
+
+      -- Rx interface
+      RX_MSG       => s_can_ctrl_rx_msg,
+      RX_MSG_VALID => s_can_ctrl_rx_msg_valid,
+
+      -- Tx interface
+      TX_MSG   => s_can_ctrl_tx_msg,
+      TX_START => s_can_ctrl_tx_start,
+      TX_BUSY  => s_can_ctrl_tx_busy,
+      TX_DONE  => s_can_ctrl_tx_done,
+
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl_prop_seg,
       BTL_PHASE_SEG1              => s_can_ctrl_phase_seg1,
       BTL_PHASE_SEG2              => s_can_ctrl_phase_seg2,
       BTL_SYNC_JUMP_WIDTH         => s_can_ctrl_sync_jump_width,
       BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                                 C_TIME_QUANTA_WIDTH)
+                                                 C_TIME_QUANTA_WIDTH),
+
+      -- Error state and counters
+      TRANSMIT_ERROR_COUNT => s_can_ctrl_transmit_error_count,
+      RECEIVE_ERROR_COUNT  => s_can_ctrl_receive_error_count,
+      ERROR_STATE          => s_can_ctrl_error_state,
+
+      -- Registers/counters
+      REG_TX_MSG_SENT_COUNT    => s_can_ctrl_reg_tx_msg_sent_count,
+      REG_TX_ACK_RECV_COUNT    => s_can_ctrl_reg_tx_ack_recv_count,
+      REG_TX_ARB_LOST_COUNT    => s_can_ctrl_reg_tx_arb_lost_count,
+      REG_TX_ERROR_COUNT       => s_can_ctrl_reg_tx_error_count,
+      REG_RX_MSG_RECV_COUNT    => s_can_ctrl_reg_rx_msg_recv_count,
+      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl_reg_rx_crc_error_count,
+      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl_reg_rx_form_error_count,
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl_reg_rx_stuff_error_count
       );
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
