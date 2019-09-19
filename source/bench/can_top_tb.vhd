@@ -607,6 +607,90 @@ begin
 
 
     -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #5: Test loss of arbitration", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Start can_uvvm_write() with a higher priority ID at the same time as
+    -- transmitting with Canola controller
+    -- Check that we still receive the message sent from the BFM?
+    -- Check that counter for arbitration loss increases
+    -- Check that message is retransmitted? (need to include this in controller...)
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #6: Test winning arbitration, and missing ack", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Start can_uvvm_write() with a lower priority ID at the same time as
+    -- transmitting with Canola controller
+    -- We won't get an ack since can_uvvm_read() was not running already,
+    -- so we can test increase of ack_recv_count as well
+    -- Is the controller supposed to send error flag if it does not receive
+    -- ACK? If so, we can test for that as well..
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #7: Test stuff error in received message", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Send a message using can_uvvm_write(), and insert a stuff error in the stream
+    -- Verify that the stuff error is detected by Canola controller
+    -- Verify that an active error flag is sent by Canola controller
+    -- Verify correct receive error count increase?
+    -- Verify that Rx stuff error count increases
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #8: Test form error in received message", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Send a message using can_uvvm_write() with a form error
+    -- Verify that the form error is detected by Canola controller
+    -- Verify that an active error flag is sent by Canola controller
+    -- Verify correct receive error count increase?
+    -- Verify that Rx form error count increases
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #9: Test CRC error in received message", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Send a message using can_uvvm_write() with incorrect CRC
+    -- Verify that the CRC error is detected by Canola controller
+    -- Verify that an active error flag is sent by Canola controller
+    -- Verify correct receive error count increase?
+    -- Verify that Rx CRC error count increases
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #10: Test ERROR PASSIVE/ACTIVE states when transmitting", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Send some messages without ack or something, to increase error counters
+    -- beyond error passive threshold
+    -- Check that controller becomes error passive
+    -- Check that controller sends passive error flags on errors now
+    -- Check that controller returns to error active after succesfully
+    -- transmitting some messages where ACK is received
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #11: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Send some messages from BFM with wrong CRC or something, to increase error counters
+    -- beyond error passive threshold
+    -- Check that controller becomes error passive
+    -- Check that controller sends passive error flags on errors now
+    -- Check that controller returns to error active after succesfully receiving some messages
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #12: Test BUS OFF state when transmitting", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Find a way to overwrite CAN_RX while controller is transmitting, in
+    -- order to generate tx bit/stuff errors
+    -- Verify that controller becomes error passive, and eventually BUS OFF
+    -- Verify that after 128 x 11 consecutive recessive bits, controller
+    -- returns to error passive (just wait for sufficiently long)
+    -- Bring controller into BUS OFF again
+    -- Transmit messages with BFM, with some gaps in between, and verify that
+    -- controller returns to error passive again at some point
+    -- Verify that controller can not transmit while in BUS OFF state
+
+
+    -----------------------------------------------------------------------------------------------
     -- Simulation complete
     -----------------------------------------------------------------------------------------------
     wait for 10000 ns;            -- to allow some time for completion
