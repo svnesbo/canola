@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-09-18
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -64,6 +64,7 @@ entity can_tx_fsm is
     TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
     TX_ACTIVE                      : out std_logic;  -- Signaled to BSP,   BTL,   and Rx FSM
+    ERROR_STATE                    : in  can_error_state_t;
 
     -- Signals to/from BSP
     BSP_TX_DATA                : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -76,6 +77,8 @@ entity can_tx_fsm is
     BSP_TX_CRC_CALC            : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_ACTIVE              : in  std_logic;
     BSP_SEND_ERROR_FLAG        : out std_logic;
+    BSP_ERROR_FLAG_DONE        : in  std_logic;
+    BSP_ERROR_FLAG_BIT_ERROR   : in  std_logic;
 
     -- Counter registers for FSM
     REG_MSG_SENT_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -171,7 +174,7 @@ begin  -- architecture rtl
         s_reg_error_counter    <= (others => '0');
         s_retransmit_attempts  <= 0;
       else
-        BSP_SEND_ERROR_FRAME <= '0';
+        BSP_SEND_ERROR_FLAG  <= '0';
         BSP_TX_WRITE_EN      <= '0';
         BSP_TX_BIT_STUFF_EN  <= '1';
 
@@ -223,9 +226,8 @@ begin  -- architecture rtl
             -- TODO: Check for stuff errors
             --       If
             if BSP_TX_RX_STUFF_MISMATCH = '1' then
-
               s_fsm_state <= ST_SEND_ERROR_FLAG;
-            if BSP_TX_RX_MISMATCH = '1' then
+            elsif BSP_TX_RX_MISMATCH = '1' then
               s_fsm_state <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
@@ -486,7 +488,7 @@ begin  -- architecture rtl
             s_fsm_state         <= ST_SEND_ERROR_FLAG;
 
           when ST_SEND_ERROR_FLAG =>
-            if BSP_ERROR_STATE = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+            if ERROR_STATE = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
               -- CAN specification 7.1:
               -- Bit errors while sending active error flag should be detected,
               -- and leads to an increase in transmit error count by 8 in the EML
@@ -502,7 +504,7 @@ begin  -- architecture rtl
             s_fsm_state            <= ST_RETRANSMIT;
 
           when ST_BIT_ERROR =>
-            BSP_SEND_ERROR_FRAME <= '1';
+            BSP_SEND_ERROR_FLAG  <= '1';
             s_reg_error_counter  <= s_reg_error_counter + 1;
             s_fsm_state          <= ST_RETRANSMIT;
 

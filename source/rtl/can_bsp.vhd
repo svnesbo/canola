@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-09-17
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -106,13 +106,13 @@ entity can_bsp is
                                              -- whatever it is doing, and sends
                                              -- an error flag. The type of flag
                                              -- depends on BSP_ERROR_STATE input
-    BSP_ERROR_STATE : in can_error_state_t;  -- Indicates if the CAN controller
-                                             -- is in active or passive error
-                                             -- state, or bus off state
     BSP_ERROR_FLAG_DONE      : out std_logic; -- Pulsed
     BSP_ERROR_FLAG_BIT_ERROR : out std_logic; -- Bit error was detected while
                                               -- transmitting error flag
                                               -- Note: Only for ACTIVE error flag
+    BSP_ERROR_STATE : in can_error_state_t;  -- Indicates if the CAN controller
+                                             -- is in active or passive error
+                                             -- state, or bus off state
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;

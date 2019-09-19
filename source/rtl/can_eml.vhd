@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-09-18
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -55,9 +55,9 @@ entity can_eml is
 end entity can_eml;
 
 architecture rtl of can_eml is
-  signal s_transmit_error_count     : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_receive_error_count      : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_receive_11_passive_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_transmit_error_count            : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_receive_11_recessive_bits_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
 begin  -- architecture rtl
 
@@ -69,11 +69,11 @@ begin  -- architecture rtl
     if rising_edge(CLK) then
       -- Synchronous reset
       if RESET = '1' then
-        s_transmit_error_count     <= (others => '0');
-        s_receive_error_count      <= (others => '0');
-        s_receive_11_passive_count <= (others => '0');
+        s_transmit_error_count            <= (others => '0');
+        s_receive_error_count             <= (others => '0');
+        s_receive_11_recessive_bits_count <= (others => '0');
       else
-        if XMIT_SUCCESS = '1' then
+        if TRANSMIT_SUCCESS = '1' then
           if s_transmit_error_count >= C_ERROR_PASSIVE_THRESHOLD then
             s_transmit_error_count <= to_unsigned(119, C_ERROR_COUNT_LENGTH); -- Todo: add constant
           elsif s_transmit_error_count > 0 then
@@ -81,13 +81,13 @@ begin  -- architecture rtl
           end if;
         end if;
 
-        if XMIT_FAIL = '1' then
-          if s_transmit_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-            s_transmit_error_count <= s_transmit_error_count + 1;
-          end if;
-        end if;
+        --if XMIT_FAIL = '1' then
+        --  if s_transmit_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
+        --    s_transmit_error_count <= s_transmit_error_count + 1;
+        --  end if;
+        --end if;
 
-        if RECV_SUCCESS = '1' then
+        if RECEIVE_SUCCESS = '1' then
           if s_receive_error_count >= C_ERROR_PASSIVE_THRESHOLD then
             s_receive_error_count <= to_unsigned(119, C_ERROR_COUNT_LENGTH); -- Todo: add constant
           elsif s_receive_error_count > 0 then
@@ -95,15 +95,15 @@ begin  -- architecture rtl
           end if;
         end if;
 
-        if RECV_FAIL = '1' then
-          if s_receive_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-            s_receive_error_count <= s_receive_error_count + 1;
-          end if;
-        end if;
+        --if RECV_FAIL = '1' then
+        --  if s_receive_error_count < (2**C_ERROR_COUNT_LENGTH)-1 then
+        --    s_receive_error_count <= s_receive_error_count + 1;
+        --  end if;
+        --end if;
 
-        if RECV_11_PASSIVES = '1' then
-          if s_receive_11_passive_count < (2**C_ERROR_COUNT_LENGTH)-1 then
-            s_receive_11_passive_count <= s_receive_11_passive_count + 1;
+        if RECV_11_RECESSIVE_BITS = '1' then
+          if s_receive_11_recessive_bits_count < (2**C_ERROR_COUNT_LENGTH)-1 then
+            s_receive_11_recessive_bits_count <= s_receive_11_recessive_bits_count + 1;
           end if;
         end if;
       end if;
@@ -137,8 +137,8 @@ begin  -- architecture rtl
       if RESET = '1' then
 
       else
-
+      end if;
     end if;
-  end process proc_error_counters;
+  end process proc_error_status;
 
 end architecture rtl;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-08-16
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -63,9 +63,9 @@ entity can_rx_fsm is
     BSP_RX_CRC_CALC        : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK        : out std_logic;
 
-    BSP_SEND_ERROR_FRAME   : out std_logic;  -- When pulsed, BSP cancels
+    BSP_SEND_ERROR_FLAG    : out std_logic;  -- When pulsed, BSP cancels
                                              -- whatever it is doing, and sends
-                                             -- an error frame of 6 dominant bits
+                                             -- an error flag of 6 bits
 
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -144,7 +144,7 @@ begin  -- architecture rtl
         RX_MSG_VALID          <= '0';
         BSP_RX_SEND_ACK       <= '0';
         BSP_RX_DATA_CLEAR     <= '0';
-        BSP_SEND_ERROR_FRAME  <= '0';
+        BSP_SEND_ERROR_FLAG   <= '0';
         BSP_RX_BIT_DESTUFF_EN <= '1';
 
         case s_fsm_state is

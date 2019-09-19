@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-08-29
+-- Last update: 2019-09-19
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -95,7 +95,6 @@ architecture tb of can_top_tb is
   signal s_can_ctrl_tx_start     : std_logic := '0';
   signal s_can_ctrl_tx_busy      : std_logic;
   signal s_can_ctrl_tx_done      : std_logic;
-  signal s_can_ctrl_tx_error     : std_logic;
 
   signal s_can_ctrl_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -155,7 +154,6 @@ begin
       TX_START                    => s_can_ctrl_tx_start,
       TX_BUSY                     => s_can_ctrl_tx_busy,
       TX_DONE                     => s_can_ctrl_tx_done,
-      TX_ERROR                    => s_can_ctrl_tx_error,
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl_prop_seg,
       BTL_PHASE_SEG1              => s_can_ctrl_phase_seg1,

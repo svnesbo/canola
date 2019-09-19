@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-08-14
+-- Last update: 2019-09-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -18,6 +18,7 @@
 -- Revisions  :
 -- Date        Version  Author  Description
 -- 2019-07-22  1.0      svn     Created
+-- 2019-09-19  1.1      svn     Add check_value for can_error_state_t
 -------------------------------------------------------------------------------
 
 
@@ -25,6 +26,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+
+library uvvm_util;
+context uvvm_util.uvvm_util_context;
 
 library work;
 use work.can_pkg.all;
@@ -51,6 +55,30 @@ package can_tb_pkg is
   constant C_ACK_TEST_SEQUENCE              : std_logic_vector := "01100101111111";
   constant C_ACK_TEST_SEQUENCE_EXP          : std_logic_vector := "01100001111111";
   constant C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX : natural          := 5;
+
+
+  impure function check_value(
+    constant value        : can_error_state_t;
+    constant exp          : can_error_state_t;
+    constant alert_level  : t_alert_level;
+    constant msg          : string;
+    constant scope        : string         := C_TB_SCOPE_DEFAULT;
+    constant msg_id       : t_msg_id       := ID_POS_ACK;
+    constant msg_id_panel : t_msg_id_panel := shared_msg_id_panel;
+    constant caller_name  : string         := "check_value()"
+    ) return boolean;
+
+
+  procedure check_value(
+    constant value       : can_error_state_t;
+    constant exp         : can_error_state_t;
+    constant alert_level : t_alert_level;
+    constant msg         : string;
+    constant scope       : string          := C_TB_SCOPE_DEFAULT;
+    constant msg_id      : t_msg_id        := ID_POS_ACK;
+    constant msg_id_panel: t_msg_id_panel  := shared_msg_id_panel;
+    constant caller_name : string          := "check_value()"
+    );
 
 end can_tb_pkg;
 
@@ -169,5 +197,44 @@ package body can_tb_pkg is
     -- Update data next delta cycle
     wait for 0 ns;
   end procedure generate_random_data_for_btl;
+
+
+  impure function check_value(
+    constant value        : can_error_state_t;
+    constant exp          : can_error_state_t;
+    constant alert_level  : t_alert_level;
+    constant msg          : string;
+    constant scope        : string         := C_TB_SCOPE_DEFAULT;
+    constant msg_id       : t_msg_id       := ID_POS_ACK;
+    constant msg_id_panel : t_msg_id_panel := shared_msg_id_panel;
+    constant caller_name  : string         := "check_value()"
+    ) return boolean is
+    constant v_value_str : string := can_error_state_t'image(value);
+    constant v_exp_str   : string := can_error_state_t'image(exp);
+  begin
+    if value = exp then
+      log(msg_id, caller_name & " => OK, for can_error_state_t " & v_value_str & ". " & add_msg_delimiter(msg), scope, msg_id_panel);
+      return true;
+    else
+      alert(alert_level, caller_name & " => Failed. can_error_state_t was " & v_value_str & ". Expected " & v_exp_str & ". " & LF & msg, scope);
+      return false;
+    end if;
+  end;
+
+
+  procedure check_value(
+    constant value       : can_error_state_t;
+    constant exp         : can_error_state_t;
+    constant alert_level : t_alert_level;
+    constant msg         : string;
+    constant scope       : string          := C_TB_SCOPE_DEFAULT;
+    constant msg_id      : t_msg_id        := ID_POS_ACK;
+    constant msg_id_panel: t_msg_id_panel  := shared_msg_id_panel;
+    constant caller_name : string          := "check_value()"
+    ) is
+    variable v_check_ok  : boolean;
+  begin
+    v_check_ok := check_value(value, exp, alert_level, msg, scope, msg_id, msg_id_panel, caller_name);
+  end;
 
 end package body can_tb_pkg;
