@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2018-08-11
+-- Last update: 2019-09-23
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -37,34 +37,24 @@ package can_uvvm_bfm_pkg is
 
 -- Configuration record to be assigned in the test harness.
   type t_can_uvvm_bfm_config is record
+    can_config               : can_bfm_config_t;
     max_wait_cycles          : integer;
     max_wait_cycles_severity : t_alert_level;
     arb_lost_severity        : t_alert_level;
     ack_missing_severity     : t_alert_level;
     crc_error_severity       : t_alert_level;
-    sync_quanta              : natural;
-    prop_quanta              : natural;
-    phase1_quanta            : natural;
-    phase2_quanta            : natural;
-    bit_rate                 : natural;
-    clock_period             : time;
     id_for_bfm               : t_msg_id;
     id_for_bfm_wait          : t_msg_id;
     id_for_bfm_poll          : t_msg_id;
   end record;
 
   constant C_CAN_UVVM_BFM_CONFIG_DEFAULT : t_can_uvvm_bfm_config := (
+    can_config               => C_CAN_BFM_CONFIG_DEFAULT,
     max_wait_cycles          => 1000,
     max_wait_cycles_severity => failure,
     arb_lost_severity        => warning,
     ack_missing_severity     => warning,
     crc_error_severity       => failure,
-    sync_quanta              => 1,
-    prop_quanta              => 3,
-    phase1_quanta            => 3,
-    phase2_quanta            => 3,
-    bit_rate                 => 1000000,
-    clock_period             => 25 ns,
     id_for_bfm               => ID_BFM,
     id_for_bfm_wait          => ID_BFM_WAIT,
     id_for_bfm_poll          => ID_BFM_POLL
@@ -77,19 +67,21 @@ package can_uvvm_bfm_pkg is
   -- If remote_request is set high, a remote request frame will be sent,
   -- and any specified data is ignored.
   procedure can_uvvm_write (
-    constant arb_id         : in  std_logic_vector(28 downto 0);
-    constant extended_id    : in  std_logic;
-    constant remote_request : in  std_logic;
-    constant data           : in  can_payload_t;
-    constant data_length    : in  natural;
-    constant msg            : in  string;
-    signal   clk            : in  std_logic;
-    signal   can_tx         : out std_logic;
-    signal   can_rx         : in  std_logic;
-    constant scope          : in  string                := C_SCOPE;
-    constant msg_id_panel   : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
-    constant proc_name      : in  string                := "can_uvvm_write"
+    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant extended_id      : in  std_logic;
+    constant remote_request   : in  std_logic;
+    constant data             : in  can_payload_t;
+    constant data_length      : in  natural;
+    constant msg              : in  string;
+    signal clk                : in  std_logic;
+    signal can_tx             : out std_logic;
+    signal can_rx             : in  std_logic;
+    constant scope            : in  string                := C_SCOPE;
+    constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
+    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant can_tx_error_gen : in  can_tx_error_gen_t    := C_CAN_TX_NO_ERROR_GEN;
+    variable can_tx_status    : out can_tx_status_t;
+    constant proc_name        : in  string                := "can_uvvm_write"
     );
 
 
@@ -148,19 +140,21 @@ end package can_uvvm_bfm_pkg;
 package body can_uvvm_bfm_pkg is
 
   procedure can_uvvm_write (
-    constant arb_id         : in  std_logic_vector(28 downto 0);
-    constant extended_id    : in  std_logic;
-    constant remote_request : in  std_logic;
-    constant data           : in  can_payload_t;
-    constant data_length    : in  natural;
-    constant msg            : in  string;
-    signal   clk            : in  std_logic;
-    signal   can_tx         : out std_logic;
-    signal   can_rx         : in  std_logic;
-    constant scope          : in  string                := C_SCOPE;
-    constant msg_id_panel   : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
-    constant proc_name      : in  string                := "can_uvvm_write"
+    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant extended_id      : in  std_logic;
+    constant remote_request   : in  std_logic;
+    constant data             : in  can_payload_t;
+    constant data_length      : in  natural;
+    constant msg              : in  string;
+    signal clk                : in  std_logic;
+    signal can_tx             : out std_logic;
+    signal can_rx             : in  std_logic;
+    constant scope            : in  string                := C_SCOPE;
+    constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
+    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant can_tx_error_gen : in  can_tx_error_gen_t    := C_CAN_TX_NO_ERROR_GEN;
+    variable can_tx_status    : out can_tx_status_t;
+    constant proc_name        : in  string                := "can_uvvm_write"
     ) is
     variable v_proc_call      : line;
     variable bit_stuff_dbg    : std_logic := '0';
@@ -203,13 +197,9 @@ package body can_uvvm_bfm_pkg is
               sample_point_dbg,
               arb_lost,
               ack_received,
-              '1', -- bit stuffing enabled
-              config.clock_period,
-              config.bit_rate,
-              config.sync_quanta,
-              config.prop_quanta,
-              config.phase1_quanta,
-              config.phase2_quanta);
+              '1',
+              config.can_config,
+              can_tx_error_gen);
 
     if arb_lost = '1' then
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
@@ -257,15 +247,9 @@ package body can_uvvm_bfm_pkg is
              can_tx,
              bit_stuff_dbg, -- bit stuffing debug output not used
              sample_point_dbg, -- sample point debug output not used
-             '1',  -- bit stuffing enabled
              timeout,
              crc_error,
-             config.clock_period,
-             config.bit_rate,
-             config.sync_quanta,
-             config.prop_quanta,
-             config.phase1_quanta,
-             config.phase2_quanta);
+             config.can_config);
 
 
     if timeout = '1' then
@@ -381,6 +365,7 @@ package body can_uvvm_bfm_pkg is
                       scope,
                       msg_id_panel,
                       config,
+                      C_CAN_TX_NO_ERROR_GEN,
                       proc_name);
     end if;
 

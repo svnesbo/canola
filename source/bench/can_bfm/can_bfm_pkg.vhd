@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-08-29
+-- Last update: 2019-09-23
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -27,6 +27,57 @@ package can_bfm_pkg is
 
   type can_payload_t is array (0 to 7) of std_logic_vector(7 downto 0);
 
+  type can_bfm_config_t is record
+    sync_quanta              : natural;
+    prop_quanta              : natural;
+    phase1_quanta            : natural;
+    phase2_quanta            : natural;
+    bit_rate                 : natural;
+    clock_period             : time;
+  end record can_config_t;
+
+  constant C_CAN_BFM_CONFIG_DEFAULT : can_bfm_config_t := (
+    sync_quanta              => 1,
+    prop_quanta              => 3,
+    phase1_quanta            => 3,
+    phase2_quanta            => 3,
+    bit_rate                 => 1000000,
+    clock_period             => 25 ns
+    );
+
+  -- Type for receiver errors that can be generated with can_write()
+  type can_rx_error_gen_t is record
+    crc_error   : boolean;
+    stuff_error : boolean;
+    form_error  : boolean;
+  end record can_rx_error_gen_t;
+
+  -- Default values for can_rx_error_gen_t when no errors should be generated
+  constant C_CAN_RX_NO_ERROR_GEN : can_rx_error_gen_t := (
+    crc_error   => false,
+    stuff_error => false,
+    form_error  => false
+    );
+
+  -- Type for transmitter errors that can be generated with can_read()
+  type can_tx_error_gen_t is record
+    bit_error   : boolean;
+    ack_error   : boolean;
+  end record can_tx_error_gen_t;
+
+  -- Default values for can_tx_error_gen_t when no errors should be generated
+  constant C_CAN_TX_NO_ERROR_GEN : can_tx_error_gen_t := (
+    bit_error   => false,
+    ack_error   => false
+    );
+
+  type can_tx_status_t is record
+    arbitration_lost      : boolean;
+    ack_missing           : boolean;
+    bit_error             : boolean;
+    got_active_error_flag : boolean;
+  end record can_tx_status_t;
+
   procedure can_write (
     constant arb_id           : in  std_logic_vector(28 downto 0);
     constant remote_request   : in  std_logic;
@@ -40,13 +91,9 @@ package can_bfm_pkg is
     variable sample_point_dbg : out std_logic;
     variable arb_lost         : out std_logic;
     variable ack_received     : out std_logic;
-    constant bit_stuff_en     : in  std_logic;
-    constant clock_period     : in  time;
-    constant bit_rate         : in  natural := 1000000;
-    constant sync_quanta      : in  natural := 1;
-    constant prop_quanta      : in  natural := 3;
-    constant phase1_quanta    : in  natural := 3;
-    constant phase2_quanta    : in  natural := 3
+    constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
+    constant can_tx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+    variable can_tx_status    : out can_tx_status_t
     );
 
   procedure can_read (
@@ -61,15 +108,9 @@ package can_bfm_pkg is
     signal can_tx             : out std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    constant bit_stuff_en     : in  std_logic; -- Todo: remove, not used
     variable timeout          : out std_logic;
     variable crc_error        : out std_logic;
-    constant clock_period     : in  time;
-    constant bit_rate         : in  natural := 1000000;
-    constant sync_quanta      : in  natural := 1;
-    constant prop_quanta      : in  natural := 3;
-    constant phase1_quanta    : in  natural := 3;
-    constant phase2_quanta    : in  natural := 3
+    constant can_config       : in  can_bfm_config_t := C_CAN_BFM_CONFIG_DEFAULT
     );
 
   function calc_can_crc15 (
@@ -130,14 +171,10 @@ package body can_bfm_pkg is
     variable sample_point_dbg : out std_logic;
     variable arb_lost         : out std_logic;
     variable ack_received     : out std_logic;
-    constant bit_stuff_en     : in  std_logic;
-    constant clock_period     : in  time;
-    constant bit_rate         : in  natural := 1000000;
-    constant sync_quanta      : in  natural := 1;
-    constant prop_quanta      : in  natural := 3;
-    constant phase1_quanta    : in  natural := 3;
-    constant phase2_quanta    : in  natural := 3
-    ) is
+    constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
+    constant can_tx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+    variable can_tx_status    : out can_tx_status_t)
+  is
     variable bit_buffer       : std_logic_vector(0 to 200);
 
     -- Bit start index in bit_buffer for byte
@@ -162,10 +199,10 @@ package body can_bfm_pkg is
     constant bit_quanta        : time := bit_period / 10;
     constant bit_quanta_cycles : natural := bit_quanta / clock_period;
 
-    constant sync_cycles   : natural := sync_quanta*bit_quanta_cycles;
-    constant prop_cycles   : natural := prop_quanta*bit_quanta_cycles;
-    constant phase1_cycles : natural := phase1_quanta*bit_quanta_cycles;
-    constant phase2_cycles : natural := phase2_quanta*bit_quanta_cycles;
+    constant sync_cycles   : natural := can_config.sync_quanta   * bit_quanta_cycles;
+    constant prop_cycles   : natural := can_config.prop_quanta   * bit_quanta_cycles;
+    constant phase1_cycles : natural := can_config.phase1_quanta * bit_quanta_cycles;
+    constant phase2_cycles : natural := can_config.phase2_quanta * bit_quanta_cycles;
 
     constant sample_point_cycles : natural := sync_cycles+prop_cycles+phase1_cycles;
 
@@ -173,9 +210,9 @@ package body can_bfm_pkg is
     arb_lost     := '0';
     ack_received := '0';
 
-    assert (sync_quanta+prop_quanta+phase1_quanta+phase2_quanta) = 10
+    assert (can_config.sync_quanta + can_config.prop_quanta +
+            can_config.phase1_quanta + can_config.phase2_quanta) = 10
       report "can_write(): Error. Illegal bit timing setup." severity failure;
-
 
     -- -------------------------------------------------------------------------
     -- Initialize bit buffer for CAN frame
@@ -302,7 +339,6 @@ package body can_bfm_pkg is
       -- See page 45 here:
       -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
       if bit_stuffing_counter = 5 and
-         bit_stuff_en = '1' and
          bit_counter < crc_start_index+C_CRC_DELIM_INDEX
       then
         bit_stuffing_dbg := '1';
@@ -349,15 +385,9 @@ package body can_bfm_pkg is
     signal can_tx             : out std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    constant bit_stuff_en     : in  std_logic; -- Todo: remove, not used
     variable timeout          : out std_logic;
     variable crc_error        : out std_logic;
-    constant clock_period     : in  time;
-    constant bit_rate         : in  natural := 1000000;
-    constant sync_quanta      : in  natural := 1;
-    constant prop_quanta      : in  natural := 3;
-    constant phase1_quanta    : in  natural := 3;
-    constant phase2_quanta    : in  natural := 3)
+    constant can_config       : in  can_bfm_config_t := C_CAN_BFM_CONFIG_DEFAULT)
   is
     variable timeout_cycle_count : natural := 0;
 
@@ -389,10 +419,10 @@ package body can_bfm_pkg is
     constant bit_quanta        : time    := bit_period / 10;
     constant bit_quanta_cycles : natural := bit_quanta / clock_period;
 
-    constant sync_cycles   : natural := sync_quanta*bit_quanta_cycles;
-    constant prop_cycles   : natural := prop_quanta*bit_quanta_cycles;
-    constant phase1_cycles : natural := phase1_quanta*bit_quanta_cycles;
-    constant phase2_cycles : natural := phase2_quanta*bit_quanta_cycles;
+    constant sync_cycles   : natural := can_config.sync_quanta   * bit_quanta_cycles;
+    constant prop_cycles   : natural := can_config.prop_quanta   * bit_quanta_cycles;
+    constant phase1_cycles : natural := can_config.phase1_quanta * bit_quanta_cycles;
+    constant phase2_cycles : natural := can_config.phase2_quanta * bit_quanta_cycles;
 
     constant sample_point_cycles : natural := sync_cycles+prop_cycles+phase1_cycles;
 
@@ -401,6 +431,10 @@ package body can_bfm_pkg is
     crc_error        := '0';
     timeout          := '0';
     extended_id      := '0';
+
+    assert (can_config.sync_quanta + can_config.prop_quanta +
+            can_config.phase1_quanta + can_config.phase2_quanta) = 10
+      report "can_read(): Error. Illegal bit timing setup." severity failure;
 
     -- -------------------------------------------------------------------------
     -- Wait for activity on CAN RX signal

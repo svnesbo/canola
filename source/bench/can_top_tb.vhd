@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-09-19
+-- Last update: 2019-09-23
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -120,16 +120,6 @@ architecture tb of can_top_tb is
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
   signal s_can_bfm_rx        : std_logic                      := '1';
-  signal s_xmit_arb_id       : std_logic_vector(28 downto 0);
-  constant s_xmit_ext_id     : std_logic                      := '0';
-  signal s_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
-  signal s_xmit_data_length  : natural;
-  signal s_xmit_remote_frame : std_logic;
-  signal s_recv_arb_id       : std_logic_vector(28 downto 0);
-  signal s_recv_ext_id       : std_logic                      := '0';
-  signal s_recv_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
-  signal s_recv_data_length  : natural;
-  signal s_recv_remote_frame : std_logic;
 
   -- Shared CAN bus signal
   signal s_can_bus_signal    : std_logic;
@@ -340,6 +330,8 @@ begin
     variable v_recv_data_length  : natural       := 0;
     variable v_recv_timeout      : std_logic;
 
+    variable v_arb_lost_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_recv_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -376,11 +368,6 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_xmit_arb_id       <= v_xmit_arb_id;
-      s_xmit_data         <= v_xmit_data;
-      s_xmit_data_length  <= v_xmit_data_length;
-      s_xmit_remote_frame <= v_xmit_remote_frame;
-
       wait until rising_edge(s_clk);
 
       can_uvvm_write(v_xmit_arb_id,
@@ -398,7 +385,6 @@ begin
       check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
-      -- Todo: Replace with variable and test both basic and extended ID
       if v_xmit_ext_id = '1' then
         check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
       else
@@ -500,11 +486,6 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_xmit_arb_id       <= v_xmit_arb_id;
-      s_xmit_data         <= v_xmit_data;
-      s_xmit_data_length  <= v_xmit_data_length;
-      s_xmit_remote_frame <= v_xmit_remote_frame;
-
       wait until rising_edge(s_clk);
 
       can_uvvm_write(v_xmit_arb_id,
@@ -522,7 +503,6 @@ begin
       check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
-      -- Todo: Replace with variable and test both basic and extended ID
       if v_xmit_ext_id = '1' then
         check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
       else
@@ -615,6 +595,75 @@ begin
     -- Check that we still receive the message sent from the BFM?
     -- Check that counter for arbitration loss increases
     -- Check that message is retransmitted? (need to include this in controller...)
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+    s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+    s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+    s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+
+    -- Make arbitration ID for BFM 1 lower than ID used by CAN controller,
+    -- so that BFM will win the arbitration
+    if unsigned(v_xmit_arb_id) = 0 then
+      s_can_ctrl_tx_msg.arb_id(0) <= '1';
+    else
+      v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
+    end if;
+
+    wait until rising_edge(s_clk);
+
+    -- Start transmitting from CAN controller
+    wait until falling_edge(s_clk);
+    s_can_ctrl_tx_start <= '1';
+    wait until falling_edge(s_clk);
+    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+    wait until rising_edge(s_clk);
+
+    -- Start transmitting from BFM
+    can_uvvm_write(v_xmit_arb_id,
+                   v_xmit_ext_id,
+                   v_xmit_remote_frame,
+                   v_xmit_data,
+                   v_xmit_data_length,
+                   "Send higher priority message with CAN BFM",
+                   s_clk,
+                   s_can_bfm_tx,
+                   s_can_bfm_rx);
+
+    wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), 1,
+                error, "Check arbitration loss count in CAN controller.");
+    check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
+    check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+    if v_xmit_ext_id = '1' then
+      check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+    else
+      -- Only check the relevant ID bits for non-extended ID
+      check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
+                  v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+                  error,
+                  "Check received ID");
+    end if;
+
+    check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+    check_value(s_msg.data_length,
+                std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                error, "Check data length");
+
+    -- Don't check data for remote frame requests
+    if v_xmit_remote_frame = '0' then
+      for idx in 0 to v_xmit_data_length-1 loop
+        check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+      end loop;
+    end if;
+
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #6: Test winning arbitration, and missing ack", C_SCOPE);
@@ -627,8 +676,137 @@ begin
     -- Is the controller supposed to send error flag if it does not receive
     -- ACK? If so, we can test for that as well..
 
+    v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
+    v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+    s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+    s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+
+    -- Make arbitration ID for CAN controller 1 lower than ID used by BFM,
+    -- so that the CAN controller will win the arbitration
+    if unsigned(v_xmit_arb_id) = 0 then
+      s_can_ctrl_tx_msg.arb_id <= v_xmit_arb_id;
+      v_xmit_arb_id(0)         := '1';
+    else
+      s_can_ctrl_tx_msg.arb_id <= std_logic_vector(unsigned(v_xmit_arb_id) - 1);
+    end if;
+
+    wait until rising_edge(s_clk);
+
+    -- Start transmitting from CAN controller
+    wait until falling_edge(s_clk);
+    s_can_ctrl_tx_start <= '1';
+    wait until falling_edge(s_clk);
+    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+    wait until rising_edge(s_clk);
+
+    -- Start transmitting from BFM. It should lose the arbitration
+    can_uvvm_write(v_xmit_arb_id,
+                   v_xmit_ext_id,
+                   v_xmit_remote_frame,
+                   v_xmit_data,
+                   v_xmit_data_length,
+                   "Send higher priority message with CAN BFM",
+                   s_clk,
+                   s_can_bfm_tx,
+                   s_can_bfm_rx);
+
+    -- Expect error flag from CAN controller due to missing ACK,
+    -- since BFM should have lost arbitration and was not receiving
+    -- so no ACK has been sent
+    can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
+                             200,
+                             "Receive error flag with CAN BFM",
+                             s_clk,
+                             s_can_bfm_tx,
+                             s_can_bfm_rx);
+
+    wait until s_can_ctrl_tx_done = '1' for 200*C_CAN_BAUD_PERIOD;
+
+    -- Arbitration loss count should not have increased
+    check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+                error, "Check arbitration loss count in CAN controller.");
+
+    -- Ack received count should not have increased, because when
+    -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
+    -- was no way for the BFM to receive the message and acknowledge it
+    check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+                error, "Check ACK received count in CAN controller.");
+
+
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #7: Test stuff error in received message", C_SCOPE);
+    log(ID_LOG_HDR, "Test #7: Test CRC error in received message", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    -- Todo
+    -- Send a message using can_uvvm_write() with incorrect CRC
+    -- Verify that the CRC error is detected by Canola controller
+    -- Verify that an active error flag is sent by Canola controller
+    -- Verify correct receive error count increase?
+    -- Verify that Rx CRC error count increases
+
+
+    v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+    v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+    v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+    v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+    v_receive_error_count  := s_can_ctrl_receive_error_count;
+
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    v_can_rx_error_gen := (crc_error   => false,
+                           stuff_error => true,
+                           form_error  => false);
+
+    -- Start transmitting from BFM
+    can_uvvm_write(v_xmit_arb_id,
+                   v_xmit_ext_id,
+                   v_xmit_remote_frame,
+                   v_xmit_data,
+                   v_xmit_data_length,
+                   "Send higher priority message with CAN BFM",
+                   s_clk,
+                   s_can_bfm_tx,
+                   s_can_bfm_rx,
+                   v_can_rx_error_gen,
+                   v_can_tx_status);
+
+    check_value(v_can_tx_status.got_active_error_flag, true, error,
+                "Check that active error flag was received from CAN controller")
+
+    -- Received message count should not have increased, because receiving this
+    -- message was supposed to fail..
+    check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+                error, "Check received message count in CAN controller.");
+
+    -- Expecting increase by one since we asked to generate a CRC error
+    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count+1,
+                error, "Check received CRC error count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a stuff error
+    check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
+                error, "Check received stuff error count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a form error
+    check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
+                error, "Check received form error count in CAN controller.");
+
+    -- Expecting increase by one in receive error count
+    check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+                error, "Check receive error count in CAN controller.");
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #8: Test stuff error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     -- Todo
     -- Send a message using can_uvvm_write(), and insert a stuff error in the stream
@@ -637,8 +815,61 @@ begin
     -- Verify correct receive error count increase?
     -- Verify that Rx stuff error count increases
 
+    v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+    v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+    v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+    v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+    v_receive_error_count  := s_can_ctrl_receive_error_count;
+
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    v_can_rx_error_gen := (crc_error   => false,
+                           stuff_error => true,
+                           form_error  => false);
+
+    -- Start transmitting from BFM
+    can_uvvm_write(v_xmit_arb_id,
+                   v_xmit_ext_id,
+                   v_xmit_remote_frame,
+                   v_xmit_data,
+                   v_xmit_data_length,
+                   "Send higher priority message with CAN BFM",
+                   s_clk,
+                   s_can_bfm_tx,
+                   s_can_bfm_rx,
+                   v_can_rx_error_gen,
+                   v_can_tx_status);
+
+    check_value(v_can_tx_status.got_active_error_flag, true, error,
+                "Check that active error flag was received from CAN controller")
+
+    -- Received message count should not have increased, because receiving this
+    -- message was supposed to fail..
+    check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+                error, "Check received message count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a CRC error
+    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+                error, "Check received CRC error count in CAN controller.");
+
+    -- Expecting increase by one since we asked to generate a stuff error
+    check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count+1,
+                error, "Check received stuff error count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a form error
+    check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
+                error, "Check received form error count in CAN controller.");
+
+    -- Expecting increase by one in receive error count
+    check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+                error, "Check receive error count in CAN controller.");
+
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #8: Test form error in received message", C_SCOPE);
+    log(ID_LOG_HDR, "Test #9: Test form error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     -- Todo
     -- Send a message using can_uvvm_write() with a form error
@@ -646,16 +877,58 @@ begin
     -- Verify that an active error flag is sent by Canola controller
     -- Verify correct receive error count increase?
     -- Verify that Rx form error count increases
+    v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+    v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+    v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+    v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+    v_receive_error_count  := s_can_ctrl_receive_error_count;
 
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #9: Test CRC error in received message", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
-    -- Todo
-    -- Send a message using can_uvvm_write() with incorrect CRC
-    -- Verify that the CRC error is detected by Canola controller
-    -- Verify that an active error flag is sent by Canola controller
-    -- Verify correct receive error count increase?
-    -- Verify that Rx CRC error count increases
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    v_can_rx_error_gen := (crc_error   => false,
+                           stuff_error => false,
+                           form_error  => true);
+
+    -- Start transmitting from BFM
+    can_uvvm_write(v_xmit_arb_id,
+                   v_xmit_ext_id,
+                   v_xmit_remote_frame,
+                   v_xmit_data,
+                   v_xmit_data_length,
+                   "Send higher priority message with CAN BFM",
+                   s_clk,
+                   s_can_bfm_tx,
+                   s_can_bfm_rx,
+                   v_can_rx_error_gen,
+                   v_can_tx_status);
+
+    check_value(v_can_tx_status.got_active_error_flag, true, error,
+                "Check that active error flag was received from CAN controller")
+
+    -- Received message count should not have increased, because receiving this
+    -- message was supposed to fail..
+    check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+                error, "Check received message count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a CRC error
+    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+                error, "Check received CRC error count in CAN controller.");
+
+    -- Not expecting increase, we did not generate a stuff error
+    check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
+                error, "Check received stuff error count in CAN controller.");
+
+    -- Expecting increase by one since we asked to generate a form error
+    check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count+1,
+                error, "Check received form error count in CAN controller.");
+
+    -- Expecting increase by one in receive error count
+    check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+                error, "Check receive error count in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #10: Test ERROR PASSIVE/ACTIVE states when transmitting", C_SCOPE);
