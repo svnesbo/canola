@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-09-23
+-- Last update: 2019-10-02
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -330,8 +330,16 @@ begin
     variable v_recv_data_length  : natural       := 0;
     variable v_recv_timeout      : std_logic;
 
-    variable v_arb_lost_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_recv_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_can_tx_status    : can_tx_status_t;
+    variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+
+    variable v_arb_lost_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_recv_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_msg_count         : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -378,7 +386,9 @@ begin
                      "Send random message with CAN BFM",
                      s_clk,
                      s_can_bfm_tx,
-                     s_can_bfm_rx);
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN);
 
       wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
@@ -496,7 +506,9 @@ begin
                      "Send random message with CAN BFM",
                      s_clk,
                      s_can_bfm_tx,
-                     s_can_bfm_rx);
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN);
 
       wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
@@ -632,7 +644,9 @@ begin
                    "Send higher priority message with CAN BFM",
                    s_clk,
                    s_can_bfm_tx,
-                   s_can_bfm_rx);
+                   s_can_bfm_rx,
+                   v_can_tx_status,
+                   C_CAN_RX_NO_ERROR_GEN);
 
     wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
@@ -716,7 +730,9 @@ begin
                    "Send higher priority message with CAN BFM",
                    s_clk,
                    s_can_bfm_tx,
-                   s_can_bfm_rx);
+                   s_can_bfm_rx,
+                   v_can_tx_status,
+                   C_CAN_RX_NO_ERROR_GEN);
 
     -- Expect error flag from CAN controller due to missing ACK,
     -- since BFM should have lost arbitration and was not receiving
@@ -724,8 +740,6 @@ begin
     can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
                              200,
                              "Receive error flag with CAN BFM",
-                             s_clk,
-                             s_can_bfm_tx,
                              s_can_bfm_rx);
 
     wait until s_can_ctrl_tx_done = '1' for 200*C_CAN_BAUD_PERIOD;
@@ -778,11 +792,11 @@ begin
                    s_clk,
                    s_can_bfm_tx,
                    s_can_bfm_rx,
-                   v_can_rx_error_gen,
-                   v_can_tx_status);
+                   v_can_tx_status,
+                   v_can_rx_error_gen);
 
     check_value(v_can_tx_status.got_active_error_flag, true, error,
-                "Check that active error flag was received from CAN controller")
+                "Check that active error flag was received from CAN controller");
 
     -- Received message count should not have increased, because receiving this
     -- message was supposed to fail..
@@ -790,7 +804,8 @@ begin
                 error, "Check received message count in CAN controller.");
 
     -- Expecting increase by one since we asked to generate a CRC error
-    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count+1,
+    check_value(unsigned(s_can_ctrl_reg_rx_crc_error_count),
+                unsigned(v_rx_crc_error_count)+1,
                 error, "Check received CRC error count in CAN controller.");
 
     -- Not expecting increase, we did not generate a stuff error
@@ -841,11 +856,11 @@ begin
                    s_clk,
                    s_can_bfm_tx,
                    s_can_bfm_rx,
-                   v_can_rx_error_gen,
-                   v_can_tx_status);
+                   v_can_tx_status,
+                   v_can_rx_error_gen);
 
     check_value(v_can_tx_status.got_active_error_flag, true, error,
-                "Check that active error flag was received from CAN controller")
+                "Check that active error flag was received from CAN controller");
 
     -- Received message count should not have increased, because receiving this
     -- message was supposed to fail..
@@ -857,7 +872,8 @@ begin
                 error, "Check received CRC error count in CAN controller.");
 
     -- Expecting increase by one since we asked to generate a stuff error
-    check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count+1,
+    check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
+                unsigned(v_rx_stuff_error_count)+1,
                 error, "Check received stuff error count in CAN controller.");
 
     -- Not expecting increase, we did not generate a form error
@@ -865,7 +881,8 @@ begin
                 error, "Check received form error count in CAN controller.");
 
     -- Expecting increase by one in receive error count
-    check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+    check_value(unsigned(s_can_ctrl_receive_error_count),
+                unsigned(v_receive_error_count)+1,
                 error, "Check receive error count in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
@@ -903,11 +920,11 @@ begin
                    s_clk,
                    s_can_bfm_tx,
                    s_can_bfm_rx,
-                   v_can_rx_error_gen,
-                   v_can_tx_status);
+                   v_can_tx_status,
+                   v_can_rx_error_gen);
 
     check_value(v_can_tx_status.got_active_error_flag, true, error,
-                "Check that active error flag was received from CAN controller")
+                "Check that active error flag was received from CAN controller");
 
     -- Received message count should not have increased, because receiving this
     -- message was supposed to fail..
@@ -923,7 +940,8 @@ begin
                 error, "Check received stuff error count in CAN controller.");
 
     -- Expecting increase by one since we asked to generate a form error
-    check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count+1,
+    check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
+                unsigned(v_rx_form_error_count)+1,
                 error, "Check received form error count in CAN controller.");
 
     -- Expecting increase by one in receive error count

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-09-23
+-- Last update: 2019-10-02
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ package can_bfm_pkg is
     phase2_quanta            : natural;
     bit_rate                 : natural;
     clock_period             : time;
-  end record can_config_t;
+  end record can_bfm_config_t;
 
   constant C_CAN_BFM_CONFIG_DEFAULT : can_bfm_config_t := (
     sync_quanta              => 1,
@@ -45,7 +45,7 @@ package can_bfm_pkg is
     clock_period             => 25 ns
     );
 
-  -- Type for receiver errors that can be generated with can_write()
+  -- Type for errors that can be induced in the receiver errors when calling can_write()
   type can_rx_error_gen_t is record
     crc_error   : boolean;
     stuff_error : boolean;
@@ -59,7 +59,7 @@ package can_bfm_pkg is
     form_error  => false
     );
 
-  -- Type for transmitter errors that can be generated with can_read()
+  -- Type for errors that can be induced in the transmitter errors when calling can_read()
   type can_tx_error_gen_t is record
     bit_error   : boolean;
     ack_error   : boolean;
@@ -78,6 +78,8 @@ package can_bfm_pkg is
     got_active_error_flag : boolean;
   end record can_tx_status_t;
 
+  type can_error_flag_t is (ACTIVE_ERROR_FLAG, PASSIVE_ERROR_FLAG, ANY_ERROR_FLAG);
+
   procedure can_write (
     constant arb_id           : in  std_logic_vector(28 downto 0);
     constant remote_request   : in  std_logic;
@@ -92,7 +94,7 @@ package can_bfm_pkg is
     variable arb_lost         : out std_logic;
     variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
-    constant can_tx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+    constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
     variable can_tx_status    : out can_tx_status_t
     );
 
@@ -172,7 +174,7 @@ package body can_bfm_pkg is
     variable arb_lost         : out std_logic;
     variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
-    constant can_tx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+    constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
     variable can_tx_status    : out can_tx_status_t)
   is
     variable bit_buffer       : std_logic_vector(0 to 200);
@@ -195,9 +197,9 @@ package body can_bfm_pkg is
     variable bit_stuffing_counter : natural   := 0;
     variable previous_bit_value   : std_logic := '0';
 
-    constant bit_period        : time := 1 sec / bit_rate;
+    constant bit_period        : time := 1 sec / can_config.bit_rate;
     constant bit_quanta        : time := bit_period / 10;
-    constant bit_quanta_cycles : natural := bit_quanta / clock_period;
+    constant bit_quanta_cycles : natural := bit_quanta / can_config.clock_period;
 
     constant sync_cycles   : natural := can_config.sync_quanta   * bit_quanta_cycles;
     constant prop_cycles   : natural := can_config.prop_quanta   * bit_quanta_cycles;
@@ -415,9 +417,9 @@ package body can_bfm_pkg is
     variable crc_calc         : std_logic_vector(C_CRC_SIZE-1 downto 0);
     variable crc_received     : std_logic_vector(C_CRC_SIZE-1 downto 0);
 
-    constant bit_period        : time    := 1 sec /bit_rate;
+    constant bit_period        : time    := 1 sec / can_config.bit_rate;
     constant bit_quanta        : time    := bit_period / 10;
-    constant bit_quanta_cycles : natural := bit_quanta / clock_period;
+    constant bit_quanta_cycles : natural := bit_quanta / can_config.clock_period;
 
     constant sync_cycles   : natural := can_config.sync_quanta   * bit_quanta_cycles;
     constant prop_cycles   : natural := can_config.prop_quanta   * bit_quanta_cycles;

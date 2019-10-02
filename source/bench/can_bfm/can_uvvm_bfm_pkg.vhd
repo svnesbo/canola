@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-09-23
+-- Last update: 2019-10-02
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -17,7 +17,8 @@
 -------------------------------------------------------------------------------
 -- Revisions  :
 -- Date        Version  Author  Description
--- 2018-06-20  1.0      simon	Created
+-- 2019-10-02  1.1      svn     Added can_uvvm_recv_error_flag
+-- 2018-06-20  1.0      svn	Created
 -------------------------------------------------------------------------------
 use std.textio.all;
 
@@ -37,27 +38,31 @@ package can_uvvm_bfm_pkg is
 
 -- Configuration record to be assigned in the test harness.
   type t_can_uvvm_bfm_config is record
-    can_config               : can_bfm_config_t;
-    max_wait_cycles          : integer;
-    max_wait_cycles_severity : t_alert_level;
-    arb_lost_severity        : t_alert_level;
-    ack_missing_severity     : t_alert_level;
-    crc_error_severity       : t_alert_level;
-    id_for_bfm               : t_msg_id;
-    id_for_bfm_wait          : t_msg_id;
-    id_for_bfm_poll          : t_msg_id;
+    can_config                  : can_bfm_config_t;
+    max_wait_cycles             : integer;
+    max_wait_cycles_severity    : t_alert_level;
+    arb_lost_severity           : t_alert_level;
+    ack_missing_severity        : t_alert_level;
+    crc_error_severity          : t_alert_level;
+    error_flag_timeout_severity : t_alert_level;
+    wrong_error_flag_severity   : t_alert_level;
+    id_for_bfm                  : t_msg_id;
+    id_for_bfm_wait             : t_msg_id;
+    id_for_bfm_poll             : t_msg_id;
   end record;
 
   constant C_CAN_UVVM_BFM_CONFIG_DEFAULT : t_can_uvvm_bfm_config := (
-    can_config               => C_CAN_BFM_CONFIG_DEFAULT,
-    max_wait_cycles          => 1000,
-    max_wait_cycles_severity => failure,
-    arb_lost_severity        => warning,
-    ack_missing_severity     => warning,
-    crc_error_severity       => failure,
-    id_for_bfm               => ID_BFM,
-    id_for_bfm_wait          => ID_BFM_WAIT,
-    id_for_bfm_poll          => ID_BFM_POLL
+    can_config                  => C_CAN_BFM_CONFIG_DEFAULT,
+    max_wait_cycles             => 1000,
+    max_wait_cycles_severity    => failure,
+    arb_lost_severity           => warning,
+    ack_missing_severity        => warning,
+    crc_error_severity          => failure,
+    error_flag_timeout_severity => failure,
+    wrong_error_flag_severity   => failure,
+    id_for_bfm                  => ID_BFM,
+    id_for_bfm_wait             => ID_BFM_WAIT,
+    id_for_bfm_poll             => ID_BFM_POLL
     );
 
 
@@ -76,11 +81,11 @@ package can_uvvm_bfm_pkg is
     signal clk                : in  std_logic;
     signal can_tx             : out std_logic;
     signal can_rx             : in  std_logic;
+    variable can_tx_status    : out can_tx_status_t;
+    constant can_rx_error_gen : in  can_rx_error_gen_t    := C_CAN_RX_NO_ERROR_GEN;
     constant scope            : in  string                := C_SCOPE;
     constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
     constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
-    constant can_tx_error_gen : in  can_tx_error_gen_t    := C_CAN_TX_NO_ERROR_GEN;
-    variable can_tx_status    : out can_tx_status_t;
     constant proc_name        : in  string                := "can_uvvm_write"
     );
 
@@ -134,6 +139,30 @@ package can_uvvm_bfm_pkg is
     constant config          : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT
     );
 
+
+  -- Wait for an incoming CAN error flag
+  -- Wait for an error flag of type specified by error_flag_type.
+  -- The procedure (almost) blindly looks for a sequence of 6 passive or active
+  -- bits, depending on the error flag type.
+  -- If error_flag_type is ANY_ERROR_FLAG or PASSIVE_ERROR_FLAG,
+  -- and there is no activity on can_rx, then the procedure will wait for a
+  -- falling edge on can_rx before looking for a passive error flag.
+  -- If an error flag is not received within the timeout (in bauds),
+  -- an alert of severity specified by config.error_flag_timeout_severity
+  -- will be given.
+  -- If an error flag of the wrong type is received then an alert of severity
+  -- specified by config.wrong_error_flag_severity will be given.
+  procedure can_uvvm_recv_error_flag (
+    constant error_flag_type      : in can_error_flag_t;
+    constant timeout_baud_periods : in natural;
+    constant msg                  : in string;
+    signal   can_rx               : in std_logic;
+    constant scope                : in string                := C_SCOPE;
+    constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant proc_name            : in string                := "can_uvvm_read"
+    );
+
 end package can_uvvm_bfm_pkg;
 
 
@@ -149,11 +178,11 @@ package body can_uvvm_bfm_pkg is
     signal clk                : in  std_logic;
     signal can_tx             : out std_logic;
     signal can_rx             : in  std_logic;
+    variable can_tx_status    : out can_tx_status_t;
+    constant can_rx_error_gen : in  can_rx_error_gen_t    := C_CAN_RX_NO_ERROR_GEN;
     constant scope            : in  string                := C_SCOPE;
     constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
     constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
-    constant can_tx_error_gen : in  can_tx_error_gen_t    := C_CAN_TX_NO_ERROR_GEN;
-    variable can_tx_status    : out can_tx_status_t;
     constant proc_name        : in  string                := "can_uvvm_write"
     ) is
     variable v_proc_call      : line;
@@ -197,9 +226,9 @@ package body can_uvvm_bfm_pkg is
               sample_point_dbg,
               arb_lost,
               ack_received,
-              '1',
               config.can_config,
-              can_tx_error_gen);
+              can_rx_error_gen,
+              can_tx_status);
 
     if arb_lost = '1' then
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
@@ -319,6 +348,7 @@ package body can_uvvm_bfm_pkg is
     variable v_data         : can_payload_t;
     variable v_data_length  : natural;
     variable v_timeout      : std_logic;
+    variable v_can_tx_status : can_tx_status_t;
   begin
     if remote_expect = '1' and remote_request = '1' then
       write(v_error_msg, to_string(" => Failed. Can not request and expect remote frame"));
@@ -362,11 +392,26 @@ package body can_uvvm_bfm_pkg is
                       clk,
                       can_tx,
                       can_rx,
+                      v_can_tx_status,
+                      C_CAN_RX_NO_ERROR_GEN,
                       scope,
                       msg_id_panel,
                       config,
-                      C_CAN_TX_NO_ERROR_GEN,
                       proc_name);
+
+      if v_can_tx_status.arbitration_lost  then
+        alert(alert_level, v_proc_call.all & "=> Failed. Arb lost while sending RTR frame." & LF & msg);
+        return;
+      elsif v_can_tx_status.ack_missing then
+        alert(alert_level, v_proc_call.all & "=> Failed. Ack missing after sending RTR frame." & LF & msg);
+        return;
+      elsif v_can_tx_status.bit_error then
+        alert(alert_level, v_proc_call.all & "=> Failed. Bit error while sending RTR frame." & LF & msg);
+        return;
+      elsif v_can_tx_status.got_active_error_flag then
+        alert(alert_level, v_proc_call.all & "=> Failed. Got active error flag while sending RTR frame." & LF & msg);
+        return;
+      end if;
     end if;
 
     -- Read CAN message
@@ -449,5 +494,138 @@ package body can_uvvm_bfm_pkg is
     log(config.id_for_bfm, v_proc_call.all & "=> OK.");
 
   end procedure can_uvvm_check;
+
+
+  procedure can_uvvm_recv_error_flag (
+    constant error_flag_type      : in can_error_flag_t;
+    constant timeout_baud_periods : in natural;
+    constant msg                  : in string;
+    signal   can_rx               : in std_logic;
+    constant scope                : in string                := C_SCOPE;
+    constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant proc_name            : in string                := "can_uvvm_read"
+    )
+  is
+    variable v_proc_call : line;
+    variable v_error_msg : line;
+
+    variable v_bauds_waited    : natural := 0;
+    variable v_can_rx_prev     : std_logic;
+    variable v_frame_started   : boolean   := false;
+    variable v_recessive_count : natural   := 0;
+    variable v_dominant_count  : natural   := 0;
+    constant baud_period       : time      := 1 sec / config.can_config.bit_rate;
+    constant num_time_quanta   : natural   := config.can_config.sync_quanta +
+                                              config.can_config.prop_quanta +
+                                              config.can_config.phase1_quanta +
+                                              config.can_config.phase2_quanta;
+    constant sample_point_quanta : natural := config.can_config.sync_quanta +
+                                              config.can_config.prop_quanta +
+                                              config.can_config.phase1_quanta;
+    constant sample_point_time : time := (baud_period*sample_point_quanta)/num_time_quanta;
+
+    constant error_flag_length : natural := 6;
+  begin
+
+    -- Format procedure call string
+    write(v_proc_call, to_string("can_uvvm_recv_error_flag("));
+
+    if error_flag_type = ANY_ERROR_FLAG then
+      write(v_proc_call, to_string("ANY_ERROR_FLAG) => "));
+    elsif error_flag_type = ACTIVE_ERROR_FLAG then
+      write(v_proc_call, to_string("ACTIVE_ERROR_FLAG) => "));
+    else
+      write(v_proc_call, to_string("PASSIVE_ERROR_FLAG) => "));
+    end if;
+
+
+    if can_rx = '0' then
+      v_frame_started := true;
+    end if;
+
+    while v_bauds_waited /= timeout_baud_periods loop
+      v_can_rx_prev := can_rx;
+
+      -- Wait till next bit edge
+      wait for (baud_period-sample_point_time);
+
+      -- Wait for next bit
+      if not v_frame_started then
+        -- Wait for first falling edge if we are not in a frame already
+        wait until can_rx = '0' for baud_period;
+
+        if can_rx = '0' then
+          wait for sample_point_time;
+          v_frame_started := true;
+        end if;
+      else
+        -- Wait till next sample point if we are already in a frame
+        wait until can_rx /= v_can_rx_prev for sample_point_time;
+
+        if can_rx /= v_can_rx_prev then
+          -- Got an edge before reaching sample point,
+          -- resynchronize sample point based on this edge
+          -- (technically resync should only be done on falling edge in CAN,
+          --  but we do it on both edges here..)
+          wait for sample_point_time;
+        end if;
+      end if;
+
+      if v_frame_started and v_can_rx_prev = can_rx then
+        -- In frame and receiving consecutive bits of same value -> increase counter
+        if can_rx = '0' then
+          v_dominant_count := v_dominant_count + 1;
+        else
+          v_recessive_count := v_recessive_count + 1;
+        end if;
+      elsif v_frame_started and v_can_rx_prev /= can_rx then
+        -- Bit transition in frame, reset counters
+        if can_rx = '0' then
+          v_dominant_count  := 1;
+          v_recessive_count := 0;
+        else
+          v_dominant_count  := 0;
+          v_recessive_count := 1;
+        end if;
+      else
+        -- Not in a frame
+        v_dominant_count  := 0;
+        v_recessive_count := 0;
+      end if;
+
+      v_bauds_waited := v_bauds_waited + 1;
+
+      if v_dominant_count = error_flag_length then
+        -- Got active error flag
+        if error_flag_type = ANY_ERROR_FLAG or error_flag_type = ACTIVE_ERROR_FLAG then
+          log(config.id_for_bfm,
+              v_proc_call.all & "Ok. Got active error flag. " & msg,
+              scope, msg_id_panel);
+          return;
+        else
+          alert(config.wrong_error_flag_severity,
+                v_proc_call.all & "Failed. Got active error flag. " & msg, scope);
+          return;
+        end if;
+      elsif v_recessive_count = error_flag_length then
+        -- Got passive error flag
+        if error_flag_type = ANY_ERROR_FLAG or error_flag_type = PASSIVE_ERROR_FLAG then
+          log(config.id_for_bfm,
+              v_proc_call.all & "Ok. Got passive error flag. " & msg,
+              scope, msg_id_panel);
+          return;
+        else
+          alert(config.wrong_error_flag_severity,
+                v_proc_call.all & "Failed. Got passive error flag. " & msg, scope);
+          return;
+        end if;
+      elsif v_bauds_waited = timeout_baud_periods then
+        -- Timeout
+        alert(config.error_flag_timeout_severity,
+              v_proc_call.all & "Failed. Timeout. " & msg, scope);
+      end if;
+    end loop;
+  end procedure can_uvvm_recv_error_flag;
 
 end package body can_uvvm_bfm_pkg;
