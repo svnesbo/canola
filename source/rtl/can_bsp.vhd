@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-09-19
+-- Last update: 2019-11-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -151,6 +151,7 @@ architecture rtl of can_bsp is
   signal s_tx_bit_queued         : std_logic;
   signal s_tx_stuff_bit_sent     : std_logic;
   signal s_tx_stuff_bit_queued   : std_logic;
+  signal s_tx_rx_mismatch_flag   : std_logic;
 
   -- Indicates that we are ready to send next bit.
   -- Initially high when setting up BSP for a chunk of data,
@@ -280,6 +281,7 @@ begin  -- architecture rtl
         s_tx_bit_queued          <= '0';
         s_tx_stuff_bit_sent      <= '0';
         s_tx_stuff_bit_queued    <= '0';
+        s_tx_rx_mismatch_flag    <= '0';
         s_send_ack               <= '0';
         BTL_TX_BIT_VALUE         <= '1'; -- Recessive
         BTL_TX_BIT_VALID         <= '0';
@@ -315,6 +317,7 @@ begin  -- architecture rtl
           s_tx_bit_queued       <= '0';
           s_tx_stuff_bit_sent   <= '0';
           s_tx_stuff_bit_queued <= '0';
+          s_tx_rx_mismatch_flag <= '0';
         end if;
 
         if s_send_ack = '1' then
@@ -324,7 +327,11 @@ begin  -- architecture rtl
             BTL_TX_BIT_VALID <= '1';
             s_send_ack       <= '0';
           end if;
-        elsif BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1' then
+        elsif BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1' and s_tx_rx_mismatch_flag = '0' then
+          -- Stop writing data when immediately when Tx/Rx mismatch is detected,
+          -- as Tx FSM will not have sufficient time to signal to deassert
+          -- TX_ACTIVE and TX_WRITE_EN before next bit is sent to BTL by BSP
+
           if s_tx_write_counter < BSP_TX_DATA_COUNT then
             if BTL_TX_RDY = '1' and s_tx_bit_rdy = '1' then
               if BSP_TX_BIT_STUFF_EN = '1' and s_tx_stuff_counter = C_STUFF_BIT_THRESHOLD then
@@ -373,7 +380,9 @@ begin  -- architecture rtl
             if s_tx_bit_sent = '1' and BTL_RX_BIT_VALID = '1' then
               -- Did we receive the same bit we transmitted previously?
               if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
-                BSP_TX_RX_MISMATCH <= '1';
+                BSP_TX_RX_MISMATCH    <= '1';
+                BSP_TX_DONE           <= '1';
+                s_tx_rx_mismatch_flag <= '1';
               end if;
 
               s_tx_bit_sent      <= '0';
@@ -384,6 +393,8 @@ begin  -- architecture rtl
               -- Did we receive the same bit we transmitted?
               if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
                 BSP_TX_RX_STUFF_MISMATCH <= '1';
+                BSP_TX_DONE              <= '1';
+                s_tx_rx_mismatch_flag    <= '1';
               end if;
 
               s_tx_stuff_bit_sent <= '0';

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-09-19
+-- Last update: 2019-11-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -46,10 +46,11 @@ entity can_rx_fsm is
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
   port (
-    CLK              : in  std_logic;
-    RESET            : in  std_logic;
-    RX_MSG_OUT       : out can_msg_t;
-    RX_MSG_VALID     : out std_logic;
+    CLK               : in  std_logic;
+    RESET             : in  std_logic;
+    RX_MSG_OUT        : out can_msg_t;
+    RX_MSG_VALID      : out std_logic;
+    TX_ARB_WON        : in  std_logic;  -- Tx FSM signal that we are transmitting and won arbitration
 
     -- Signals to/from BSP
     BSP_RX_ACTIVE          : in  std_logic;
@@ -106,6 +107,7 @@ architecture rtl of can_rx_fsm is
   signal s_crc_mismatch     : std_logic;
   signal s_crc_calc         : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_data_cleared : std_logic;
+  signal s_reg_tx_arb_won   : std_logic;
 
   signal s_reg_msg_recv_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
   signal s_reg_crc_error_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
@@ -148,9 +150,17 @@ begin  -- architecture rtl
         BSP_SEND_ERROR_FLAG   <= '0';
         BSP_RX_BIT_DESTUFF_EN <= '1';
 
+        -- Tx FSM is transmitting message, and won arbitration
+        if TX_ARB_WON = '1' then
+          s_reg_tx_arb_won <= '1';
+        end if;
+
         case s_fsm_state is
           when ST_IDLE =>
             s_crc_mismatch <= '0';
+
+            -- Clear flag from Tx FSM
+            s_reg_tx_arb_won <= '0';
 
             if BSP_RX_ACTIVE = '1' then
               BSP_RX_DATA_CLEAR <= '1';
@@ -343,8 +353,16 @@ begin  -- architecture rtl
               else
                 -- Send ACK only if CRC was ok
                 if s_crc_mismatch = '0' then
-                  -- Pulsing this signal makes the BSP send an ack pulse
-                  BSP_RX_SEND_ACK <= '1';
+                  if s_reg_tx_arb_won = '0' then
+                    -- If arbitration was not won, we are receiving this message
+                    -- from a different node, and should always acknowledge
+                    -- However, if arbitration was won then we are transmitting
+                    -- this message ourselves, and should not acknowledge our
+                    -- own message.
+
+                    -- Pulsing this signal makes the BSP send an ack pulse
+                    BSP_RX_SEND_ACK <= '1';
+                  end if;
                 end if;
 
                 s_fsm_state     <= ST_SEND_RECV_ACK;
@@ -362,9 +380,16 @@ begin  -- architecture rtl
               BSP_RX_DATA_CLEAR <= '1';
 
               if s_crc_mismatch = '0' and BSP_RX_DATA(0) /= C_ACK_VALUE then
-                -- Did we try to send ACK, but did not read ACK value back?
-                -- What kind of error is that? Form error?
-                s_fsm_state <= ST_FORM_ERROR;
+                if s_reg_tx_arb_won = '0' then
+                  -- Did we try to send ACK, but did not read ACK value back?
+                  -- What kind of error is that? Form error?
+                  s_fsm_state <= ST_FORM_ERROR;
+                else
+                  -- In this case we were transmitting this message ourselves,
+                  -- and did not send out ACK, so we proceed as normal and let
+                  -- the Tx FSM handle ACK error.
+                  s_fsm_state <= ST_RECV_EOF;
+                end if;
               else
                 -- TODO: What if there was a CRC mismatch?
                 --       Do I send active/passive error flag?
@@ -404,6 +429,18 @@ begin  -- architecture rtl
           --  ACK Delimiter, unless an Error flag for another error condition has already been started."
 
           when ST_FORM_ERROR =>
+            if s_reg_tx_arb_won = '0' then
+              -- We are receiving this message from a different node
+              -- Increase receive error counters
+              null;
+            else
+              -- We are transmitting this message ourselves
+              -- Don't increase receive error counters
+              null;
+            end if;
+
+            s_fsm_state <= ST_IDLE;
+
             -- Form Error applies to bit errors in any fixed field from SOF to
             -- CRC delimiter.
 
@@ -419,9 +456,14 @@ begin  -- architecture rtl
             s_fsm_state <= ST_IDLE;
 
           when ST_DONE =>
-            -- Pulsed one cycle
-            RX_MSG_VALID           <= '1';
-            s_reg_msg_recv_counter <= s_reg_msg_recv_counter + 1;
+            -- Don't output messages we were transmitting ourselves
+            -- (ie. when arbitration was won)
+            if s_reg_tx_arb_won = '0' then
+              -- Pulsed one cycle
+              RX_MSG_VALID           <= '1';
+              s_reg_msg_recv_counter <= s_reg_msg_recv_counter + 1;
+            end if;
+
             s_fsm_state            <= ST_WAIT_BUS_IDLE;
 
           when ST_WAIT_BUS_IDLE =>

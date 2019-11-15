@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-09-19
+-- Last update: 2019-11-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -54,16 +54,17 @@ entity can_tx_fsm is
     RESET                          : in  std_logic;
     TX_MSG_IN                      : in  can_msg_t;
     TX_START                       : in  std_logic;  -- Start sending TX_MSG
+    TX_RETRANSMIT_EN               : in  std_logic;
     TX_BUSY                        : out std_logic;  -- FSM busy
     TX_DONE                        : out std_logic;  -- Transmit complete
     TX_ACK_RECV                    : out std_logic;  -- Acknowledge was received
     TX_ARB_LOST                    : out std_logic;  -- Arbitration was lost
+    TX_ARB_WON                     : out std_logic;  -- Arbitration was won (pulsed)
     TX_BIT_ERROR                   : out std_logic;  -- Mismatch transmitted vs. monitored bit
     TX_ACK_ERROR                   : out std_logic;  -- No ack received
     TX_ARB_STUFF_ERROR             : out std_logic;  -- Stuff error during arbitration field
     TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
-    TX_ACTIVE                      : out std_logic;  -- Signaled to BSP,   BTL,   and Rx FSM
     ERROR_STATE                    : in  can_error_state_t;
 
     -- Signals to/from BSP
@@ -75,6 +76,7 @@ entity can_tx_fsm is
     BSP_TX_RX_STUFF_MISMATCH   : in  std_logic;
     BSP_TX_DONE                : in  std_logic;
     BSP_TX_CRC_CALC            : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_TX_ACTIVE              : out std_logic;
     BSP_RX_ACTIVE              : in  std_logic;
     BSP_SEND_ERROR_FLAG        : out std_logic;
     BSP_ERROR_FLAG_DONE        : in  std_logic;
@@ -166,7 +168,7 @@ begin  -- architecture rtl
         s_fsm_state            <= ST_IDLE;
         TX_BUSY                <= '0';
         BSP_TX_DATA            <= (others => '0');
-        TX_ACTIVE              <= '0';
+        BSP_TX_ACTIVE          <= '0';
         s_tx_ack_recv          <= '0';
         s_reg_msg_sent_counter <= (others => '0');
         s_reg_ack_recv_counter <= (others => '0');
@@ -177,9 +179,11 @@ begin  -- architecture rtl
         BSP_SEND_ERROR_FLAG  <= '0';
         BSP_TX_WRITE_EN      <= '0';
         BSP_TX_BIT_STUFF_EN  <= '1';
+        TX_ARB_WON           <= '0';
 
         case s_fsm_state is
           when ST_IDLE =>
+            BSP_TX_ACTIVE         <= '0';
             TX_BUSY               <= '0';
             s_tx_ack_recv         <= '0';
             s_retransmit_attempts <= 0;
@@ -197,7 +201,7 @@ begin  -- architecture rtl
             -- Should there be a timeout here?
             -- Can we wait forever?
             if BSP_RX_ACTIVE = '0' then
-              TX_ACTIVE     <= '1';
+              BSP_TX_ACTIVE <= '1';
               s_fsm_state   <= ST_SETUP_SOF;
             end if;
 
@@ -299,6 +303,9 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_RTR =>
+            -- At this point we have just won the arbitration,
+            -- both for extended and basic ID messages
+            TX_ARB_WON        <= '1';
             BSP_TX_DATA(0)    <= s_reg_tx_msg.remote_request;
             BSP_TX_DATA_COUNT <= 1;
             BSP_TX_WRITE_EN   <= '1';
@@ -500,6 +507,7 @@ begin  -- architecture rtl
 
           when ST_ARB_LOST =>
             TX_ARB_LOST            <= '1';
+            BSP_TX_ACTIVE          <= '0';
             s_reg_arb_lost_counter <= s_reg_arb_lost_counter + 1;
             s_fsm_state            <= ST_RETRANSMIT;
 
@@ -536,7 +544,7 @@ begin  -- architecture rtl
 
             -- Retry transmission until retransmit count is reached
             -- TODO: Need to respect IFS etc. before retransmitting....
-            if s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then
+            if TX_RETRANSMIT_EN = '0' or s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then
               TX_FAILED   <= '1';
               s_fsm_state <= ST_IDLE;
             else
@@ -547,11 +555,13 @@ begin  -- architecture rtl
 
           when ST_DONE =>
             -- Increase counters, set status outputs, etc...
+            -- Should I increase this when no ACK was received?
             s_reg_msg_sent_counter <= s_reg_msg_sent_counter + 1;
+
+            BSP_TX_ACTIVE <= '0';
 
             if s_tx_ack_recv = '1' then
               s_reg_ack_recv_counter <= s_reg_ack_recv_counter + 1;
-              TX_ACTIVE              <= '0';
               TX_ACK_RECV            <= '1';
               TX_DONE                <= '1';
               s_fsm_state            <= ST_IDLE;
@@ -559,7 +569,6 @@ begin  -- architecture rtl
               -- Did not receive ACK..
               -- Pulsing TX_ACTIVE allows BSP to reset CRC etc.,
               -- and prevents BTL from syncing
-              TX_ACTIVE     <= '0';
               s_fsm_state   <= ST_RETRANSMIT;
             end if;
 

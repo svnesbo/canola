@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-10-02
+-- Last update: 2019-11-15
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -42,10 +42,10 @@ end can_top_tb;
 
 architecture tb of can_top_tb is
 
-  constant C_CLK_PERIOD : time       := 25 ns; -- 10 Mhz
+  constant C_CLK_PERIOD : time       := 25 ns; -- 40 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
 
-  constant C_CAN_BAUD_PERIOD  : time    := 10000 ns;  -- 100 kHz
+  constant C_CAN_BAUD_PERIOD  : time    := 1000 ns;  -- 1 MHz
   constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
 
   -- Indicates where in a bit the Rx sample point should be
@@ -89,14 +89,15 @@ architecture tb of can_top_tb is
   signal s_clk              : std_logic := '0';
 
   -- Signals for CAN controller
-  signal s_can_ctrl_tx           : std_logic;
-  signal s_can_ctrl_rx           : std_logic;
-  signal s_can_ctrl_rx_msg       : can_msg_t;
-  signal s_can_ctrl_tx_msg       : can_msg_t;
-  signal s_can_ctrl_rx_msg_valid : std_logic;
-  signal s_can_ctrl_tx_start     : std_logic := '0';
-  signal s_can_ctrl_tx_busy      : std_logic;
-  signal s_can_ctrl_tx_done      : std_logic;
+  signal s_can_ctrl_tx               : std_logic;
+  signal s_can_ctrl_rx               : std_logic;
+  signal s_can_ctrl_rx_msg           : can_msg_t;
+  signal s_can_ctrl_tx_msg           : can_msg_t;
+  signal s_can_ctrl_rx_msg_valid     : std_logic;
+  signal s_can_ctrl_tx_start         : std_logic := '0';
+  signal s_can_ctrl_tx_retransmit_en : std_logic := '0';
+  signal s_can_ctrl_tx_busy          : std_logic;
+  signal s_can_ctrl_tx_done          : std_logic;
 
   signal s_can_ctrl_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -162,10 +163,11 @@ begin
       RX_MSG_VALID => s_can_ctrl_rx_msg_valid,
 
       -- Tx interface
-      TX_MSG   => s_can_ctrl_tx_msg,
-      TX_START => s_can_ctrl_tx_start,
-      TX_BUSY  => s_can_ctrl_tx_busy,
-      TX_DONE  => s_can_ctrl_tx_done,
+      TX_MSG           => s_can_ctrl_tx_msg,
+      TX_START         => s_can_ctrl_tx_start,
+      TX_RETRANSMIT_EN => s_can_ctrl_tx_retransmit_en,
+      TX_BUSY          => s_can_ctrl_tx_busy,
+      TX_DONE          => s_can_ctrl_tx_done,
 
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl_prop_seg,
@@ -601,82 +603,119 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #5: Test loss of arbitration", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- Todo
-    -- Start can_uvvm_write() with a higher priority ID at the same time as
-    -- transmitting with Canola controller
-    -- Check that we still receive the message sent from the BFM?
-    -- Check that counter for arbitration loss increases
-    -- Check that message is retransmitted? (need to include this in controller...)
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 v_xmit_ext_id);
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
 
-    s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
-    s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-    s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-    s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+    -- Make sure that retransmits are disabled for this test
+    s_can_ctrl_tx_retransmit_en <= '0';
 
-    -- Make arbitration ID for BFM 1 lower than ID used by CAN controller,
-    -- so that BFM will win the arbitration
-    if unsigned(v_xmit_arb_id) = 0 then
-      s_can_ctrl_tx_msg.arb_id(0) <= '1';
-    else
-      v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
-    end if;
+    while v_test_num < C_NUM_ITERATIONS loop
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
 
-    wait until rising_edge(s_clk);
+      -- Todo
+      -- Start can_uvvm_write() with a higher priority ID at the same time as
+      -- transmitting with Canola controller
+      -- Check that we still receive the message sent from the BFM?
+      -- Check that counter for arbitration loss increases
+      -- Check that message is retransmitted? (need to include this in controller...)
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
 
-    -- Start transmitting from CAN controller
-    wait until falling_edge(s_clk);
-    s_can_ctrl_tx_start <= '1';
-    wait until falling_edge(s_clk);
-    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
-    wait until rising_edge(s_clk);
+      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
 
-    -- Start transmitting from BFM
-    can_uvvm_write(v_xmit_arb_id,
-                   v_xmit_ext_id,
-                   v_xmit_remote_frame,
-                   v_xmit_data,
-                   v_xmit_data_length,
-                   "Send higher priority message with CAN BFM",
-                   s_clk,
-                   s_can_bfm_tx,
-                   s_can_bfm_rx,
-                   v_can_tx_status,
-                   C_CAN_RX_NO_ERROR_GEN);
+      -- Make arbitration ID for BFM 1 lower than ID used by CAN controller,
+      -- so that BFM will win the arbitration
+      if unsigned(v_xmit_arb_id) = 0 then
+        s_can_ctrl_tx_msg.arb_id(0) <= '1';
+      else
+        v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
+      end if;
 
-    wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+      wait until rising_edge(s_clk);
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), 1,
-                error, "Check arbitration loss count in CAN controller.");
-    check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
-    check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      wait until rising_edge(s_clk);
 
-    if v_xmit_ext_id = '1' then
-      check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
-    else
-      -- Only check the relevant ID bits for non-extended ID
-      check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
-                  v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
-                  error,
-                  "Check received ID");
-    end if;
+      -- Start transmitting from BFM
+      can_uvvm_write(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send higher priority message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN);
 
-    check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+      -- Todo: CAN controller is currently not able to receive incoming messages
+      --       while it is transmitting its own message but loses arbitration
+      --       Add this check when the CAN controller has been improved to allow
+      --       for this.
+      --wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+      --check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
 
-    check_value(s_msg.data_length,
-                std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
-                error, "Check data length");
+      check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), v_test_num+1,
+                  error, "Check arbitration loss count in CAN controller.");
 
-    -- Don't check data for remote frame requests
-    if v_xmit_remote_frame = '0' then
-      for idx in 0 to v_xmit_data_length-1 loop
-        check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
-      end loop;
-    end if;
+      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+
+      if v_xmit_ext_id = '1' then
+        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+      else
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
+                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+                    error,
+                    "Check received ID");
+      end if;
+
+      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+      check_value(s_msg.data_length,
+                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                  error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), v_test_num,
+                error, "Check number of lost arbitrations in CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*3,
+                error, "Check number of received messages in CAN controller.");
 
 
     -----------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-09-19
+-- Last update: 2019-11-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -49,11 +49,12 @@ entity can_top is
     RX_MSG_VALID : out std_logic;
 
     -- Tx interface
-    TX_MSG    : in  can_msg_t;
-    TX_START  : in  std_logic;
-    TX_BUSY   : out std_logic;
-    TX_DONE   : out std_logic;
-    TX_FAILED : out std_logic;
+    TX_MSG           : in  can_msg_t;
+    TX_START         : in  std_logic;
+    TX_RETRANSMIT_EN : in  std_logic;
+    TX_BUSY          : out std_logic;
+    TX_DONE          : out std_logic;
+    TX_FAILED        : out std_logic;
 
     -- BTL configuration
     BTL_TRIPLE_SAMPLING         : in std_logic;
@@ -89,7 +90,7 @@ architecture struct of can_top is
   -- Signals for Tx FSM
   signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
-  signal s_tx_fsm_active                      : std_logic;  -- Tx FSM wants to transmit
+  signal s_tx_fsm_arb_won                     : std_logic;  -- Arbitration was won
   signal s_tx_fsm_failed                      : std_logic;
 
   -- Signals for Rx FSM
@@ -129,6 +130,7 @@ architecture struct of can_top is
   signal s_btl_tx_bit_value    : std_logic;
   signal s_btl_tx_bit_valid    : std_logic;
   signal s_btl_tx_rdy          : std_logic;
+  signal s_btl_tx_active       : std_logic;
   signal s_btl_tx_done         : std_logic;
   signal s_btl_rx_bit_value    : std_logic;
   signal s_btl_rx_bit_valid    : std_logic;
@@ -175,16 +177,17 @@ begin  -- architecture struct
       RESET                          => RESET,
       TX_MSG_IN                      => TX_MSG,
       TX_START                       => TX_START,
+      TX_RETRANSMIT_EN               => TX_RETRANSMIT_EN,
       TX_BUSY                        => TX_BUSY,
       TX_DONE                        => TX_DONE,
       TX_ACK_RECV                    => open,
       TX_ARB_LOST                    => open,
+      TX_ARB_WON                     => s_tx_fsm_arb_won,
       TX_BIT_ERROR                   => s_eml_tx_bit_error,
       TX_ACK_ERROR                   => s_eml_tx_ack_error,
       TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
       TX_FAILED                      => s_tx_fsm_failed,
-      TX_ACTIVE                      => s_tx_fsm_active,
       ERROR_STATE                    => s_eml_error_state,
       BSP_TX_DATA                    => s_bsp_tx_data,
       BSP_TX_DATA_COUNT              => s_bsp_tx_data_count,
@@ -194,6 +197,7 @@ begin  -- architecture struct
       BSP_TX_RX_STUFF_MISMATCH       => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE                    => s_bsp_tx_done,
       BSP_TX_CRC_CALC                => s_bsp_tx_crc_calc,
+      BSP_TX_ACTIVE                  => s_bsp_tx_active,
       BSP_RX_ACTIVE                  => s_bsp_rx_active,
       BSP_SEND_ERROR_FLAG            => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE            => s_bsp_error_flag_done,
@@ -213,6 +217,7 @@ begin  -- architecture struct
       RESET                  => RESET,
       RX_MSG_OUT             => RX_MSG,
       RX_MSG_VALID           => RX_MSG_VALID,
+      TX_ARB_WON             => s_tx_fsm_arb_won,
       BSP_RX_ACTIVE          => s_bsp_rx_active,
       BSP_RX_DATA            => s_bsp_rx_data,
       BSP_RX_DATA_COUNT      => s_bsp_rx_data_count,
@@ -244,7 +249,7 @@ begin  -- architecture struct
       BSP_TX_RX_STUFF_MISMATCH => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE              => s_bsp_tx_done,
       BSP_TX_CRC_CALC          => s_bsp_tx_crc_calc,
-      BSP_TX_ACTIVE            => s_tx_fsm_active,
+      BSP_TX_ACTIVE            => s_bsp_tx_active,
       BSP_RX_ACTIVE            => s_bsp_rx_active,
       BSP_RX_DATA              => s_bsp_rx_data,
       BSP_RX_DATA_COUNT        => s_bsp_rx_data_count,
@@ -266,6 +271,8 @@ begin  -- architecture struct
       BTL_RX_BIT_VALID         => s_btl_rx_bit_valid,
       BTL_RX_SYNCED            => s_btl_rx_synced);
 
+  s_btl_tx_active <= s_bsp_tx_active;
+
   -- Bit Timing Logic (BTL)
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
@@ -279,7 +286,7 @@ begin  -- architecture struct
       BTL_TX_BIT_VALID        => s_btl_tx_bit_valid,
       BTL_TX_RDY              => s_btl_tx_rdy,
       BTL_TX_DONE             => s_btl_tx_done,
-      BTL_TX_ACTIVE           => s_tx_fsm_active,
+      BTL_TX_ACTIVE           => s_btl_tx_active,
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
