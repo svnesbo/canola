@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
--- Title      : Receive FSM for CAN bus
+-- Title      : Receive FSM for CAN frames
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_rx_fsm.vhd
+-- File       : can_frame_rx_fsm.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-11-15
+-- Last update: 2019-11-20
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -41,7 +41,7 @@ use ieee.numeric_std.all;
 library work;
 use work.can_pkg.all;
 
-entity can_rx_fsm is
+entity can_frame_rx_fsm is
   generic (
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
@@ -51,6 +51,14 @@ entity can_rx_fsm is
     RX_MSG_OUT        : out can_msg_t;
     RX_MSG_VALID      : out std_logic;
     TX_ARB_WON        : in  std_logic;  -- Tx FSM signal that we are transmitting and won arbitration
+    INTER_FRAME_SPACE : out std_logic;  -- Indicates that we are in inter frame
+                                        -- space, should not transmit
+                                        -- Todo: Rx FSM follows Tx FSM, so Rx
+                                        -- FSM could easily monitor IFS after
+                                        -- Tx and Rx.
+                                        -- Rx FSM can also be made to monitor
+                                        -- incoming error flags, and give out
+                                        -- IFS after error flags.
 
     -- Signals to/from BSP
     BSP_RX_ACTIVE          : in  std_logic;
@@ -75,33 +83,33 @@ entity can_rx_fsm is
     REG_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
-end entity can_rx_fsm;
+end entity can_frame_rx_fsm;
 
-architecture rtl of can_rx_fsm is
+architecture rtl of can_frame_rx_fsm is
 
-  type can_rx_fsm_t is (ST_IDLE,
-                        ST_RECV_SOF,
-                        ST_RECV_ID_A,
-                        ST_RECV_SRR_RTR,
-                        ST_RECV_IDE,
-                        ST_RECV_ID_B,
-                        ST_RECV_EXT_FRAME_RTR,
-                        ST_RECV_R1,
-                        ST_RECV_R0,
-                        ST_RECV_DLC,
-                        ST_RECV_DATA,
-                        ST_RECV_CRC,
-                        ST_RECV_CRC_DELIM,
-                        ST_SEND_RECV_ACK,
-                        ST_RECV_ACK_DELIM,
-                        ST_RECV_EOF,
-                        ST_CRC_ERROR,
-                        ST_STUFF_ERROR,
-                        ST_FORM_ERROR,
-                        ST_DONE,
-                        ST_WAIT_BUS_IDLE);
+  type can_frame_rx_fsm_t is (ST_IDLE,
+                              ST_RECV_SOF,
+                              ST_RECV_ID_A,
+                              ST_RECV_SRR_RTR,
+                              ST_RECV_IDE,
+                              ST_RECV_ID_B,
+                              ST_RECV_EXT_FRAME_RTR,
+                              ST_RECV_R1,
+                              ST_RECV_R0,
+                              ST_RECV_DLC,
+                              ST_RECV_DATA,
+                              ST_RECV_CRC,
+                              ST_RECV_CRC_DELIM,
+                              ST_SEND_RECV_ACK,
+                              ST_RECV_ACK_DELIM,
+                              ST_RECV_EOF,
+                              ST_CRC_ERROR,
+                              ST_STUFF_ERROR,
+                              ST_FORM_ERROR,
+                              ST_DONE,
+                              ST_WAIT_BUS_IDLE);
 
-  signal s_fsm_state        : can_rx_fsm_t;
+  signal s_fsm_state        : can_frame_rx_fsm_t;
   signal s_reg_rx_msg       : can_msg_t;
   signal s_srr_rtr_bit      : std_logic;
   signal s_crc_mismatch     : std_logic;
@@ -365,6 +373,10 @@ begin  -- architecture rtl
                   end if;
                 end if;
 
+                -- CAN specification part B - 7.2 Error Signaling
+                -- Send error flag following ACK delimiter on CRC error,
+                -- so we have to wait for the ack and ack delimiters
+                -- regardless of CRC status
                 s_fsm_state     <= ST_SEND_RECV_ACK;
               end if;
             end if;
@@ -382,7 +394,37 @@ begin  -- architecture rtl
               if s_crc_mismatch = '0' and BSP_RX_DATA(0) /= C_ACK_VALUE then
                 if s_reg_tx_arb_won = '0' then
                   -- Did we try to send ACK, but did not read ACK value back?
-                  -- What kind of error is that? Form error?
+                  -- Todo: What kind of error is that? Form error?
+                  s_fsm_state <= ST_FORM_ERROR;
+                else
+                  -- In this case we were transmitting this message ourselves,
+                  -- and did not send out ACK, so we proceed as normal and let
+                  -- the Tx FSM handle ACK error.
+                  s_fsm_state <= ST_RECV_ACK_DELIM;
+                end if;
+              else
+                s_fsm_state <= ST_RECV_ACK_DELIM;
+              end if;
+            end if;
+
+          when ST_RECV_ACK_DELIM =>
+            -- No bit stuffing for EOF (End of Frame)
+            BSP_RX_BIT_DESTUFF_EN <= '0';
+
+            if BSP_RX_ACTIVE = '0' then
+              -- Did frame end unexpectedly?
+              s_fsm_state <= ST_FORM_ERROR;
+            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+              BSP_RX_DATA_CLEAR <= '1';
+
+              if s_crc_mismatch = '1' then
+                -- CAN specification part B - 7.2 Error Signaling
+                -- Send error flag following ACK delimiter on CRC error,
+                s_fsm_state <= ST_CRC_ERROR;
+              elsif BSP_RX_DATA(0) /= C_ACK_DELIM_VALUE then
+                if s_reg_tx_arb_won = '0' then
+                  -- Did we try to send ACK, but did not read ACK value back?
+                  -- Todo: What kind of error is that? Form error?
                   s_fsm_state <= ST_FORM_ERROR;
                 else
                   -- In this case we were transmitting this message ourselves,
@@ -391,10 +433,6 @@ begin  -- architecture rtl
                   s_fsm_state <= ST_RECV_EOF;
                 end if;
               else
-                -- TODO: What if there was a CRC mismatch?
-                --       Do I send active/passive error flag?
-                --       And when do I send it? Immediately after CRC?
-                --       At CRC delimiter, or ACK slot?
                 s_fsm_state <= ST_RECV_EOF;
               end if;
             end if;
@@ -417,6 +455,12 @@ begin  -- architecture rtl
               end if;
             end if;
 
+          when ST_CRC_ERROR =>
+            -- Todo:
+            -- Increase CRC error count
+            -- Increase receive error count
+            -- Send error flag
+            s_fsm_state <= ST_DONE;
 
           -- Error handling summary:
           --

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-11-15
+-- Last update: 2019-11-20
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -168,7 +168,7 @@ begin  -- architecture struct
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
   -- Transmit state machine
-  INST_can_tx_fsm : entity work.can_tx_fsm
+  INST_can_frame_tx_fsm : entity work.can_frame_tx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
@@ -208,7 +208,7 @@ begin  -- architecture struct
       REG_ERROR_COUNT                => REG_TX_ERROR_COUNT);
 
   -- Receive state machine
-  INST_can_rx_fsm : entity work.can_rx_fsm
+  INST_can_frame_rx_fsm : entity work.can_frame_rx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)

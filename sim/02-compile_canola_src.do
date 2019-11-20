@@ -29,7 +29,7 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_time_quanta_gen
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_crc.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_btl.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_bsp.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_rx_fsm.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_tx_fsm.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_rx_fsm.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_tx_fsm.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_eml.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_top.vhd

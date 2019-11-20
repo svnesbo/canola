@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
--- Title      : Transmit FSM for CAN bus
+-- Title      : Transmit FSM for CAN frames
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_tx_fsm.vhd
+-- File       : can_frame_tx_fsm.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-11-15
+-- Last update: 2019-11-20
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ use ieee.numeric_std.all;
 library work;
 use work.can_pkg.all;
 
-entity can_tx_fsm is
+entity can_frame_tx_fsm is
   generic (
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
@@ -90,51 +90,51 @@ entity can_tx_fsm is
     REG_RETRANSMIT_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
-end entity can_tx_fsm;
+end entity can_frame_tx_fsm;
 
-architecture rtl of can_tx_fsm is
+architecture rtl of can_frame_tx_fsm is
 
-  type can_tx_fsm_t is (ST_IDLE,
-                        ST_WAIT_FOR_BUS_IDLE,
-                        ST_SETUP_SOF,
-                        ST_SETUP_ID_A,
-                        ST_SETUP_SRR,
-                        ST_SETUP_IDE,
-                        ST_SETUP_ID_B,
-                        ST_SETUP_RTR,
-                        ST_SETUP_R1,
-                        ST_SETUP_R0,
-                        ST_SETUP_DLC,
-                        ST_SETUP_DATA,
-                        ST_SETUP_CRC,
-                        ST_SETUP_CRC_DELIM,
-                        ST_SETUP_ACK_SLOT,
-                        ST_SETUP_ACK_DELIM,
-                        ST_SETUP_EOF,
-                        ST_SETUP_ERROR_FLAG,
-                        ST_SEND_SOF,
-                        ST_SEND_ID_A,
-                        ST_SEND_SRR,
-                        ST_SEND_IDE,
-                        ST_SEND_ID_B,
-                        ST_SEND_RTR,
-                        ST_SEND_R1,
-                        ST_SEND_R0,
-                        ST_SEND_DLC,
-                        ST_SEND_DATA,
-                        ST_SEND_CRC,
-                        ST_SEND_CRC_DELIM,
-                        ST_SEND_RECV_ACK_SLOT,
-                        ST_SEND_ACK_DELIM,
-                        ST_SEND_EOF,
-                        ST_SEND_ERROR_FLAG,
-                        ST_ARB_LOST,
-                        ST_BIT_ERROR,
-                        ST_ACK_ERROR,
-                        ST_RETRANSMIT,
-                        ST_DONE);
+  type can_frame_tx_fsm_t is (ST_IDLE,
+                              ST_WAIT_FOR_BUS_IDLE,
+                              ST_SETUP_SOF,
+                              ST_SETUP_ID_A,
+                              ST_SETUP_SRR,
+                              ST_SETUP_IDE,
+                              ST_SETUP_ID_B,
+                              ST_SETUP_RTR,
+                              ST_SETUP_R1,
+                              ST_SETUP_R0,
+                              ST_SETUP_DLC,
+                              ST_SETUP_DATA,
+                              ST_SETUP_CRC,
+                              ST_SETUP_CRC_DELIM,
+                              ST_SETUP_ACK_SLOT,
+                              ST_SETUP_ACK_DELIM,
+                              ST_SETUP_EOF,
+                              ST_SETUP_ERROR_FLAG,
+                              ST_SEND_SOF,
+                              ST_SEND_ID_A,
+                              ST_SEND_SRR,
+                              ST_SEND_IDE,
+                              ST_SEND_ID_B,
+                              ST_SEND_RTR,
+                              ST_SEND_R1,
+                              ST_SEND_R0,
+                              ST_SEND_DLC,
+                              ST_SEND_DATA,
+                              ST_SEND_CRC,
+                              ST_SEND_CRC_DELIM,
+                              ST_SEND_RECV_ACK_SLOT,
+                              ST_SEND_ACK_DELIM,
+                              ST_SEND_EOF,
+                              ST_SEND_ERROR_FLAG,
+                              ST_ARB_LOST,
+                              ST_BIT_ERROR,
+                              ST_ACK_ERROR,
+                              ST_RETRANSMIT,
+                              ST_DONE);
 
-  signal s_fsm_state           : can_tx_fsm_t;
+  signal s_fsm_state           : can_frame_tx_fsm_t;
   signal s_reg_tx_msg          : can_msg_t;
   signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
