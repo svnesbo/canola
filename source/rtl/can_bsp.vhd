@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-15
+-- Last update: 2019-11-21
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -92,27 +92,30 @@ entity can_bsp is
 
     -- Interface to Rx FSM
     BSP_RX_ACTIVE          : out std_logic;
+    BSP_RX_IFS             : out std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
     BSP_RX_DATA_COUNT      : out natural range 0 to C_BSP_DATA_LENGTH;
     BSP_RX_DATA_CLEAR      : in  std_logic;
     BSP_RX_DATA_OVERFLOW   : out std_logic;
     BSP_RX_BIT_DESTUFF_EN  : in  std_logic;  -- Enable bit destuffing on data
                                              -- that is currently being received
-    BSP_RX_BIT_STUFF_ERROR : out std_logic;  -- Pulsed on error
+    BSP_RX_STOP            : in std_logic;   -- Tell BSP to stop when we've got EOF
     BSP_RX_CRC_CALC        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK        : in  std_logic;  -- Pulsed input
 
-    BSP_SEND_ERROR_FLAG    : in  std_logic;  -- When pulsed, BSP cancels
-                                             -- whatever it is doing, and sends
-                                             -- an error flag. The type of flag
-                                             -- depends on BSP_ERROR_STATE input
-    BSP_ERROR_FLAG_DONE      : out std_logic; -- Pulsed
-    BSP_ERROR_FLAG_BIT_ERROR : out std_logic; -- Bit error was detected while
-                                              -- transmitting error flag
-                                              -- Note: Only for ACTIVE error flag
-    BSP_ERROR_STATE : in can_error_state_t;  -- Indicates if the CAN controller
-                                             -- is in active or passive error
-                                             -- state, or bus off state
+    BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
+    BSP_RX_PASSIVE_ERROR_FLAG : out std_logic;  -- Passive error flag received
+    BSP_SEND_ERROR_FLAG       : in  std_logic;  -- When pulsed, BSP cancels
+                                                -- whatever it is doing, and sends
+                                                -- an error flag. The type of flag
+                                                -- depends on BSP_ERROR_STATE input
+    BSP_ERROR_FLAG_DONE       : out std_logic;  -- Pulsed
+    BSP_ERROR_FLAG_BIT_ERROR  : out std_logic;  -- Bit error was detected while
+                                                -- transmitting error flag
+                                                -- Note: Only for ACTIVE error flag
+    BSP_ERROR_STATE           : in  can_error_state_t;  -- Indicates if the CAN controller
+                                                        -- is in active or passive error
+                                                        -- state,  or bus off state
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;
@@ -127,296 +130,391 @@ end entity can_bsp;
 
 architecture rtl of can_bsp is
   -----------------------------------------------------------------------------
-  -- Rx process signals
+  -- Rx FSM signals
   -----------------------------------------------------------------------------
-  signal s_rx_bit                : std_logic;
-  signal s_rx_bit_valid_pulse    : std_logic;
-  signal s_rx_restart_crc_pulse  : std_logic;
-  signal s_rx_stuff_counter      : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
-  signal s_rx_data_counter       : natural range 0 to C_BSP_DATA_LENGTH;
-  signal s_rx_previous_bit_val   : std_logic;
+  type bsp_rx_fsm_t is (ST_IDLE,
+                        ST_WAIT_BTL_RX_RDY,
+                        ST_PROCESS_BIT,
+                        ST_DATA_BIT,
+                        ST_BIT_DESTUFF,
+                        ST_WAIT_BUS_IDLE,
+                        ST_CHECK_BUS_IDLE);
 
-  -- Indicates that next bit should be a stuff bit
-  signal s_rx_stuff_bit_expected : std_logic;
+  signal s_rx_fsm_state         : bsp_rx_fsm_t := ST_IDLE;
+  signal s_rx_bit               : std_logic;
+  signal s_rx_bit_stream_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
+  signal s_rx_update_crc_pulse  : std_logic;
+  signal s_rx_restart_crc_pulse : std_logic;
+  signal s_rx_data_counter      : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_rx_stop_reg          : std_logic;
 
+  -- Rx FSM state assertions
+  -----------------------------------------------------------------------------
+  -- psl default clock is rising_edge(CLK);
+  -- psl assert (always {(s_rx_fsm_state = ST_IDLE) and BTL_RX_SYNCED = '1'} |=>
+  --                    {(s_rx_fsm_state = ST_WAIT_BTL_RX_RDY)} abort RESET);
+  -- Todo: Add the rest of them...
 
   -----------------------------------------------------------------------------
-  -- Tx process signals
+  -- Tx FSM signals
   -----------------------------------------------------------------------------
-  signal s_tx_write_counter      : natural range 0 to C_BSP_DATA_LENGTH;
-  signal s_tx_stuff_counter      : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
-  signal s_tx_restart_crc_pulse  : std_logic;
-  signal s_tx_active_reg         : std_logic;
-  signal s_tx_bit_sent           : std_logic;
-  signal s_tx_bit_queued         : std_logic;
-  signal s_tx_stuff_bit_sent     : std_logic;
-  signal s_tx_stuff_bit_queued   : std_logic;
-  signal s_tx_rx_mismatch_flag   : std_logic;
+  type bsp_tx_fsm_t is (ST_IDLE,
+                        ST_WAIT_TX_DATA,
+                        ST_PROCESS_NEXT_TX_BIT,
+                        ST_WAIT_BTL_TX_RDY,
+                        ST_WAIT_BTL_TX_DONE,
+                        ST_WAIT_BTL_RX_VALID,
+                        ST_SEND_ERROR_FLAG,
+                        ST_NEXT_ERROR_FLAG_BIT);
+
+  signal s_tx_fsm_state            : bsp_tx_fsm_t := ST_IDLE;
+  signal s_tx_restart_crc_pulse    : std_logic;
+  signal s_tx_stuff_bit            : std_logic;
+  signal s_tx_write_counter        : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_tx_bit_stream_window    : std_logic_vector(C_STUFF_BIT_THRESHOLD-1 downto 0);
+  signal s_tx_error_flag_shift_reg : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
+  signal s_tx_frame_started        : std_logic;
+  signal s_tx_send_error_flag      : std_logic;
+
+
+  --signal s_tx_bit_sent         : std_logic;
+  --signal s_tx_bit_queued       : std_logic;
+  --signal s_tx_stuff_bit_sent   : std_logic;
+  --signal s_tx_stuff_bit_queued : std_logic;
+  --signal s_tx_rx_mismatch_flag : std_logic;
 
   -- Indicates that we are ready to send next bit.
   -- Initially high when setting up BSP for a chunk of data,
   -- and goes high every time a bit has been fully transmitted and read back
-  signal s_tx_bit_rdy            : std_logic;
+  --signal s_tx_bit_rdy            : std_logic;
 
   signal s_send_ack              : std_logic;
 
 
 begin  -- architecture rtl
 
-  proc_rx : process(CLK) is
-    variable v_rx_stuff_counter        : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
-  begin  -- process proc_fsm
+  proc_bsp_rx_fsm : process(CLK) is
+    variable v_rx_stuff_counter  : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
+
+  begin  -- process proc_rx_fsm
     if rising_edge(CLK) then
-      BSP_RX_BIT_STUFF_ERROR <= '0';
-      s_rx_bit_valid_pulse   <= '0';
-      s_rx_restart_crc_pulse <= '0';
-
       if RESET = '1' then
-        BSP_RX_DATA             <= (others => '0');
-        BSP_RX_DATA_COUNT       <= 0;
-        s_rx_data_counter       <= 0;
-        s_rx_stuff_bit_expected <= '0';
-        BSP_RX_DATA_OVERFLOW    <= '0';
-        BSP_RX_ACTIVE           <= '0';
-
-        -- Start at zero when we haven't received any bits yet
-        s_rx_stuff_counter <= 0;
+        BSP_RX_DATA               <= (others => '0');
+        BSP_RX_DATA_COUNT         <= 0;
+        s_rx_data_counter         <= 0;
+        s_rx_stop_reg             <= '0';
+        BSP_RX_DATA_OVERFLOW      <= '0';
+        BSP_RX_ACTIVE             <= '0';
+        BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
+        BSP_RX_PASSIVE_ERROR_FLAG <= '0';
+        BSP_RX_IFS                <= '0';
+        s_rx_update_crc_pulse     <= '0';
+        s_rx_restart_crc_pulse    <= '0';
       else
+        -- Default values
+        BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
+        BSP_RX_PASSIVE_ERROR_FLAG <= '0';
+        BSP_RX_IFS                <= '0';
+        s_rx_update_crc_pulse     <= '0';
+        s_rx_restart_crc_pulse    <= '0';
+
+        -- The Rx FSM for CAN frames uses this signal to indicate it has processed the BSP data
         if BSP_RX_DATA_CLEAR = '1' then
           BSP_RX_DATA_COUNT      <= 0;
           s_rx_data_counter      <= 0;
+          BSP_RX_DATA_OVERFLOW   <= '0';
         else
           -- This delays data count output by one cycle,
           -- which allows data count output to be in sync with CRC output
           BSP_RX_DATA_COUNT      <= s_rx_data_counter;
         end if;
-        -----------------------------------------------------------------------
-        -- BTL synchronized to start of frame
-        -----------------------------------------------------------------------
-        if BTL_RX_SYNCED = '1' and BSP_RX_ACTIVE = '0' then
-          BSP_RX_ACTIVE           <= '1';
-          BSP_RX_DATA             <= (others => '0');
-          BSP_RX_DATA_COUNT       <= 0;
-          s_rx_data_counter       <= 0;
-          s_rx_stuff_bit_expected <= '0';
-          BSP_RX_DATA_OVERFLOW    <= '0';
-          s_rx_restart_crc_pulse  <= '1';
 
-          -- Start at zero when we haven't received any bits yet
-          s_rx_stuff_counter <= 0;
+        if BSP_RX_STOP = '1' then
+          s_rx_stop_reg <= '1';
+        end if;
 
-        -----------------------------------------------------------------------
-        -- Receiving data for frame
-        -----------------------------------------------------------------------
-        elsif BSP_RX_ACTIVE = '1' and BTL_RX_BIT_VALID = '1' then
-          v_rx_stuff_counter     := s_rx_stuff_counter;
+        case s_rx_fsm_state is
+          when ST_IDLE =>
+            BSP_RX_ACTIVE <= '0';
+            s_rx_stop_reg <= '0';
 
-          ---------------------------------------------------------------------
-          -- Consecutive bit count and stuff bit detection
-          ---------------------------------------------------------------------
-          --if BSP_RX_BIT_DESTUFF_EN = '1' then
-          if s_rx_previous_bit_val = BTL_RX_BIT_VALUE then
-            if s_rx_stuff_bit_expected = '1' then
-              -- Bit stuffing error.
-              -- Already got 5 consecutive bits of same value,
-              -- was expecting a stuff bit of opposite polarity
-              BSP_RX_BIT_STUFF_ERROR <= '1';
-            elsif BSP_RX_BIT_DESTUFF_EN = '1' then
-              v_rx_stuff_counter := v_rx_stuff_counter + 1;
+            -- The "bit stream window" is used to detect stuff errors and error flags
+            -- Start the window with ones (recessive) at the beginning of a frame
+            s_rx_bit_stream_window <= (others => '1');
+            s_rx_data_counter      <= 0;
+            s_rx_restart_crc_pulse <= '1';
+
+            if BTL_RX_SYNCED = '1' then
+              BSP_RX_ACTIVE  <= '1';
+              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
             end if;
-          else
-            -- Got bit of opposite polarity, reset stuff counter.
-            -- Start at one, because we have one bit already.
-            v_rx_stuff_counter := 1;
-          end if;
 
-          if v_rx_stuff_counter = C_STUFF_BIT_THRESHOLD and BSP_RX_BIT_DESTUFF_EN = '1' then
-            s_rx_stuff_bit_expected <= '1';
-          end if;
+          when ST_WAIT_BTL_RX_RDY =>
+            if BTL_RX_BIT_VALID = '1' then
+              s_rx_bit_stream_window <= s_rx_bit_stream_window(C_ERROR_FLAG_LENGTH-2 downto 0) & BTL_RX_BIT_VALUE;
+              s_rx_bit               <= BTL_RX_BIT_VALUE;
+              s_rx_fsm_state         <= ST_PROCESS_BIT;
+            end if;
 
-          s_rx_stuff_counter    <= v_rx_stuff_counter;
-          s_rx_previous_bit_val <= BTL_RX_BIT_VALUE;
+          when ST_PROCESS_BIT =>
+            if s_rx_bit_stream_window = C_ACTIVE_ERROR_FLAG_DATA then
+              -- Always indicate active error flags and go to idle
+              BSP_RX_ACTIVE_ERROR_FLAG <= '1';
+              s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
 
-          ---------------------------------------------------------------------
-          -- Shift bits into shift register as they are received
-          ---------------------------------------------------------------------
-          if s_rx_stuff_bit_expected = '0' then
+            elsif s_rx_stop_reg = '1' then
+              s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
+
+            elsif s_rx_bit_stream_window = C_PASSIVE_ERROR_FLAG_DATA and BSP_RX_BIT_DESTUFF_EN = '1' then
+              -- A passive error flag is just 6 recessive bits, which can
+              -- occur during a normal frame. Only an error if we are
+              -- expecting bit stuffed data
+              BSP_RX_PASSIVE_ERROR_FLAG <= '1';
+              s_rx_fsm_state            <= ST_WAIT_BUS_IDLE;
+
+            elsif BSP_RX_BIT_DESTUFF_EN = '1' then
+              s_rx_fsm_state            <= ST_BIT_DESTUFF;
+
+            else
+              s_rx_fsm_state            <= ST_DATA_BIT;
+            end if;
+
+          when ST_BIT_DESTUFF =>
+            if s_rx_bit_stream_window(5 downto 1) = "11111" then
+              -- Previous 5 bits were all high (recessive), discard current bit as a stuff bit
+              -- Note: a sequence of 6 bits (error) would be detected in ST_PROCESS_BIT
+              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+            elsif s_rx_bit_stream_window(5 downto 1) = "00000" then
+              -- Previous 5 bits were all high (recessive), discard current bit as a stuff bit
+              -- Note: a sequence of 6 bits (error) would be detected in ST_PROCESS_BIT
+              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+            else
+              s_rx_fsm_state <= ST_DATA_BIT;
+            end if;
+
+          when ST_DATA_BIT =>
             if s_rx_data_counter < C_BSP_DATA_LENGTH then
-              BSP_RX_DATA(s_rx_data_counter) <= BTL_RX_BIT_VALUE;
+              BSP_RX_DATA(s_rx_data_counter) <= s_rx_bit;
               s_rx_data_counter              <= s_rx_data_counter+1;
-
-              -- Used for CRC calculation
-              s_rx_bit             <= BTL_RX_BIT_VALUE;
-              s_rx_bit_valid_pulse <= '1';
             else
               BSP_RX_DATA_OVERFLOW <= '1';
             end if;
-          ---------------------------------------------------------------------
-          -- Ignore stuff bits
-          ---------------------------------------------------------------------
-          elsif s_rx_stuff_bit_expected = '1' then
-            s_rx_stuff_bit_expected <= '0';
-          end if;
 
-        -----------------------------------------------------------------------
-        -- End of frame
-        -----------------------------------------------------------------------
-        elsif BTL_RX_SYNCED = '0' then
-          BSP_RX_ACTIVE     <= '0';
-        end if;
-      end if; -- RESET = '0'
-    end if; -- rising_edge(CLK)
-  end process proc_rx;
+            s_rx_update_crc_pulse <= '1';
+            s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+
+          when ST_WAIT_BUS_IDLE =>
+            if BTL_RX_BIT_VALID = '1' then
+              s_rx_bit_stream_window <= s_rx_bit_stream_window(C_ERROR_FLAG_LENGTH-2 downto 0) & BTL_RX_BIT_VALUE;
+              s_rx_fsm_state         <= ST_CHECK_BUS_IDLE;
+            end if;
+
+          when ST_CHECK_BUS_IDLE =>
+            BSP_RX_IFS <= '1';
+
+            if s_rx_bit_stream_window(C_IFS_LENGTH-1 downto 0) = C_IFS then
+              s_rx_fsm_state <= ST_IDLE;
+
+            -- Todo: Check for OVERLOAD flag here
+
+            else
+              s_rx_fsm_state <= ST_WAIT_BUS_IDLE;
+            end if;
+
+          when others =>
+            s_rx_fsm_state <= ST_IDLE;
+        end case;
+      end if;  -- if/else RESET = '1'
+    end if;  -- if rising_edge(CLK)
+  end process proc_bsp_rx_fsm;
 
 
-
-  proc_tx : process(CLK) is
-  begin  -- process proc_fsm
+  proc_bsp_tx_fsm : process(CLK) is
+  begin  -- process proc_tx_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_tx_write_counter       <= 0;
-        s_tx_stuff_counter       <= 0;
-        s_tx_restart_crc_pulse   <= '1';
-        s_tx_bit_sent            <= '0';
-        s_tx_bit_queued          <= '0';
-        s_tx_stuff_bit_sent      <= '0';
-        s_tx_stuff_bit_queued    <= '0';
-        s_tx_rx_mismatch_flag    <= '0';
-        s_send_ack               <= '0';
-        BTL_TX_BIT_VALUE         <= '1'; -- Recessive
-        BTL_TX_BIT_VALID         <= '0';
+        -- Ok
+        s_tx_restart_crc_pulse    <= '1';
+        s_tx_stuff_bit            <= '0';
+        s_tx_write_counter        <= 0;
+        s_tx_bit_stream_window    <= (others => '1');  -- Recessive
+        s_tx_frame_started        <= '0';
+        s_tx_error_flag_shift_reg <= (others => '0');
+        s_send_ack                <= '0';
+        BSP_TX_DONE               <= '0';
+        BTL_TX_BIT_VALUE          <= '1'; -- Recessive
+        BTL_TX_BIT_VALID          <= '0';
         BSP_TX_RX_MISMATCH       <= '0';
         BSP_TX_RX_STUFF_MISMATCH <= '0';
-        BSP_TX_DONE              <= '0';
+
+        -- Todo: Is this still used?
+        BSP_ERROR_FLAG_DONE      <= '1';
+
       else
+        -- Ok
+        s_tx_restart_crc_pulse   <= '0';
+        s_tx_stuff_bit           <= '0';
         BTL_TX_BIT_VALID         <= '0';
+        BSP_TX_DONE              <= '0';
         BSP_TX_RX_MISMATCH       <= '0';
         BSP_TX_RX_STUFF_MISMATCH <= '0';
-        BSP_TX_DONE              <= '0';
-        s_tx_restart_crc_pulse   <= '0';
 
-        if BSP_RX_SEND_ACK = '1' then
-          -- Persistant signal, BSP_RX_SEND_ACK is pulsed
-          -- and controlled by the Rx FSM
-          s_send_ack <= '1';
-        end if;
+        -- Todo: Is this still used?
+        BSP_ERROR_FLAG_DONE      <= '1';
 
-        s_tx_active_reg <= BSP_TX_ACTIVE;
+        case s_tx_fsm_state is
+          when ST_IDLE =>
+            s_send_ack             <= '0';
+            s_tx_frame_started     <= '0';
+            s_tx_restart_crc_pulse <= '1';
+            s_tx_send_error_flag   <= '0';
 
-        -- Reset stuff counter and CRC calculator at start of transmission
-        if BSP_TX_ACTIVE = '1' and s_tx_active_reg = '0' then
-          s_tx_stuff_counter     <= 0;
-          s_tx_restart_crc_pulse <= '1';
-        end if;
+            -- Default to recessive when idle
+            s_tx_bit_stream_window <= (others => '1');
 
-        -- Prepare for next chunk of data when BSP_TX_WRITE_EN goes low
-        if BSP_TX_WRITE_EN = '0' then
-          s_tx_write_counter    <= 0;
-          s_tx_bit_rdy          <= '1';
-          s_tx_bit_sent         <= '0';
-          s_tx_bit_queued       <= '0';
-          s_tx_stuff_bit_sent   <= '0';
-          s_tx_stuff_bit_queued <= '0';
-          s_tx_rx_mismatch_flag <= '0';
-        end if;
+            if BSP_RX_SEND_ACK = '1' then
+              BTL_TX_BIT_VALUE <= C_ACK_VALUE;
+              s_send_ack       <= '1';
+              s_tx_fsm_state   <= ST_WAIT_BTL_TX_RDY;
+            elsif BSP_TX_ACTIVE = '1' then
+              s_tx_fsm_state   <= ST_WAIT_TX_DATA;
+            end if;
 
-        if s_send_ack = '1' then
-          -- Acknowledge a received frame by asserting ACK
-          if BTL_TX_RDY = '1' then
-            BTL_TX_BIT_VALUE <= C_ACK_VALUE;
-            BTL_TX_BIT_VALID <= '1';
-            s_send_ack       <= '0';
-          end if;
-        elsif BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1' and s_tx_rx_mismatch_flag = '0' then
-          -- Stop writing data when immediately when Tx/Rx mismatch is detected,
-          -- as Tx FSM will not have sufficient time to signal to deassert
-          -- TX_ACTIVE and TX_WRITE_EN before next bit is sent to BTL by BSP
+          when ST_WAIT_TX_DATA =>
+            if BSP_TX_ACTIVE = '0' then
+              s_tx_fsm_state     <= ST_IDLE;
+            elsif BSP_TX_WRITE_EN = '1' then
+              s_tx_write_counter <= 0;
+              s_tx_fsm_state     <= ST_PROCESS_NEXT_TX_BIT;
+            end if;
 
-          if s_tx_write_counter < BSP_TX_DATA_COUNT then
-            if BTL_TX_RDY = '1' and s_tx_bit_rdy = '1' then
-              if BSP_TX_BIT_STUFF_EN = '1' and s_tx_stuff_counter = C_STUFF_BIT_THRESHOLD then
-                -- The CAN protocol requires a transition after 5 bits of same
-                -- value, by inserting a "stuff bit" of opposite value, even if
-                -- the next bit in the stream would have a transition,
-                -- The stuff bits are also included in this 5-bit count
-                -- of consecutive bits with same value
-                -- The bit stuffing is not performed for the EOF etc. of the
-                -- CAN frame, so the Tx FSM is responsible for setting
-                -- BSP_TX_BIT_STUFF_EN low for these parts of the message.
-                BTL_TX_BIT_VALUE      <= not BTL_TX_BIT_VALUE;
-                BTL_TX_BIT_VALID      <= '1';
-                s_tx_stuff_counter    <= 1;
-                s_tx_stuff_bit_queued <= '1';
-                s_tx_bit_rdy          <= '0';
-              else
-                -- BTL_TX_BIT_VALUE should still hold the previous bit value at this point..
-                if BTL_TX_BIT_VALUE = BSP_TX_DATA(s_tx_write_counter) and BSP_TX_BIT_STUFF_EN = '1' then
-                  -- Increase "stuff counter" when we transmit
-                  -- consecutive bits of the same value
-                  s_tx_stuff_counter <= s_tx_stuff_counter + 1;
+          when ST_PROCESS_NEXT_TX_BIT =>
+            -- Don't do bit stuffing for the first bit...
+            s_tx_frame_started <= '1';
+
+            if s_tx_write_counter = BSP_TX_DATA_COUNT then
+              BSP_TX_DONE <= '1';
+
+              -- Wait for more data
+              s_tx_fsm_state <= ST_WAIT_TX_DATA;
+            else
+              if BSP_TX_BIT_STUFF_EN = '1' and s_tx_frame_started = '1' then
+                if s_tx_bit_stream_window = "11111" then
+                  -- Send low stuff bit after sequence of 5 ones
+                  BTL_TX_BIT_VALUE <= '0';
+                  -- Stuff bit - don't calculate CRC for it
+                  s_tx_stuff_bit     <= '1';
+                elsif s_tx_bit_stream_window = "00000" then
+                  -- Send high stuff bit after sequence of 5 zeros
+                  BTL_TX_BIT_VALUE <= '1';
+                  -- Stuff bit - don't calculate CRC for it
+                  s_tx_stuff_bit     <= '1';
                 else
-                  s_tx_stuff_counter <= 1;
+                  -- Send data bit
+                  BTL_TX_BIT_VALUE   <= BSP_TX_DATA(s_tx_write_counter);
+                  s_tx_write_counter <= s_tx_write_counter + 1;
+                  -- Not a stuff bit - calculate CRC for it
+                  s_tx_stuff_bit     <= '0';
                 end if;
-
-                BTL_TX_BIT_VALUE <= BSP_TX_DATA(s_tx_write_counter);
-                BTL_TX_BIT_VALID <= '1';
-                s_tx_bit_queued  <= '1';
-                s_tx_bit_rdy     <= '0';
+              else
+                -- Send data bit - bit stuffing disabled
+                BTL_TX_BIT_VALUE   <= BSP_TX_DATA(s_tx_write_counter);
+                s_tx_write_counter <= s_tx_write_counter + 1;
+                -- Not a stuff bit - calculate CRC for it
+                s_tx_stuff_bit     <= '0';
               end if;
+
+              s_tx_fsm_state <= ST_WAIT_BTL_TX_RDY;
             end if;
 
+          when ST_WAIT_BTL_TX_RDY =>
+            if BTL_TX_RDY = '1' then
+              -- Tell BTL to send bit when it is ready
+              BTL_TX_BIT_VALID <= '1';
+              s_tx_fsm_state   <= ST_WAIT_BTL_TX_DONE;
+            end if;
+
+          when ST_WAIT_BTL_TX_DONE =>
             if BTL_TX_DONE = '1' then
-              if s_tx_bit_queued = '1' then
-                s_tx_bit_queued <= '0';
-                s_tx_bit_sent   <= '1';
+              -- Wait for bit to be processed by BTL, then verify
+              -- if the same bit value is read back from BTL
+              s_tx_fsm_state <= ST_WAIT_BTL_RX_VALID;
+            end if;
 
-              elsif s_tx_stuff_bit_queued = '1' then
-                s_tx_stuff_bit_queued <= '0';
-                s_tx_stuff_bit_sent   <= '1';
+          -- Read back bit that was transmitted
+          when ST_WAIT_BTL_RX_VALID =>
+            if BTL_RX_BIT_VALID = '1' then
+              -- Tx/Rx mismatch?
+              if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
+                if s_tx_stuff_bit = '1' then
+                  BSP_TX_RX_STUFF_MISMATCH <= '1';
+                else
+                  BSP_TX_RX_MISMATCH <= '1';
+                end if;
+              end if;
+
+
+              if s_tx_send_error_flag = '1' then
+                s_tx_fsm_state <= ST_NEXT_ERROR_FLAG_BIT;
+              elsif s_send_ack = '1' then
+                -- Return to idle if we were just sending ACK
+                s_tx_fsm_state <= ST_IDLE;
+              elsif BSP_TX_ACTIVE = '1' then
+                s_tx_fsm_state <= ST_PROCESS_NEXT_TX_BIT;
+              else
+                s_tx_fsm_state <= ST_IDLE;
               end if;
             end if;
 
-
-            if s_tx_bit_sent = '1' and BTL_RX_BIT_VALID = '1' then
-              -- Did we receive the same bit we transmitted previously?
-              if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
-                BSP_TX_RX_MISMATCH    <= '1';
-                BSP_TX_DONE           <= '1';
-                s_tx_rx_mismatch_flag <= '1';
-              end if;
-
-              s_tx_bit_sent      <= '0';
-              s_tx_bit_rdy       <= '1';
-              s_tx_write_counter <= s_tx_write_counter + 1;
-
-            elsif s_tx_stuff_bit_sent = '1' and BTL_RX_BIT_VALID = '1' then
-              -- Did we receive the same bit we transmitted?
-              if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
-                BSP_TX_RX_STUFF_MISMATCH <= '1';
-                BSP_TX_DONE              <= '1';
-                s_tx_rx_mismatch_flag    <= '1';
-              end if;
-
-              s_tx_stuff_bit_sent <= '0';
-              s_tx_bit_rdy        <= '1';
+          when ST_SEND_ERROR_FLAG =>
+            if BSP_ERROR_STATE = ERROR_ACTIVE then
+              BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
+            else
+              BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;
             end if;
-          elsif s_tx_bit_rdy = '1' then
-            -- s_tx_write_counter has reached BSP_TX_DATA_COUNT,
-            -- and we are done transmitting and reading back the last bit
-            BSP_TX_DONE       <= '1';
-          end if;
-        end if; -- BSP_TX_WRITE_EN = '1' and s_tx_active_reg = '1'
+
+            s_tx_error_flag_shift_reg    <= (others => '0');
+
+            -- This bit is shifted left as error flag bits are transmitted
+            -- When the bit is shifted out of the register the error flag is done
+            s_tx_error_flag_shift_reg(0) <= '1';
+
+          when ST_NEXT_ERROR_FLAG_BIT =>
+            s_tx_send_error_flag <= '1';
+
+            if unsigned(s_tx_error_flag_shift_reg) = 0 then
+              BSP_ERROR_FLAG_DONE <= '1';
+              s_tx_fsm_state      <= ST_IDLE;
+            else
+              s_tx_error_flag_shift_reg <= s_tx_error_flag_shift_reg(C_ERROR_FLAG_LENGTH-2 downto 0) & '0';
+              s_tx_fsm_state            <= ST_WAIT_BTL_TX_RDY;
+            end if;
+
+          when others =>
+            s_tx_fsm_state <= ST_IDLE;
+        end case;
+
+        -- If case the BSP is requested to send an error flag,
+        -- ignore any other state assignments and go directly to ST_SEND_ERROR_FLAG
+        if BSP_SEND_ERROR_FLAG = '1' then
+          s_tx_fsm_state <= ST_SEND_ERROR_FLAG;
+        end if;
+
       end if; -- if/else RESET = '0'
     end if; -- rising_edge(CLK)
-  end process proc_tx;
+  end process proc_bsp_tx_fsm;
 
 
+  -- Todo:
+  -- Use only one CRC calculator for both Tx and Rx
+  -- Since Rx FSM trails the Tx FSM, in principle
+  -- they should have the same CRC values?
   INST_can_crc_rx: entity work.can_crc
     port map (
       CLK       => CLK,
       RESET     => RESET or s_rx_restart_crc_pulse,
       BIT_IN    => s_rx_bit,
-      BIT_VALID => s_rx_bit_valid_pulse,
+      BIT_VALID => s_rx_update_crc_pulse,
       CRC_OUT   => BSP_RX_CRC_CALC);
 
   INST_can_crc_tx: entity work.can_crc
@@ -424,7 +522,8 @@ begin  -- architecture rtl
       CLK       => CLK,
       RESET     => RESET or s_tx_restart_crc_pulse,
       BIT_IN    => BTL_TX_BIT_VALUE,
-      BIT_VALID => BTL_TX_BIT_VALID and s_tx_bit_queued,
+      BIT_VALID => BTL_TX_BIT_VALID and not s_tx_stuff_bit,
       CRC_OUT   => BSP_TX_CRC_CALC);
+
 
 end architecture rtl;

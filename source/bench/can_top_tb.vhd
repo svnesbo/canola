@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-11-15
+-- Last update: 2019-11-19
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -817,8 +817,8 @@ begin
                                  v_xmit_remote_frame,
                                  v_xmit_ext_id);
 
-    v_can_rx_error_gen := (crc_error   => false,
-                           stuff_error => true,
+    v_can_rx_error_gen := (crc_error   => true,
+                           stuff_error => false,
                            form_error  => false);
 
     -- Start transmitting from BFM

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-15
+-- Last update: 2019-11-19
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -328,11 +328,11 @@ begin  -- architecture rtl
                 s_sync_state                <= ST_SYNC_SEG;
 
                 ---------------------------------------------------------------
-                -- If we've had 7 consecutive recessive bits then we have
-                -- reached the End Of Frame (EOF), and we should go out of
-                -- rx sync
+                -- If we've had 6 consecutive recessive bits (one more than
+                -- stuffing threshold, ie. the rule of bit stuffing was broken)
+                -- then we are no longer in rx sync.
                 ---------------------------------------------------------------
-                if s_rx_active = '1' and s_recessive_bit_count = C_EOF_LENGTH then
+                if s_rx_active = '1' and s_recessive_bit_count = C_STUFF_BIT_THRESHOLD+1 then
                   s_rx_active <= '0';
                 end if;
               end if;

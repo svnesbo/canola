@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-10-02
+-- Last update: 2019-11-19
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -243,6 +243,14 @@ package body can_bfm_pkg is
       end if;
 
       crc := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
+
+      -- Invert crc if we are generating a CRC error in the frame
+      if can_rx_error_gen.crc_error then
+        for bit_num in crc'range loop
+          crc(bit_num) := crc(bit_num) xor '1';
+        end loop;
+      end if;
+
       bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1) := crc;
 
       bit_buffer(crc_start_index+C_CRC_DELIM_INDEX) := '1';
@@ -283,6 +291,14 @@ package body can_bfm_pkg is
       end if;
 
       crc := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
+
+      -- Invert crc if we are generating a CRC error in the frame
+      if can_rx_error_gen.crc_error then
+        for bit_num in crc'range loop
+          crc(bit_num) := crc(bit_num) xor '1';
+        end loop;
+      end if;
+
       bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1) := crc;
 
       bit_buffer(crc_start_index+C_CRC_DELIM_INDEX) := '1';

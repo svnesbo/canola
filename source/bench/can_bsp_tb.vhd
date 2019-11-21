@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-09-19
+-- Last update: 2019-11-21
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -102,33 +102,36 @@ architecture tb of can_bsp_tb is
   signal s_clk              : std_logic := '0';
   signal s_can_tx, s_can_rx : std_logic;
 
-  signal s_bsp_tx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-  signal s_bsp_tx_data_count        : natural range 0 to C_BSP_DATA_LENGTH;
-  signal s_bsp_tx_write_en          : std_logic := '0';
-  signal s_bsp_tx_bit_stuff_en      : std_logic := '1';
-  signal s_bsp_tx_rx_mismatch       : std_logic;
-  signal s_bsp_tx_rx_stuff_mismatch : std_logic;
-  signal s_bsp_tx_done              : std_logic;
-  signal s_bsp_tx_crc_calc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_tx_active            : std_logic := '0';
-  signal s_bsp_rx_active            : std_logic;
-  signal s_bsp_rx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-  signal s_bsp_rx_data_count        : natural range 0 to C_BSP_DATA_LENGTH;
-  signal s_bsp_rx_data_clear        : std_logic := '0';
-  signal s_bsp_rx_data_overflow     : std_logic;
-  signal s_bsp_rx_bit_destuff_en    : std_logic := '0';
-  signal s_bsp_rx_bit_stuff_error   : std_logic;
-  signal s_bsp_rx_crc_calc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_rx_send_ack          : std_logic := '0';
-  signal s_bsp_send_error_flag      : std_logic := '0';
-  signal s_bsp_error_state          : can_error_state_t := ERROR_ACTIVE;
-  signal s_btl_tx_bit_value         : std_logic := '0';
-  signal s_btl_tx_bit_valid         : std_logic := '0';
-  signal s_btl_tx_rdy               : std_logic := '0';
-  signal s_btl_tx_done              : std_logic := '0';
-  signal s_btl_rx_bit_value         : std_logic := '0';
-  signal s_btl_rx_bit_valid         : std_logic := '0';
-  signal s_btl_rx_synced            : std_logic := '0';
+  signal s_bsp_tx_data               : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+  signal s_bsp_tx_data_count         : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_tx_write_en           : std_logic         := '0';
+  signal s_bsp_tx_bit_stuff_en       : std_logic         := '1';
+  signal s_bsp_tx_rx_mismatch        : std_logic;
+  signal s_bsp_tx_rx_stuff_mismatch  : std_logic;
+  signal s_bsp_tx_done               : std_logic;
+  signal s_bsp_tx_crc_calc           : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+  signal s_bsp_tx_active             : std_logic         := '0';
+  signal s_bsp_rx_active             : std_logic;
+  signal s_bsp_rx_data               : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+  signal s_bsp_rx_data_count         : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_rx_data_clear         : std_logic         := '0';
+  signal s_bsp_rx_data_overflow      : std_logic;
+  signal s_bsp_rx_bit_destuff_en     : std_logic         := '0';
+  signal s_bsp_rx_stop               : std_logic         := '0';
+  signal s_bsp_rx_bit_stuff_error    : std_logic;
+  signal s_bsp_rx_crc_calc           : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+  signal s_bsp_rx_send_ack           : std_logic         := '0';
+  signal s_bsp_rx_active_error_flag  : std_logic;
+  signal s_bsp_rx_passive_error_flag : std_logic;
+  signal s_bsp_send_error_flag       : std_logic         := '0';
+  signal s_bsp_error_state           : can_error_state_t := ERROR_ACTIVE;
+  signal s_btl_tx_bit_value          : std_logic         := '0';
+  signal s_btl_tx_bit_valid          : std_logic         := '0';
+  signal s_btl_tx_rdy                : std_logic         := '0';
+  signal s_btl_tx_done               : std_logic         := '0';
+  signal s_btl_rx_bit_value          : std_logic         := '0';
+  signal s_btl_rx_bit_valid          : std_logic         := '0';
+  signal s_btl_rx_synced             : std_logic         := '0';
 
   signal s_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -153,37 +156,42 @@ begin
   can_bus_signal <= '0' when s_can_tx = '0' else 'Z';
   s_can_rx       <= '1' ?= can_bus_signal;
 
-  INST_can_bsp: entity work.can_bsp
+  s_bsp_rx_bit_stuff_error <= s_bsp_rx_bit_destuff_en and
+                             (s_bsp_rx_active_error_flag or s_bsp_rx_passive_error_flag);
+
+  INST_can_bsp : entity work.can_bsp
     port map (
-      CLK                      => s_clk,
-      RESET                    => s_reset,
-      BSP_TX_DATA              => s_bsp_tx_data,
-      BSP_TX_DATA_COUNT        => s_bsp_tx_data_count,
-      BSP_TX_WRITE_EN          => s_bsp_tx_write_en,
-      BSP_TX_BIT_STUFF_EN      => s_bsp_tx_bit_stuff_en,
-      BSP_TX_RX_MISMATCH       => s_bsp_tx_rx_mismatch,
-      BSP_TX_RX_STUFF_MISMATCH => s_bsp_tx_rx_stuff_mismatch,
-      BSP_TX_DONE              => s_bsp_tx_done,
-      BSP_TX_CRC_CALC          => s_bsp_tx_crc_calc,
-      BSP_TX_ACTIVE            => s_bsp_tx_active,
-      BSP_RX_ACTIVE            => s_bsp_rx_active,
-      BSP_RX_DATA              => s_bsp_rx_data,
-      BSP_RX_DATA_COUNT        => s_bsp_rx_data_count,
-      BSP_RX_DATA_CLEAR        => s_bsp_rx_data_clear,
-      BSP_RX_DATA_OVERFLOW     => s_bsp_rx_data_overflow,
-      BSP_RX_BIT_DESTUFF_EN    => s_bsp_rx_bit_destuff_en,
-      BSP_RX_BIT_STUFF_ERROR   => s_bsp_rx_bit_stuff_error,
-      BSP_RX_CRC_CALC          => s_bsp_rx_crc_calc,
-      BSP_RX_SEND_ACK          => s_bsp_rx_send_ack,
-      BSP_SEND_ERROR_FLAG      => s_bsp_send_error_flag,
-      BSP_ERROR_STATE          => s_bsp_error_state,
-      BTL_TX_BIT_VALUE         => s_btl_tx_bit_value,
-      BTL_TX_BIT_VALID         => s_btl_tx_bit_valid,
-      BTL_TX_RDY               => s_btl_tx_rdy,
-      BTL_TX_DONE              => s_btl_tx_done,
-      BTL_RX_BIT_VALUE         => s_btl_rx_bit_value,
-      BTL_RX_BIT_VALID         => s_btl_rx_bit_valid,
-      BTL_RX_SYNCED            => s_btl_rx_synced);
+      CLK                       => s_clk,
+      RESET                     => s_reset,
+      BSP_TX_DATA               => s_bsp_tx_data,
+      BSP_TX_DATA_COUNT         => s_bsp_tx_data_count,
+      BSP_TX_WRITE_EN           => s_bsp_tx_write_en,
+      BSP_TX_BIT_STUFF_EN       => s_bsp_tx_bit_stuff_en,
+      BSP_TX_RX_MISMATCH        => s_bsp_tx_rx_mismatch,
+      BSP_TX_RX_STUFF_MISMATCH  => s_bsp_tx_rx_stuff_mismatch,
+      BSP_TX_DONE               => s_bsp_tx_done,
+      BSP_TX_CRC_CALC           => s_bsp_tx_crc_calc,
+      BSP_TX_ACTIVE             => s_bsp_tx_active,
+      BSP_RX_ACTIVE             => s_bsp_rx_active,
+      BSP_RX_DATA               => s_bsp_rx_data,
+      BSP_RX_DATA_COUNT         => s_bsp_rx_data_count,
+      BSP_RX_DATA_CLEAR         => s_bsp_rx_data_clear,
+      BSP_RX_DATA_OVERFLOW      => s_bsp_rx_data_overflow,
+      BSP_RX_BIT_DESTUFF_EN     => s_bsp_rx_bit_destuff_en,
+      BSP_RX_STOP               => s_bsp_rx_stop,
+      BSP_RX_CRC_CALC           => s_bsp_rx_crc_calc,
+      BSP_RX_SEND_ACK           => s_bsp_rx_send_ack,
+      BSP_RX_ACTIVE_ERROR_FLAG  => s_bsp_rx_active_error_flag,
+      BSP_RX_PASSIVE_ERROR_FLAG => s_bsp_rx_passive_error_flag,
+      BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag,
+      BSP_ERROR_STATE           => s_bsp_error_state,
+      BTL_TX_BIT_VALUE          => s_btl_tx_bit_value,
+      BTL_TX_BIT_VALID          => s_btl_tx_bit_valid,
+      BTL_TX_RDY                => s_btl_tx_rdy,
+      BTL_TX_DONE               => s_btl_tx_done,
+      BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
+      BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
+      BTL_RX_SYNCED             => s_btl_rx_synced);
 
   INST_can_btl : entity work.can_btl
     port map (
@@ -343,20 +351,23 @@ begin
       s_bsp_tx_data_count     <= v_data_length;
       s_bsp_tx_bit_stuff_en   <= '0';
       s_bsp_rx_bit_destuff_en <= '0';
-      --s_bsp_tx_active         <= '1';
       s_bsp_tx_write_en       <= '1';
       s_rx_tx_mismatch_rst    <= '1';
 
       wait until rising_edge(s_clk);
+      s_bsp_tx_write_en    <= '0';
       s_rx_tx_mismatch_rst <= '0';
 
       wait until s_bsp_tx_done = '1'
         for (v_data_length+10)*C_CAN_BAUD_PERIOD;
-      s_bsp_tx_write_en <= '0';
 
-      -- Wait an additional clock cycle, since previous wait for s_bsp_tx_done
-      -- does not guarantee that other signals (e.g. rx count, rx crc) that
-      -- update on the same delta cycle have been updated yet..
+      wait until s_bsp_rx_data_count = v_data_length
+        for C_CAN_BAUD_PERIOD;
+
+      s_bsp_tx_active <= '0';
+      s_bsp_rx_stop   <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_stop   <= '0';
       wait until rising_edge(s_clk);
 
       check_value(s_got_rx_tx_mismatch, '0', error, "Check if there was Rx/Tx mismatch.");
@@ -375,7 +386,7 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    s_bsp_tx_active <= '0';
+
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test sending random sequence with bit stuffing", C_SCOPE);

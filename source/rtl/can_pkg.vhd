@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-09-19
+-- Last update: 2019-11-20
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -37,7 +37,8 @@ package can_pkg is
   constant C_ACK_VALUE          : std_logic := '0'; -- Ack value sent by receiver
   constant C_ACK_TRANSMIT_VALUE : std_logic := '1'; -- Ack value sent by transmitter
   constant C_ACK_DELIM_VALUE    : std_logic := '1';
-  constant C_EOF_VALUE          : std_logic := '1';
+  constant C_EOF_VALUE          : std_logic := '1'; -- End Of Frame
+  constant C_IFS_VALUE          : std_logic := '1'; -- Inter Frame Spacing
 
   constant C_ID_A_LENGTH : natural := 11;   -- Standard arbitration ID
   constant C_ID_B_LENGTH : natural := 18;   -- Extended arbitration ID
@@ -49,6 +50,7 @@ package can_pkg is
   constant C_IFS_LENGTH      : natural := 3;  -- 3 Interframe Spacing bits (recessive 1)
 
   constant C_EOF : std_logic_vector(0 to C_EOF_LENGTH-1) := (others => C_EOF_VALUE);
+  constant C_IFS : std_logic_vector(0 to C_IFS_LENGTH-1) := (others => C_IFS_VALUE);
 
   constant C_BASIC_ARB_ID_LENGTH : natural := 11;
   constant C_EXT_ARB_ID_LENGTH   : natural := 29;
@@ -108,6 +110,9 @@ package can_pkg is
 
   constant C_ACTIVE_ERROR_FLAG_DATA  : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "000000";
   constant C_PASSIVE_ERROR_FLAG_DATA : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "111111";
+
+  constant C_ACTIVE_ERROR_FLAG_VALUE  : std_logic := '0';
+  constant C_PASSIVE_ERROR_FLAG_VALUE : std_logic := '1';
 
   type can_error_state_t is (ERROR_ACTIVE, ERROR_PASSIVE, BUS_OFF);
 

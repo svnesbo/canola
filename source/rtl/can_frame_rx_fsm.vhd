@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-11-20
+-- Last update: 2019-11-21
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -61,20 +61,22 @@ entity can_frame_rx_fsm is
                                         -- IFS after error flags.
 
     -- Signals to/from BSP
-    BSP_RX_ACTIVE          : in  std_logic;
-    BSP_RX_DATA            : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT      : in  natural range 0 to C_BSP_DATA_LENGTH;
-    BSP_RX_DATA_CLEAR      : out std_logic;
-    BSP_RX_DATA_OVERFLOW   : in  std_logic;
-    BSP_RX_BIT_DESTUFF_EN  : out std_logic;  -- Enable bit destuffing on data
-                                            -- that is currently being received
-    BSP_RX_BIT_STUFF_ERROR : in std_logic;  -- Pulsed on error
-    BSP_RX_CRC_CALC        : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_RX_SEND_ACK        : out std_logic;
+    BSP_RX_ACTIVE             : in  std_logic;
+    BSP_RX_DATA               : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+    BSP_RX_DATA_COUNT         : in  natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_CLEAR         : out std_logic;
+    BSP_RX_DATA_OVERFLOW      : in  std_logic;
+    BSP_RX_BIT_DESTUFF_EN     : out std_logic;  -- Enable bit destuffing on data
+                                                -- that is currently being received
+    BSP_RX_STOP               : out std_logic;  -- Tell BSP to stop we've got EOF
+    BSP_RX_CRC_CALC           : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_SEND_ACK           : out std_logic;
 
-    BSP_SEND_ERROR_FLAG    : out std_logic;  -- When pulsed, BSP cancels
-                                             -- whatever it is doing, and sends
-                                             -- an error flag of 6 bits
+    BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
+    BSP_RX_PASSIVE_ERROR_FLAG : out std_logic;  -- Passive error flag received
+    BSP_SEND_ERROR_FLAG       : out std_logic;  -- When pulsed, BSP cancels
+                                                -- whatever it is doing, and sends
+                                                -- an error flag of 6 bits
 
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -150,6 +152,7 @@ begin  -- architecture rtl
         s_reg_crc_error_counter    <= (others => '0');
         s_reg_form_error_counter   <= (others => '0');
         BSP_RX_BIT_DESTUFF_EN      <= '1';
+        BSP_RX_STOP                <= '0';
         RX_MSG_VALID               <= '0';
       else
         RX_MSG_VALID          <= '0';
@@ -157,6 +160,7 @@ begin  -- architecture rtl
         BSP_RX_DATA_CLEAR     <= '0';
         BSP_SEND_ERROR_FLAG   <= '0';
         BSP_RX_BIT_DESTUFF_EN <= '1';
+        BSP_RX_STOP           <= '0';
 
         -- Tx FSM is transmitting message, and won arbitration
         if TX_ARB_WON = '1' then
@@ -447,7 +451,9 @@ begin  -- architecture rtl
             elsif BSP_RX_DATA_COUNT = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
-              if BSP_RX_DATA(0 to C_EOF_LENGTH-1) /= C_EOF then
+              -- Note: Last bit of EOF is don't care for the receiver
+              -- See CAN specification 2.0B: 5 Message Validation
+              if BSP_RX_DATA(0 to C_EOF_LENGTH-2) /= C_EOF(0 to C_EOF_LENGTH-2) then
                 -- Is this a form error?
                 s_fsm_state <= ST_FORM_ERROR;
               else
@@ -460,7 +466,8 @@ begin  -- architecture rtl
             -- Increase CRC error count
             -- Increase receive error count
             -- Send error flag
-            s_fsm_state <= ST_DONE;
+            BSP_RX_STOP <= '1';
+            s_fsm_state <= ST_IDLE;
 
           -- Error handling summary:
           --
@@ -483,6 +490,7 @@ begin  -- architecture rtl
               null;
             end if;
 
+            BSP_RX_STOP <= '1';
             s_fsm_state <= ST_IDLE;
 
             -- Form Error applies to bit errors in any fixed field from SOF to
@@ -497,6 +505,7 @@ begin  -- architecture rtl
           when ST_STUFF_ERROR =>
             -- TODO:
             -- Handle this error
+            BSP_RX_STOP <= '1';
             s_fsm_state <= ST_IDLE;
 
           when ST_DONE =>
@@ -512,8 +521,8 @@ begin  -- architecture rtl
 
           when ST_WAIT_BUS_IDLE =>
             -- TODO:
-            -- This needs a timeout!
-            -- Should not have to wait more than one baud
+            -- Handle this differently..
+            -- I have a state in BSP that handles IFS now, and a signal for it
             if BSP_RX_ACTIVE = '0' then
               s_fsm_state <= ST_IDLE;
             end if;
@@ -523,9 +532,15 @@ begin  -- architecture rtl
 
         end case;
 
-        -- Always go to stuff error state when bit stuffing error is detected
-        if BSP_RX_BIT_STUFF_ERROR = '1' then
-          s_fsm_state <= ST_STUFF_ERROR;
+        -- Special handling of error flags and stuff errors
+        if s_fsm_state /= ST_IDLE then
+          -- Stuff errors are detected by looking for error flags while we
+          -- are receiving parts of a frame that should be bit stuffed
+          if BSP_RX_BIT_DESTUFF_EN = '1' and
+            (BSP_RX_ACTIVE_ERROR_FLAG = '1' or BSP_RX_PASSIVE_ERROR_FLAG = '1')
+          then
+            s_fsm_state <= ST_STUFF_ERROR;
+          end if;
         end if;
 
       end if;
