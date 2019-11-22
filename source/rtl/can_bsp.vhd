@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-21
+-- Last update: 2019-11-22
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -147,6 +147,7 @@ architecture rtl of can_bsp is
   signal s_rx_restart_crc_pulse : std_logic;
   signal s_rx_data_counter      : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_rx_stop_reg          : std_logic;
+  signal s_rx_start_of_frame    : std_logic;
 
   -- Rx FSM state assertions
   -----------------------------------------------------------------------------
@@ -203,6 +204,7 @@ begin  -- architecture rtl
         BSP_RX_DATA_COUNT         <= 0;
         s_rx_data_counter         <= 0;
         s_rx_stop_reg             <= '0';
+        s_rx_start_of_frame       <= '0';
         BSP_RX_DATA_OVERFLOW      <= '0';
         BSP_RX_ACTIVE             <= '0';
         BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
@@ -235,8 +237,9 @@ begin  -- architecture rtl
 
         case s_rx_fsm_state is
           when ST_IDLE =>
-            BSP_RX_ACTIVE <= '0';
-            s_rx_stop_reg <= '0';
+            BSP_RX_ACTIVE       <= '0';
+            s_rx_stop_reg       <= '0';
+            s_rx_start_of_frame <= '0';
 
             -- The "bit stream window" is used to detect stuff errors and error flags
             -- Start the window with ones (recessive) at the beginning of a frame
@@ -245,8 +248,9 @@ begin  -- architecture rtl
             s_rx_restart_crc_pulse <= '1';
 
             if BTL_RX_SYNCED = '1' then
-              BSP_RX_ACTIVE  <= '1';
-              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+              s_rx_start_of_frame <= '1';
+              BSP_RX_ACTIVE       <= '1';
+              s_rx_fsm_state      <= ST_WAIT_BTL_RX_RDY;
             end if;
 
           when ST_WAIT_BTL_RX_RDY =>
@@ -263,6 +267,7 @@ begin  -- architecture rtl
               s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_stop_reg = '1' then
+              -- Rx Frame FSM has told us to stop receiving
               s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_bit_stream_window = C_PASSIVE_ERROR_FLAG_DATA and BSP_RX_BIT_DESTUFF_EN = '1' then
@@ -280,7 +285,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_BIT_DESTUFF =>
-            if s_rx_bit_stream_window(5 downto 1) = "11111" then
+            -- Don't destuff bits from before start of frame
+            if s_rx_bit_stream_window(5 downto 1) = "11111" and s_rx_start_of_frame = '0' then
               -- Previous 5 bits were all high (recessive), discard current bit as a stuff bit
               -- Note: a sequence of 6 bits (error) would be detected in ST_PROCESS_BIT
               s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
@@ -293,6 +299,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_DATA_BIT =>
+            s_rx_start_of_frame <= '0';
+
             if s_rx_data_counter < C_BSP_DATA_LENGTH then
               BSP_RX_DATA(s_rx_data_counter) <= s_rx_bit;
               s_rx_data_counter              <= s_rx_data_counter+1;
@@ -301,7 +309,7 @@ begin  -- architecture rtl
             end if;
 
             s_rx_update_crc_pulse <= '1';
-            s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+            s_rx_fsm_state        <= ST_WAIT_BTL_RX_RDY;
 
           when ST_WAIT_BUS_IDLE =>
             if BTL_RX_BIT_VALID = '1' then
@@ -344,20 +352,22 @@ begin  -- architecture rtl
         BSP_TX_DONE               <= '0';
         BTL_TX_BIT_VALUE          <= '1'; -- Recessive
         BTL_TX_BIT_VALID          <= '0';
-        BSP_TX_RX_MISMATCH       <= '0';
-        BSP_TX_RX_STUFF_MISMATCH <= '0';
+        BSP_TX_RX_MISMATCH        <= '0';
+        BSP_TX_RX_STUFF_MISMATCH  <= '0';
+        BSP_ERROR_FLAG_BIT_ERROR  <= '0';
 
         -- Todo: Is this still used?
         BSP_ERROR_FLAG_DONE      <= '1';
 
+
       else
         -- Ok
         s_tx_restart_crc_pulse   <= '0';
-        s_tx_stuff_bit           <= '0';
         BTL_TX_BIT_VALID         <= '0';
         BSP_TX_DONE              <= '0';
         BSP_TX_RX_MISMATCH       <= '0';
         BSP_TX_RX_STUFF_MISMATCH <= '0';
+        BSP_ERROR_FLAG_BIT_ERROR <= '0';
 
         -- Todo: Is this still used?
         BSP_ERROR_FLAG_DONE      <= '1';
@@ -368,6 +378,7 @@ begin  -- architecture rtl
             s_tx_frame_started     <= '0';
             s_tx_restart_crc_pulse <= '1';
             s_tx_send_error_flag   <= '0';
+            s_tx_stuff_bit         <= '0';
 
             -- Default to recessive when idle
             s_tx_bit_stream_window <= (others => '1');
@@ -401,7 +412,7 @@ begin  -- architecture rtl
               if BSP_TX_BIT_STUFF_EN = '1' and s_tx_frame_started = '1' then
                 if s_tx_bit_stream_window = "11111" then
                   -- Send low stuff bit after sequence of 5 ones
-                  BTL_TX_BIT_VALUE <= '0';
+                  BTL_TX_BIT_VALUE       <= '0';
                   -- Stuff bit - don't calculate CRC for it
                   s_tx_stuff_bit     <= '1';
                 elsif s_tx_bit_stream_window = "00000" then
@@ -430,12 +441,18 @@ begin  -- architecture rtl
           when ST_WAIT_BTL_TX_RDY =>
             if BTL_TX_RDY = '1' then
               -- Tell BTL to send bit when it is ready
-              BTL_TX_BIT_VALID <= '1';
-              s_tx_fsm_state   <= ST_WAIT_BTL_TX_DONE;
+              BTL_TX_BIT_VALID       <= '1';
+
+              -- Shift current tx bit into stream of tx bits
+              s_tx_bit_stream_window <= s_tx_bit_stream_window(C_STUFF_BIT_THRESHOLD-2 downto 0) &
+                                        BTL_TX_BIT_VALUE;
+
+              s_tx_fsm_state         <= ST_WAIT_BTL_TX_DONE;
             end if;
 
           when ST_WAIT_BTL_TX_DONE =>
             if BTL_TX_DONE = '1' then
+              s_tx_stuff_bit <= '0';
               -- Wait for bit to be processed by BTL, then verify
               -- if the same bit value is read back from BTL
               s_tx_fsm_state <= ST_WAIT_BTL_RX_VALID;
@@ -446,7 +463,9 @@ begin  -- architecture rtl
             if BTL_RX_BIT_VALID = '1' then
               -- Tx/Rx mismatch?
               if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
-                if s_tx_stuff_bit = '1' then
+                if s_tx_send_error_flag = '1' then
+                  BSP_ERROR_FLAG_BIT_ERROR <= '1';
+                elsif s_tx_stuff_bit = '1' then
                   BSP_TX_RX_STUFF_MISMATCH <= '1';
                 else
                   BSP_TX_RX_MISMATCH <= '1';
@@ -474,10 +493,11 @@ begin  -- architecture rtl
             end if;
 
             s_tx_error_flag_shift_reg    <= (others => '0');
-
             -- This bit is shifted left as error flag bits are transmitted
             -- When the bit is shifted out of the register the error flag is done
             s_tx_error_flag_shift_reg(0) <= '1';
+
+            s_tx_fsm_state <= ST_NEXT_ERROR_FLAG_BIT;
 
           when ST_NEXT_ERROR_FLAG_BIT =>
             s_tx_send_error_flag <= '1';

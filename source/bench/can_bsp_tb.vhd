@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-11-21
+-- Last update: 2019-11-22
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -361,6 +361,8 @@ begin
       wait until s_bsp_tx_done = '1'
         for (v_data_length+10)*C_CAN_BAUD_PERIOD;
 
+      check_value(s_bsp_tx_done, '1', error, "Check that Tx is done.");
+
       wait until s_bsp_rx_data_count = v_data_length
         for C_CAN_BAUD_PERIOD;
 
@@ -415,19 +417,27 @@ begin
       wait until rising_edge(s_clk);
       s_bsp_tx_active         <= '0';
       wait until rising_edge(s_clk);
+      s_bsp_tx_active         <= '1';
+      wait until rising_edge(s_clk);
       s_bsp_tx_data_count     <= v_data_length-work.can_pkg.C_EOF_LENGTH;
       s_bsp_tx_bit_stuff_en   <= '1';
       s_bsp_rx_bit_destuff_en <= '1';
-      s_bsp_tx_active         <= '1';
       s_bsp_tx_write_en       <= '1';
       s_rx_tx_mismatch_rst    <= '1';
 
       wait until rising_edge(s_clk);
+      s_bsp_tx_write_en    <= '0';
       s_rx_tx_mismatch_rst <= '0';
 
       wait until s_bsp_tx_done = '1'
         for (v_data_length+10)*C_CAN_BAUD_PERIOD;
-      s_bsp_tx_write_en <= '0';
+
+      check_value(s_bsp_tx_done, '1', error, "Check that Tx is done.");
+
+      wait until s_bsp_rx_data_count = s_bsp_tx_data_count
+        for C_CAN_BAUD_PERIOD;
+
+      check_value(s_bsp_rx_data_count, s_bsp_tx_data_count, error, "Check number of bits received.");
 
       wait until rising_edge(s_clk);
       -- Setup EOF bits, and send them without bit stuffing
@@ -439,20 +449,23 @@ begin
       s_bsp_tx_bit_stuff_en   <= '0';
       s_bsp_rx_bit_destuff_en <= '0';
 
+      wait until rising_edge(s_clk);
+      s_bsp_tx_write_en    <= '0';
+
       wait until s_bsp_tx_done = '1'
         for (v_data_length+10)*C_CAN_BAUD_PERIOD;
-      s_bsp_tx_write_en <= '0';
 
       check_value(s_bsp_tx_done, '1', error, "Check that Tx is done.");
 
-      wait until s_bsp_rx_active = '0'
-        for 2*C_CAN_BAUD_PERIOD;
-      -- Wait an additional clock cycle, since previous wait for s_bsp_rx_active
-      -- does not guarantee that other signals (e.g. rx count, rx crc) that
-      -- update on the same delta cycle have been updated yet..
+      wait until s_bsp_rx_data_count = v_data_length
+        for C_CAN_BAUD_PERIOD;
+
+      s_bsp_tx_active <= '0';
+      s_bsp_rx_stop   <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_stop   <= '0';
       wait until rising_edge(s_clk);
 
-      check_value(s_bsp_rx_active, '0', error, "Check that Rx is not active anymore.");
       check_value(s_got_rx_tx_mismatch, '0', error, "Check if there was Rx/Tx mismatch.");
       check_value(s_got_rx_tx_stuff_mismatch, '0', error, "Check if there was Rx/Tx bit stuff mismatch.");
 
@@ -469,7 +482,6 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    s_bsp_tx_active <= '0';
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test sending ACK", C_SCOPE);
