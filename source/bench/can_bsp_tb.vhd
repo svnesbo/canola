@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-11-22
+-- Last update: 2019-11-25
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -486,75 +486,55 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test sending ACK", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- This test is a bit messy...
-    -- C_ACK_TEST_SEQUENCE holds a known sequence with a designated slot for ACK
-    -- The sequence is transmitted up till the point of the ACK.
-    -- Normally when transmitting the BSP should transmit the recessive ACK slot,
-    -- and other nodes that are listening will overwrite it with a dominant ACK
-    -- bit. But since we're using the same BSP for both here, we have to stop
-    -- transmission before ack slot, and then use BSP_RX_SEND_ACK_PULSE at the
-    -- ACK slot.
 
-    reset_rx_bsp_crc_and_data;
+    -- This test is a bit "artificial", it only sends the ACK pulse and checks
+    -- that it is received. Preferably the test should have been done with an
+    -- ACK inside a CAN frame.
 
-    s_crc_exp <= calc_can_crc15(C_ACK_TEST_SEQUENCE_EXP);
+    v_test_num := 0;
 
-    wait until rising_edge(s_clk);
-    s_bsp_tx_active         <= '0';
-    wait until rising_edge(s_clk);
-    -- Setup data before ack slot
-    s_bsp_tx_data <= (others => '0');
-    s_bsp_tx_data(0 to C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX-2) <=
-      C_ACK_TEST_SEQUENCE(0 to C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX-2);
+    while v_test_num < C_NUM_ITERATIONS loop
+      reset_rx_bsp_crc_and_data;
 
-    s_bsp_tx_data_count     <= C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX;
-    s_bsp_tx_bit_stuff_en   <= '0';
-    s_bsp_rx_bit_destuff_en <= '0';
-    s_bsp_tx_active         <= '1';
-    s_bsp_tx_write_en       <= '1';
-    s_rx_tx_mismatch_rst    <= '1';
+      s_crc_exp <= calc_can_crc15(C_ACK_TEST_SEQUENCE_EXP);
 
-    wait until rising_edge(s_clk);
-    s_rx_tx_mismatch_rst <= '0';
+      wait until rising_edge(s_clk);
+      s_bsp_tx_active      <= '0';
+      s_bsp_tx_write_en    <= '0';
+      s_rx_tx_mismatch_rst <= '0';
 
-    wait until s_bsp_tx_done = '1'
-      for (C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX+1)*C_CAN_BAUD_PERIOD;
+      -- Wait for a few baud periods
+      wait for 10*C_CAN_BAUD_PERIOD;
 
-    check_value(s_bsp_tx_done, '1', error, "Check that Tx is done.");
+      wait until rising_edge(s_clk);
+      s_bsp_rx_send_ack <= '1';
 
-    s_bsp_tx_write_en <= '0';
-    s_bsp_rx_send_ack <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_send_ack <= '0';
 
-    wait until rising_edge(s_clk);
-    s_bsp_rx_send_ack <= '0';
+      wait until s_btl_tx_done = '1'
+        for C_CAN_BAUD_PERIOD;
+      check_value(s_btl_tx_done, '1', error, "Check that BTL has processed bit.");
 
-    -- Ack should be processed within one baud
-    wait for C_CAN_BAUD_PERIOD;
-    s_bsp_tx_write_en       <= '1';
+      wait until s_bsp_rx_data_count > 0
+        for C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_active, '1', error, "Check that Rx went active due to low ack pulse.");
+      check_value(s_bsp_rx_data_count, 1, error, "Check that one bit was received.");
+      check_value(s_bsp_rx_data(0), '0', error, "Check that low value (ACK) was received.");
 
-    -- Setup and send the rest of the sequence
-    s_bsp_tx_data <= (others => '0');
-    s_bsp_tx_data(0 to (C_ACK_TEST_SEQUENCE'length-(C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX+2))) <=
-      C_ACK_TEST_SEQUENCE(C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX+1 to C_ACK_TEST_SEQUENCE'length-1);
+      -- Wait for a few baud periods
+      wait for 10*C_CAN_BAUD_PERIOD;
 
-    s_bsp_tx_data_count <= C_ACK_TEST_SEQUENCE'length-(C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX+1);
+      -- Clear and stop Rx
+      s_bsp_rx_stop       <= '1';
+      s_bsp_rx_data_clear <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_stop       <= '0';
+      s_bsp_rx_data_clear <= '0';
+      wait until rising_edge(s_clk);
 
-    wait until s_bsp_tx_done = '1'
-      for (C_ACK_TEST_SEQUENCE'length-(C_ACK_TEST_SEQUENCE_ACK_SLOT_IDX+1))*C_CAN_BAUD_PERIOD;
-
-    check_value(s_bsp_tx_done, '1', error, "Check that Tx is done.");
-
-    s_bsp_tx_write_en <= '0';
-
-    wait until s_bsp_rx_active = '0' for 2*C_CAN_BAUD_PERIOD;
-    wait until rising_edge(s_clk);
-
-    check_value(s_bsp_rx_active, '0', error, "Check that Rx is not active anymore.");
-    check_value(s_bsp_rx_data_count, C_ACK_TEST_SEQUENCE'length, error, "Check number of bits received.");
-    check_value(s_bsp_rx_data(0 to C_ACK_TEST_SEQUENCE'length-1),
-                C_ACK_TEST_SEQUENCE_EXP,
-                error, "Verify that BSP received ACK in test sequence.");
-    check_value(s_bsp_rx_crc_calc, s_crc_exp, error, "Check that BSP Rx CRC matches expected");
+      v_test_num := v_test_num + 1;
+    end loop;
 
 
     wait for 10000 ns;            -- to allow some time for completion
