@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-19
+-- Last update: 2019-11-27
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -192,26 +192,28 @@ begin  -- architecture rtl
         end if;
 
         -----------------------------------------------------------------------
+        -- Enable Rx when falling edge is detected
+        -----------------------------------------------------------------------
+        if s_rx_active = '0' and v_got_rx_bit_falling_edge = '1' then
+          s_rx_active <= '1';
+        end if;
+
+        -----------------------------------------------------------------------
         -- Hard sync (ie. jump to SYNC_SEG, reset baud gen) to incoming frame
         -- when we are not already receiving a frame, and not transmitting
         -----------------------------------------------------------------------
-        if s_rx_active = '0' and v_got_rx_bit_falling_edge = '1' then
-          if BTL_TX_ACTIVE = '0' then
-            -- This will reset the time quanta generator, and next time quanta pulse
-            -- should be in exactly one time quanta from now.
-            -- s_rx_active and s_got_rx_bit_falling_edge should both be '1' by then,
-            -- so that ST_SYNC_SEG knows that we are in sync with falling edge
-            -- and a resync should not be performed for the current (SOF) bit
+        if s_rx_active = '0' and v_got_rx_bit_falling_edge = '1' and BTL_TX_ACTIVE = '0' then
+          -- This will reset the time quanta generator, and next time quanta pulse
+          -- should be in exactly one time quanta from now.
+          -- s_rx_active and s_got_rx_bit_falling_edge should both be '1' by then,
+          -- so that ST_SYNC_SEG knows that we are in sync with falling edge
+          -- and a resync should not be performed for the current (SOF) bit
             s_frame_hard_sync <= '1';
-          else
-            -- Hard sync not allowed when we are transmitting
-            -- However because of the fixed phase between rx and tx sample point,
-            -- we should already be in sync with what is being transmitted
-            s_frame_hard_sync <= '0';
-          end if;
+            s_sync_state      <= ST_SYNC_SEG;
 
-          s_rx_active       <= '1';
-          s_sync_state      <= ST_SYNC_SEG;
+          -- Hard sync is not allowed when we are transmitting,
+          -- however because of the fixed phase between rx and tx sample point,
+                      -- we should already be in sync with what is being transmitted
 
         -----------------------------------------------------------------------
         -- FSM logic for bit synchronization within a CAN frame

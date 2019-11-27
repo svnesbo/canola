@@ -419,7 +419,7 @@ begin  -- architecture rtl
                   -- Send high stuff bit after sequence of 5 zeros
                   BTL_TX_BIT_VALUE <= '1';
                   -- Stuff bit - don't calculate CRC for it
-                  s_tx_stuff_bit     <= '1';
+                  s_tx_stuff_bit   <= '1';
                 else
                   -- Send data bit
                   BTL_TX_BIT_VALUE   <= BSP_TX_DATA(s_tx_write_counter);
