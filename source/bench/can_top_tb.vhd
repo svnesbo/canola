@@ -627,6 +627,10 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
       s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
       s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
@@ -722,77 +726,99 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #6: Test winning arbitration, and missing ack", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- Todo
-    -- Start can_uvvm_write() with a lower priority ID at the same time as
-    -- transmitting with Canola controller
-    -- We won't get an ack since can_uvvm_read() was not running already,
-    -- so we can test increase of ack_recv_count as well
-    -- Is the controller supposed to send error flag if it does not receive
-    -- ACK? If so, we can test for that as well..
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
 
-    v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
-    v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+    while v_test_num < C_NUM_ITERATIONS loop
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
 
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 v_xmit_ext_id);
+      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
 
-    s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-    s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-    s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
 
-    -- Make arbitration ID for CAN controller 1 lower than ID used by BFM,
-    -- so that the CAN controller will win the arbitration
-    if unsigned(v_xmit_arb_id) = 0 then
-      s_can_ctrl_tx_msg.arb_id <= v_xmit_arb_id;
-      v_xmit_arb_id(0)         := '1';
-    else
-      s_can_ctrl_tx_msg.arb_id <= std_logic_vector(unsigned(v_xmit_arb_id) - 1);
-    end if;
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
 
-    wait until rising_edge(s_clk);
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
 
-    -- Start transmitting from CAN controller
-    wait until falling_edge(s_clk);
-    s_can_ctrl_tx_start <= '1';
-    wait until falling_edge(s_clk);
-    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
-    wait until rising_edge(s_clk);
+      -- Make arbitration ID for CAN controller 1 lower than ID used by BFM,
+      -- so that the CAN controller will win the arbitration
+      if unsigned(v_xmit_arb_id) = 0 then
+        s_can_ctrl_tx_msg.arb_id <= v_xmit_arb_id;
+        v_xmit_arb_id(0)         := '1';
+      else
+        s_can_ctrl_tx_msg.arb_id <= std_logic_vector(unsigned(v_xmit_arb_id) - 1);
+      end if;
 
-    -- Start transmitting from BFM. It should lose the arbitration
-    can_uvvm_write(v_xmit_arb_id,
-                   v_xmit_ext_id,
-                   v_xmit_remote_frame,
-                   v_xmit_data,
-                   v_xmit_data_length,
-                   "Send higher priority message with CAN BFM",
-                   s_clk,
-                   s_can_bfm_tx,
-                   s_can_bfm_rx,
-                   v_can_tx_status,
-                   C_CAN_RX_NO_ERROR_GEN);
+      wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
 
-    -- Expect error flag from CAN controller due to missing ACK,
-    -- since BFM should have lost arbitration and was not receiving
-    -- so no ACK has been sent
-    can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
-                             200,
-                             "Receive error flag with CAN BFM",
-                             s_can_bfm_rx);
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
 
-    wait until s_can_ctrl_tx_done = '1' for 200*C_CAN_BAUD_PERIOD;
+      wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
 
-    -- Arbitration loss count should not have increased
-    check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
-                error, "Check arbitration loss count in CAN controller.");
+      -- Start transmitting from BFM. It should lose the arbitration
+      can_uvvm_write(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send higher priority message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN);
 
-    -- Ack received count should not have increased, because when
-    -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
-    -- was no way for the BFM to receive the message and acknowledge it
-    check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
-                error, "Check ACK received count in CAN controller.");
+      -- Expect error flag from CAN controller due to missing ACK,
+      -- since BFM should have lost arbitration and was not receiving
+      -- so no ACK has been sent
+      can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
+                               200,
+                               "Receive error flag with CAN BFM",
+                               s_can_bfm_rx);
+
+      wait until s_can_ctrl_tx_done = '1'
+        for 200*C_CAN_BAUD_PERIOD;
+
+      check_value(s_can_ctrl_tx_done, '1', error, "Check that CAN controller transmitted message.");
+
+      -- Arbitration loss count should not have increased
+      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+                  error, "Check arbitration loss count in CAN controller.");
+
+      -- Ack received count should not have increased, because when
+      -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
+      -- was no way for the BFM to receive the message and acknowledge it
+      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+                  error, "Check ACK received count in CAN controller.");
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
 
 
     -----------------------------------------------------------------------------------------------
