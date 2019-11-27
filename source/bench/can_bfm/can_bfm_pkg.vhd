@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-11-19
+-- Last update: 2019-11-27
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -197,6 +197,8 @@ package body can_bfm_pkg is
     variable bit_stuffing_counter : natural   := 0;
     variable previous_bit_value   : std_logic := '0';
 
+    variable bit_counter       : natural := 0;
+
     constant bit_period        : time := 1 sec / can_config.bit_rate;
     constant bit_quanta        : time := bit_period / 10;
     constant bit_quanta_cycles : natural := bit_quanta / can_config.clock_period;
@@ -318,7 +320,7 @@ package body can_bfm_pkg is
 
     wait until rising_edge(clk);
 
-    for bit_counter in 0 to frame_end_index loop
+    while bit_counter < frame_end_index loop
       can_tx <= bit_buffer(bit_counter);
 
       -- Wait for sampling point before reading back CAN RX value
@@ -352,6 +354,8 @@ package body can_bfm_pkg is
         sample_point_dbg := '0';
       end loop;  -- cycle_count
 
+      bit_counter := bit_counter + 1;
+
       -- Do bit stuffing if we sent 5 consecutive bits of same value
       -- Bit stuffing should end after CRC code (before delimiter)
       -- See page 45 here:
@@ -360,8 +364,8 @@ package body can_bfm_pkg is
          bit_counter < crc_start_index+C_CRC_DELIM_INDEX
       then
         bit_stuffing_dbg := '1';
-        can_tx <= not bit_buffer(bit_counter);
-        previous_bit_value := not bit_buffer(bit_counter);
+        can_tx <= not bit_buffer(bit_counter-1);
+        previous_bit_value := not bit_buffer(bit_counter-1);
         bit_stuffing_counter := 1;
 
         for cycle_count in 0 to sample_point_cycles-1 loop
