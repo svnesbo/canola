@@ -139,11 +139,12 @@ architecture rtl of can_frame_tx_fsm is
   signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
 
-  signal s_reg_msg_sent_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_ack_recv_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_arb_lost_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_error_counter      : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_retransmit_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_msg_sent_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_ack_recv_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_ack_missing_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_arb_lost_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_error_counter       : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_retransmit_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
 
   signal s_bsp_tx_write_en : std_logic;
 
@@ -173,16 +174,17 @@ begin  -- architecture rtl
   begin  -- process proc_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_fsm_state            <= ST_IDLE;
-        TX_BUSY                <= '0';
-        BSP_TX_DATA            <= (others => '0');
-        BSP_TX_ACTIVE          <= '0';
-        s_tx_ack_recv          <= '0';
-        s_reg_msg_sent_counter <= (others => '0');
-        s_reg_ack_recv_counter <= (others => '0');
-        s_reg_arb_lost_counter <= (others => '0');
-        s_reg_error_counter    <= (others => '0');
-        s_retransmit_attempts  <= 0;
+        s_fsm_state               <= ST_IDLE;
+        TX_BUSY                   <= '0';
+        BSP_TX_DATA               <= (others => '0');
+        BSP_TX_ACTIVE             <= '0';
+        s_tx_ack_recv             <= '0';
+        s_reg_msg_sent_counter    <= (others => '0');
+        s_reg_ack_recv_counter    <= (others => '0');
+        s_reg_ack_missing_counter <= (others => '0');
+        s_reg_arb_lost_counter    <= (others => '0');
+        s_reg_error_counter       <= (others => '0');
+        s_retransmit_attempts     <= 0;
       else
         BSP_SEND_ERROR_FLAG  <= '0';
         s_bsp_tx_write_en    <= '0';
@@ -400,7 +402,7 @@ begin  -- architecture rtl
               BSP_TX_ACTIVE <= '0';
               s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_CRC;
+              s_fsm_state   <= ST_SETUP_CRC;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -456,7 +458,17 @@ begin  -- architecture rtl
             end if;
 
             if BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_ACK_DELIM;
+              if s_tx_ack_recv = '1' or BSP_TX_RX_MISMATCH = '1' then
+                s_fsm_state     <= ST_SETUP_ACK_DELIM;
+              else
+                -- I believe the error flag for ACK should be sent immediately,
+                -- and not after the ACK delimiter.
+                -- CAN spec 2.0B, 7.2 Error Signalling:
+                -- "Whenever a BIT ERROR, a STUFF ERROR, a FORM ERROR or an
+                --  ACKNOWLEDGMENT ERROR is detected by any station, transmission
+                --  of an ERROR FLAG is started at the respective station at the next bit."
+                s_fsm_state     <= ST_ACK_ERROR;
+              end if;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -525,16 +537,9 @@ begin  -- architecture rtl
             s_fsm_state          <= ST_RETRANSMIT;
 
           when ST_ACK_ERROR =>
-            -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
-            --"An Acknowledgement error must be detected by a transmitter whenever it does not monitor a
-            -- dominant bit during ACK Slot"
-            --
-            -- "A node detecting an error condition signals this by transmitting an Error flag. An error-active node
-            --  will transmit an ACTIVE Error flag; an error-passive node will transmit a PASSIVE Error flag.
-            --  Whenever a Bit error, a Stuff error, a Form error or an Acknowledgement error is detected by any
-            --  node, that node will start transmission of an Error flag at the next bit time.
-            --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
-            --  ACK Delimiter, unless an Error flag for another error condition has already been started."
+            BSP_SEND_ERROR_FLAG       <= '1';
+            s_reg_ack_missing_counter <= s_reg_ack_missing_counter + 1;
+            s_fsm_state               <= ST_RETRANSMIT;
 
             --when ST_BIT_ERROR =>
             -- Page 49: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf

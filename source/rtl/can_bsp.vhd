@@ -442,7 +442,7 @@ begin  -- architecture rtl
             end if;
 
           when ST_WAIT_BTL_TX_RDY =>
-            if BSP_TX_ACTIVE = '0' and s_send_ack = '0' then
+            if BSP_TX_ACTIVE = '0' and s_send_ack = '0' and s_tx_send_error_flag = '0' then
               s_tx_fsm_state <= ST_IDLE;
 
             elsif BTL_TX_RDY = '1' then
