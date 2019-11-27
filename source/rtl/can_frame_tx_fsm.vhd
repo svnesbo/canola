@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-11-20
+-- Last update: 2019-11-27
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -145,6 +145,8 @@ architecture rtl of can_frame_tx_fsm is
   signal s_reg_error_counter      : unsigned(G_BUS_REG_WIDTH-1 downto 0);
   signal s_reg_retransmit_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
 
+  signal s_bsp_tx_write_en : std_logic;
+
   alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is
     s_reg_tx_msg.arb_id(C_ID_A_LENGTH-1 downto 0);
 
@@ -160,6 +162,12 @@ begin  -- architecture rtl
   REG_ACK_RECV_COUNT <= std_logic_vector(s_reg_ack_recv_counter);
   REG_ARB_LOST_COUNT <= std_logic_vector(s_reg_arb_lost_counter);
   REG_ERROR_COUNT    <= std_logic_vector(s_reg_error_counter);
+
+  -- We have to hold BSP_TX_WRITE_EN while sending data,
+  -- but want it to go low immediately when BSP is done.
+  -- There's only a few cycles to set up next data,
+  -- kind of had to be this way..
+  BSP_TX_WRITE_EN <= s_bsp_tx_write_en and not BSP_TX_DONE;
 
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
@@ -177,7 +185,7 @@ begin  -- architecture rtl
         s_retransmit_attempts  <= 0;
       else
         BSP_SEND_ERROR_FLAG  <= '0';
-        BSP_TX_WRITE_EN      <= '0';
+        s_bsp_tx_write_en    <= '0';
         BSP_TX_BIT_STUFF_EN  <= '1';
         TX_ARB_WON           <= '0';
 
@@ -208,7 +216,6 @@ begin  -- architecture rtl
           when ST_SETUP_SOF =>
             BSP_TX_DATA(0)    <= C_SOF_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
             s_fsm_state       <= ST_SEND_SOF;
 
           when ST_SEND_SOF =>
@@ -217,18 +224,15 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ID_A;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_ID_A =>
             BSP_TX_DATA(0 to C_ID_A_LENGTH-1) <= a_tx_msg_id_a_reversed;
             BSP_TX_DATA_COUNT                 <= C_ID_A_LENGTH;
-            BSP_TX_WRITE_EN                   <= '1';
             s_fsm_state                       <= ST_SEND_ID_A;
 
           when ST_SEND_ID_A =>
-            -- TODO: Check for stuff errors
-            --       If
             if BSP_TX_RX_STUFF_MISMATCH = '1' then
               s_fsm_state <= ST_SEND_ERROR_FLAG;
             elsif BSP_TX_RX_MISMATCH = '1' then
@@ -240,13 +244,12 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_SETUP_RTR;
               end if;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_SRR =>
             BSP_TX_DATA(0)    <= C_SRR_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
             s_fsm_state       <= ST_SEND_SRR;
 
           when ST_SEND_SRR =>
@@ -255,7 +258,7 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_IDE;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_IDE =>
@@ -267,7 +270,6 @@ begin  -- architecture rtl
               BSP_TX_DATA_COUNT <= 1;
             end if;
 
-            BSP_TX_WRITE_EN <= '1';
             s_fsm_state     <= ST_SEND_IDE;
 
           when ST_SEND_IDE =>
@@ -284,13 +286,12 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_SETUP_R0;
               end if;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_ID_B =>
             BSP_TX_DATA(0 to C_ID_B_LENGTH-1) <= a_tx_msg_id_b_reversed;
             BSP_TX_DATA_COUNT                 <= C_ID_B_LENGTH;
-            BSP_TX_WRITE_EN                   <= '1';
             s_fsm_state                       <= ST_SEND_ID_B;
 
           when ST_SEND_ID_B =>
@@ -299,7 +300,7 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_RTR;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_RTR =>
@@ -308,7 +309,6 @@ begin  -- architecture rtl
             TX_ARB_WON        <= '1';
             BSP_TX_DATA(0)    <= s_reg_tx_msg.remote_request;
             BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
             s_fsm_state       <= ST_SEND_RTR;
 
           when ST_SEND_RTR =>
@@ -321,13 +321,12 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_SETUP_IDE;
               end if;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_R1 =>
             BSP_TX_DATA(0)    <= C_R1_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
             s_fsm_state       <= ST_SEND_R1;
 
           when ST_SEND_R1 =>
@@ -336,13 +335,12 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_R0;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_R0 =>
             BSP_TX_DATA(0)    <= C_R0_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            BSP_TX_WRITE_EN   <= '1';
             s_fsm_state       <= ST_SEND_R0;
 
           when ST_SEND_R0 =>
@@ -351,13 +349,12 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_DLC;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_DLC =>
             BSP_TX_DATA(0 to C_DLC_LENGTH-1) <= s_reg_tx_msg.data_length;
             BSP_TX_DATA_COUNT                <= C_DLC_LENGTH;
-            BSP_TX_WRITE_EN                  <= '1';
             s_fsm_state                      <= ST_SEND_DLC;
 
           when ST_SEND_DLC =>
@@ -366,11 +363,13 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.remote_request = '1' then
                 s_fsm_state <= ST_SETUP_CRC;
+              elsif unsigned(s_reg_tx_msg.data_length) = 0 then
+                s_fsm_state <= ST_SETUP_CRC;
               else
                 s_fsm_state <= ST_SETUP_DATA;
               end if;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_DATA =>
@@ -383,7 +382,6 @@ begin  -- architecture rtl
             BSP_TX_DATA(48 to 55) <= s_reg_tx_msg.data(6);
             BSP_TX_DATA(56 to 63) <= s_reg_tx_msg.data(7);
             BSP_TX_DATA_COUNT     <= to_integer(unsigned(s_reg_tx_msg.data_length))*8;
-            BSP_TX_WRITE_EN       <= '1';
             s_fsm_state           <= ST_SEND_DATA;
 
           when ST_SEND_DATA =>
@@ -392,14 +390,13 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_CRC =>
             -- CRC and CRC delimiter
             BSP_TX_DATA(0 to C_CAN_CRC_WIDTH-1) <= BSP_TX_CRC_CALC;
             BSP_TX_DATA_COUNT                   <= C_CAN_CRC_WIDTH;
-            BSP_TX_WRITE_EN                     <= '1';
             s_fsm_state                         <= ST_SEND_CRC;
 
           when ST_SEND_CRC =>
@@ -408,7 +405,7 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC_DELIM;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_CRC_DELIM =>
@@ -416,7 +413,6 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN   <= '0';
             BSP_TX_DATA(0)        <= C_CRC_DELIM_VALUE;
             BSP_TX_DATA_COUNT     <= 1;
-            BSP_TX_WRITE_EN       <= '1';
             s_fsm_state           <= ST_SEND_CRC_DELIM;
 
           when ST_SEND_CRC_DELIM =>
@@ -427,14 +423,13 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ACK_SLOT;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_ACK_SLOT =>
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_TRANSMIT_VALUE;
             BSP_TX_DATA_COUNT   <= 1;
-            BSP_TX_WRITE_EN     <= '1';
             s_fsm_state         <= ST_SEND_RECV_ACK_SLOT;
 
           when ST_SEND_RECV_ACK_SLOT =>
@@ -449,14 +444,13 @@ begin  -- architecture rtl
             if BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ACK_DELIM;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_ACK_DELIM =>
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_DELIM_VALUE;
             BSP_TX_DATA_COUNT   <= 1;
-            BSP_TX_WRITE_EN     <= '1';
             s_fsm_state         <= ST_SEND_ACK_DELIM;
 
           when ST_SEND_ACK_DELIM =>
@@ -467,14 +461,13 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_SETUP_EOF;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_EOF =>
             BSP_TX_BIT_STUFF_EN              <= '0';
             BSP_TX_DATA(0 to C_EOF_LENGTH-1) <= C_EOF;
             BSP_TX_DATA_COUNT                <= C_EOF_LENGTH;
-            BSP_TX_WRITE_EN                  <= '1';
             s_fsm_state                      <= ST_SEND_EOF;
 
           when ST_SEND_EOF =>
@@ -485,7 +478,7 @@ begin  -- architecture rtl
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_DONE;
             else
-              BSP_TX_WRITE_EN <= '1';
+              s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_ERROR_FLAG =>

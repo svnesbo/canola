@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-22
+-- Last update: 2019-11-27
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -479,7 +479,14 @@ begin  -- architecture rtl
                 -- Return to idle if we were just sending ACK
                 s_tx_fsm_state <= ST_IDLE;
               elsif BSP_TX_ACTIVE = '1' then
-                s_tx_fsm_state <= ST_PROCESS_NEXT_TX_BIT;
+                if s_tx_write_counter = BSP_TX_DATA_COUNT then
+                  BSP_TX_DONE <= '1';
+
+                  -- Wait for more data
+                  s_tx_fsm_state <= ST_WAIT_TX_DATA;
+                else
+                  s_tx_fsm_state <= ST_PROCESS_NEXT_TX_BIT;
+                end if;
               else
                 s_tx_fsm_state <= ST_IDLE;
               end if;
