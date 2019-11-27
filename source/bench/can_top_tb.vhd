@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-11-19
+-- Last update: 2019-11-27
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -640,14 +640,15 @@ begin
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
 
-      wait until rising_edge(s_clk);
+      wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
       s_can_ctrl_tx_start <= '1';
       wait until falling_edge(s_clk);
       s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
-      wait until rising_edge(s_clk);
+
+      wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from BFM
       can_uvvm_write(v_xmit_arb_id,
