@@ -403,7 +403,10 @@ begin  -- architecture rtl
             -- Don't do bit stuffing for the first bit...
             s_tx_frame_started <= '1';
 
-            if s_tx_write_counter = BSP_TX_DATA_COUNT then
+            if BSP_TX_ACTIVE = '0' then
+              s_tx_fsm_state <= ST_IDLE;
+
+            elsif s_tx_write_counter = BSP_TX_DATA_COUNT then
               BSP_TX_DONE <= '1';
 
               -- Wait for more data
@@ -439,7 +442,10 @@ begin  -- architecture rtl
             end if;
 
           when ST_WAIT_BTL_TX_RDY =>
-            if BTL_TX_RDY = '1' then
+            if BSP_TX_ACTIVE = '0' and s_send_ack = '0' then
+              s_tx_fsm_state <= ST_IDLE;
+
+            elsif BTL_TX_RDY = '1' then
               -- Tell BTL to send bit when it is ready
               BTL_TX_BIT_VALID       <= '1';
 

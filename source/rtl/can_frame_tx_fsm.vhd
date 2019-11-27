@@ -220,7 +220,8 @@ begin  -- architecture rtl
 
           when ST_SEND_SOF =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ID_A;
             else
@@ -234,9 +235,11 @@ begin  -- architecture rtl
 
           when ST_SEND_ID_A =>
             if BSP_TX_RX_STUFF_MISMATCH = '1' then
-              s_fsm_state <= ST_SEND_ERROR_FLAG;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_SEND_ERROR_FLAG;
             elsif BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_ARB_LOST;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
                 s_fsm_state <= ST_SETUP_SRR;
@@ -254,7 +257,8 @@ begin  -- architecture rtl
 
           when ST_SEND_SRR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_IDE;
             else
@@ -275,9 +279,11 @@ begin  -- architecture rtl
           when ST_SEND_IDE =>
             if BSP_TX_RX_MISMATCH = '1' then
               if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state <= ST_ARB_LOST;
+                BSP_TX_ACTIVE <= '0';
+                s_fsm_state   <= ST_ARB_LOST;
               else
-                s_fsm_state <= ST_BIT_ERROR;
+                BSP_TX_ACTIVE <= '0';
+                s_fsm_state   <= ST_BIT_ERROR;
               end if;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
@@ -296,7 +302,8 @@ begin  -- architecture rtl
 
           when ST_SEND_ID_B =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_ARB_LOST;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_RTR;
             else
@@ -313,7 +320,8 @@ begin  -- architecture rtl
 
           when ST_SEND_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
                 s_fsm_state <= ST_SETUP_R1;
@@ -331,7 +339,8 @@ begin  -- architecture rtl
 
           when ST_SEND_R1 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_R0;
             else
@@ -345,7 +354,8 @@ begin  -- architecture rtl
 
           when ST_SEND_R0 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_DLC;
             else
@@ -359,7 +369,8 @@ begin  -- architecture rtl
 
           when ST_SEND_DLC =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.remote_request = '1' then
                 s_fsm_state <= ST_SETUP_CRC;
@@ -386,7 +397,8 @@ begin  -- architecture rtl
 
           when ST_SEND_DATA =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC;
             else
@@ -401,7 +413,8 @@ begin  -- architecture rtl
 
           when ST_SEND_CRC =>
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_CRC_DELIM;
             else
@@ -419,7 +432,8 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN   <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state     <= ST_SETUP_ACK_SLOT;
             else
@@ -457,7 +471,8 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_SETUP_EOF;
             else
@@ -474,7 +489,8 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              s_fsm_state <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE <= '0';
+              s_fsm_state   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               s_fsm_state <= ST_DONE;
             else
@@ -500,7 +516,6 @@ begin  -- architecture rtl
 
           when ST_ARB_LOST =>
             TX_ARB_LOST            <= '1';
-            BSP_TX_ACTIVE          <= '0';
             s_reg_arb_lost_counter <= s_reg_arb_lost_counter + 1;
             s_fsm_state            <= ST_RETRANSMIT;
 
