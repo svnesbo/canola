@@ -92,6 +92,7 @@ package can_bfm_pkg is
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
     variable arb_lost         : out std_logic;
+    variable bit_error        : out std_logic;
     variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
     constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
@@ -172,6 +173,7 @@ package body can_bfm_pkg is
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
     variable arb_lost         : out std_logic;
+    variable bit_error        : out std_logic;
     variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
     constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
@@ -336,7 +338,18 @@ package body can_bfm_pkg is
           ack_received := '1';
         end if;
       elsif can_rx /= bit_buffer(bit_counter) then
-        arb_lost := '1';
+        if bit_counter >= C_STD_ARB_ID_INDEX and bit_counter <= C_STD_ARB_ID_INDEX+10 then
+          arb_lost := '1';
+        elsif extended_id = '1' and
+          bit_counter >= C_EXT_ARB_ID_B_INDEX  and
+          bit_counter <= C_EXT_ARB_ID_B_INDEX+17
+        then
+          arb_lost := '1';
+        else
+          bit_error := '1';
+        end if;
+
+        -- Return on arbitration loss or bit errors
         exit;
       end if;
 

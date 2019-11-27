@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-10-02
+-- Last update: 2019-11-27
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -42,6 +42,7 @@ package can_uvvm_bfm_pkg is
     max_wait_cycles             : integer;
     max_wait_cycles_severity    : t_alert_level;
     arb_lost_severity           : t_alert_level;
+    bit_error_severity          : t_alert_level;
     ack_missing_severity        : t_alert_level;
     crc_error_severity          : t_alert_level;
     error_flag_timeout_severity : t_alert_level;
@@ -56,6 +57,7 @@ package can_uvvm_bfm_pkg is
     max_wait_cycles             => 1000,
     max_wait_cycles_severity    => failure,
     arb_lost_severity           => warning,
+    bit_error_severity          => failure,
     ack_missing_severity        => warning,
     crc_error_severity          => failure,
     error_flag_timeout_severity => failure,
@@ -189,6 +191,7 @@ package body can_uvvm_bfm_pkg is
     variable bit_stuff_dbg    : std_logic := '0';
     variable sample_point_dbg : std_logic := '0';
     variable arb_lost         : std_logic := '0';
+    variable bit_error        : std_logic := '0';
     variable ack_received     : std_logic := '0';
   begin
     -- Format procedure call string
@@ -225,6 +228,7 @@ package body can_uvvm_bfm_pkg is
               bit_stuff_dbg,
               sample_point_dbg,
               arb_lost,
+              bit_error,
               ack_received,
               config.can_config,
               can_rx_error_gen,
@@ -232,6 +236,8 @@ package body can_uvvm_bfm_pkg is
 
     if arb_lost = '1' then
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
+    elsif bit_error = '1' then
+      alert(config.bit_error_severity, v_proc_call.all & "=> Failed. Bit error.", scope);
     elsif ack_received = '0' then
       alert(config.ack_missing_severity, v_proc_call.all & "=> ACK missing.", scope);
     end if;
