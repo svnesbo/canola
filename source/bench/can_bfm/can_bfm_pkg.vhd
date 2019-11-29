@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-11-27
+-- Last update: 2019-11-29
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -91,9 +91,6 @@ package can_bfm_pkg is
     signal can_rx             : in  std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    variable arb_lost         : out std_logic;
-    variable bit_error        : out std_logic;
-    variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
     constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
     variable can_tx_status    : out can_tx_status_t
@@ -156,6 +153,12 @@ package can_bfm_pkg is
   constant C_EOF_SIZE        : natural := 7;  -- 7 End Of Frame bits (recessive 1)
   constant C_IFS_SIZE        : natural := 3;  -- 3 Interframe Spacing bits (recessive 1)
 
+  constant C_ERROR_FLAG_LENGTH : natural := 6;
+  constant C_ACTIVE_ERROR_FLAG_VALUE : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0)
+    := (others => '0');
+  constant C_PASSIVE_ERROR_FLAG_VALUE : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0)
+    := (others => '1');
+
 end package can_bfm_pkg;
 
 
@@ -172,9 +175,6 @@ package body can_bfm_pkg is
     signal can_rx             : in  std_logic;
     variable bit_stuffing_dbg : out std_logic;
     variable sample_point_dbg : out std_logic;
-    variable arb_lost         : out std_logic;
-    variable bit_error        : out std_logic;
-    variable ack_received     : out std_logic;
     constant can_config       : in  can_bfm_config_t   := C_CAN_BFM_CONFIG_DEFAULT;
     constant can_rx_error_gen : in  can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
     variable can_tx_status    : out can_tx_status_t)
@@ -201,6 +201,8 @@ package body can_bfm_pkg is
 
     variable bit_counter       : natural := 0;
 
+    variable error_flag_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
+
     constant bit_period        : time := 1 sec / can_config.bit_rate;
     constant bit_quanta        : time := bit_period / 10;
     constant bit_quanta_cycles : natural := bit_quanta / can_config.clock_period;
@@ -213,8 +215,8 @@ package body can_bfm_pkg is
     constant sample_point_cycles : natural := sync_cycles+prop_cycles+phase1_cycles;
 
   begin
-    arb_lost     := '0';
-    ack_received := '0';
+    can_tx_status.arbitration_lost := false;
+    can_tx_status.ack_missing      := false;
 
     assert (can_config.sync_quanta + can_config.prop_quanta +
             can_config.phase1_quanta + can_config.phase2_quanta) = 10
@@ -332,21 +334,30 @@ package body can_bfm_pkg is
 
       sample_point_dbg := '1';
 
+      -- Check for active error flag
+      error_flag_window := error_flag_window(C_ERROR_FLAG_LENGTH-2 downto 0) & can_rx;
+      if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
+        can_tx_status.got_active_error_flag := true;
+
+        -- Return on active error flag
+        exit;
+      end if;
+
       -- Check for ACK and arbitration lost
       if bit_counter = crc_start_index+C_ACK_SLOT_INDEX then
-        if can_rx = '0' then
-          ack_received := '1';
+        if can_rx /= '0' then
+          can_tx_status.ack_missing := true;
         end if;
       elsif can_rx /= bit_buffer(bit_counter) then
         if bit_counter >= C_STD_ARB_ID_INDEX and bit_counter <= C_STD_ARB_ID_INDEX+10 then
-          arb_lost := '1';
+          can_tx_status.arbitration_lost := true;
         elsif extended_id = '1' and
           bit_counter >= C_EXT_ARB_ID_B_INDEX  and
           bit_counter <= C_EXT_ARB_ID_B_INDEX+17
         then
-          arb_lost := '1';
+          can_tx_status.arbitration_lost := true;
         else
-          bit_error := '1';
+          can_tx_status.bit_error := true;
         end if;
 
         -- Return on arbitration loss or bit errors
@@ -386,10 +397,30 @@ package body can_bfm_pkg is
         end loop;
         sample_point_dbg := '1';
 
-        -- Check if arbitration was lost
-        -- Should probably not be possible for a stuff bit
+        -- Check for active error flag
+        error_flag_window := error_flag_window(C_ERROR_FLAG_LENGTH-2 downto 0) & can_rx;
+        if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
+          can_tx_status.got_active_error_flag := true;
+
+          -- I believe this should be a bit error, becaues it means
+          -- the recessive stuff bit was overwritten by a dominant
+          -- bit by another transmitter
+          can_tx_status.bit_error             := true;
+
+          -- Return on active error flag
+          exit;
+        end if;
+
+        -- This check is probably redundant, because the previous check for
+        -- active error flag would cover the possible scenarios where another
+        -- transmitter could have overwritten the stuff bit.
         if can_rx /= previous_bit_value then
-          arb_lost := '1';
+          -- I believe this should be a bit error, becaues it means
+          -- the recessive stuff bit was overwritten by a dominant
+          -- bit by another transmitter
+          can_tx_status.bit_error             := true;
+
+          -- Return bit errors
           exit;
         end if;
 
@@ -444,6 +475,8 @@ package body can_bfm_pkg is
     -- polarity is sent to help with synchronization
     variable bit_stuffing_counter : natural   := 0;
     variable previous_bit_value   : std_logic := '0';
+
+    variable error_flag_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
 
     -- Bit start index for crc in bit_buffer (depends on data size)
     variable crc_start_index  : natural;

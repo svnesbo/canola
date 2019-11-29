@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-11-27
+-- Last update: 2019-11-29
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -227,18 +227,15 @@ package body can_uvvm_bfm_pkg is
               can_rx,
               bit_stuff_dbg,
               sample_point_dbg,
-              arb_lost,
-              bit_error,
-              ack_received,
               config.can_config,
               can_rx_error_gen,
               can_tx_status);
 
-    if arb_lost = '1' then
+    if can_tx_status.arbitration_lost then
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
-    elsif bit_error = '1' then
+    elsif can_tx_status.bit_error then
       alert(config.bit_error_severity, v_proc_call.all & "=> Failed. Bit error.", scope);
-    elsif ack_received = '0' then
+    elsif can_tx_status.ack_missing then
       alert(config.ack_missing_severity, v_proc_call.all & "=> ACK missing.", scope);
     end if;
 
