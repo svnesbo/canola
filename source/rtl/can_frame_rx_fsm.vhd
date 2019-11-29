@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-11-21
+-- Last update: 2019-11-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -119,17 +119,19 @@ architecture rtl of can_frame_rx_fsm is
   signal s_bsp_data_cleared : std_logic;
   signal s_reg_tx_arb_won   : std_logic;
 
-  signal s_reg_msg_recv_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_crc_error_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_form_error_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_msg_recv_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_crc_error_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_form_error_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
+  signal s_reg_stuff_error_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
 
 
 
 begin  -- architecture rtl
 
-  REG_MSG_RECV_COUNT   <= std_logic_vector(s_reg_msg_recv_counter);
-  REG_CRC_ERROR_COUNT  <= std_logic_vector(s_reg_crc_error_counter);
-  REG_FORM_ERROR_COUNT <= std_logic_vector(s_reg_form_error_counter);
+  REG_MSG_RECV_COUNT    <= std_logic_vector(s_reg_msg_recv_counter);
+  REG_CRC_ERROR_COUNT   <= std_logic_vector(s_reg_crc_error_counter);
+  REG_FORM_ERROR_COUNT  <= std_logic_vector(s_reg_form_error_counter);
+  REG_STUFF_ERROR_COUNT <= std_logic_vector(s_reg_form_error_counter);
 
   RX_MSG_OUT           <= s_reg_rx_msg;
 
@@ -462,49 +464,39 @@ begin  -- architecture rtl
             end if;
 
           when ST_CRC_ERROR =>
-            -- Todo:
-            -- Increase CRC error count
-            -- Increase receive error count
-            -- Send error flag
-            BSP_RX_STOP <= '1';
-            s_fsm_state <= ST_IDLE;
-
-          -- Error handling summary:
-          --
-          -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
-          -- "A node detecting an error condition signals this by transmitting an Error flag. An error-active node
-          --  will transmit an ACTIVE Error flag; an error-passive node will transmit a PASSIVE Error flag.
-          --  Whenever a Bit error, a Stuff error, a Form error or an Acknowledgement error is detected by any
-          --  node, that node will start transmission of an Error flag at the next bit time.
-          --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
-          --  ACK Delimiter, unless an Error flag for another error condition has already been started."
+            -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
+            --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
+            --  ACK Delimiter, unless an Error flag for another error condition has already been started."
+            BSP_RX_STOP             <= '1';
+            BSP_SEND_ERROR_FLAG     <= '1';
+            s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
+            s_fsm_state             <= ST_IDLE;
 
           when ST_FORM_ERROR =>
             if s_reg_tx_arb_won = '0' then
-              -- We are receiving this message from a different node
-              -- Increase receive error counters
-              null;
-            else
-              -- We are transmitting this message ourselves
-              -- Don't increase receive error counters
-              null;
+              -- Increase receive error counters if we are receiving this message
+              -- from a different node.
+              -- But we don't want to increase receive error counters if we are
+              -- transmitting this message ourselves. Let the Tx FSM handle
+              -- errors in that case.
+              BSP_SEND_ERROR_FLAG      <= '1';
+              s_reg_form_error_counter <= s_reg_form_error_counter + 1;
             end if;
 
-            BSP_RX_STOP <= '1';
-            s_fsm_state <= ST_IDLE;
-
-            -- Form Error applies to bit errors in any fixed field from SOF to
-            -- CRC delimiter.
-
-            -- TODO:
-            -- Signal error here...
-            -- Increase counters...
-
-          --when ST_CRC_ERROR =>
+            BSP_RX_STOP             <= '1';
+            s_fsm_state             <= ST_IDLE;
 
           when ST_STUFF_ERROR =>
-            -- TODO:
-            -- Handle this error
+            if s_reg_tx_arb_won = '0' then
+              -- Increase receive error counters if we are receiving this message
+              -- from a different node.
+              -- But we don't want to increase receive error counters if we are
+              -- transmitting this message ourselves. Let the Tx FSM handle
+              -- errors in that case.
+              BSP_SEND_ERROR_FLAG       <= '1';
+              s_reg_stuff_error_counter <= s_reg_stuff_error_counter + 1;
+            end if;
+
             BSP_RX_STOP <= '1';
             s_fsm_state <= ST_IDLE;
 
