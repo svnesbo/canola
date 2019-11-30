@@ -139,11 +139,6 @@ architecture struct of can_top is
   signal s_btl_rx_bit_valid    : std_logic;
   signal s_btl_rx_synced       : std_logic;
 
-  -- BRG signals
-  --signal s_brg_baud_pulse : std_logic;
-  --signal s_brg_restart    : std_logic;
-  --signal s_brg_count_val  : unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
-
   -- EML signals
   signal s_eml_rx_stuff_error                   : std_logic;
   signal s_eml_rx_crc_error                     : std_logic;
