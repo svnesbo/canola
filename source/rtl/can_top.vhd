@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-11-21
+-- Last update: 2019-11-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -233,6 +233,8 @@ begin  -- architecture struct
       BSP_RX_ACTIVE_ERROR_FLAG  => s_bsp_rx_active_error_flag,
       BSP_RX_PASSIVE_ERROR_FLAG => s_bsp_rx_passive_error_flag,
       BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag_rx_fsm,
+      BSP_ERROR_FLAG_DONE       => s_bsp_error_flag_done,
+      BSP_ERROR_FLAG_BIT_ERROR  => s_bsp_error_flag_bit_error,
       REG_MSG_RECV_COUNT        => REG_RX_MSG_RECV_COUNT,
       REG_CRC_ERROR_COUNT       => REG_RX_CRC_ERROR_COUNT,
       REG_FORM_ERROR_COUNT      => REG_RX_FORM_ERROR_COUNT,

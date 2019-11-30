@@ -76,6 +76,7 @@ package can_bfm_pkg is
     ack_missing           : boolean;
     bit_error             : boolean;
     got_active_error_flag : boolean;
+    crc_error_flag        : boolean;
   end record can_tx_status_t;
 
   type can_error_flag_t is (ACTIVE_ERROR_FLAG, PASSIVE_ERROR_FLAG, ANY_ERROR_FLAG);
@@ -140,7 +141,8 @@ package can_bfm_pkg is
   constant C_EXT_DATA_INDEX     : natural := 39;  -- Data
 
   -- Bit positions of CRC, ACK, and EOF bits.
-  --
+  -- These positions are all relative to the start of the CRC field,
+  -- since the absolute position in the frame may differ depending on data length
   constant C_CRC_INDEX       : natural := 0;  -- Cyclic Redundancy Check
   constant C_CRC_DELIM_INDEX : natural := 15; -- CRC delimiter (recessive 1)
   constant C_ACK_SLOT_INDEX  : natural := 16; -- ACK slot (transmitter sends
@@ -215,8 +217,11 @@ package body can_bfm_pkg is
     constant sample_point_cycles : natural := sync_cycles+prop_cycles+phase1_cycles;
 
   begin
-    can_tx_status.arbitration_lost := false;
-    can_tx_status.ack_missing      := false;
+    can_tx_status.arbitration_lost      := false;
+    can_tx_status.ack_missing           := false;
+    can_tx_status.bit_error             := false;
+    can_tx_status.got_active_error_flag := false;
+    can_tx_status.crc_error_flag        := false;
 
     assert (can_config.sync_quanta + can_config.prop_quanta +
             can_config.phase1_quanta + can_config.phase2_quanta) = 10
@@ -339,6 +344,11 @@ package body can_bfm_pkg is
       if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
         can_tx_status.got_active_error_flag := true;
 
+        -- CRC error are reported by receivers immediately following ACK delimiter
+        if bit_counter - C_ERROR_FLAG_LENGTH = crc_start_index + C_EOF_INDEX then
+          can_tx_status.crc_error_flag := true;
+        end if;
+
         -- Return on active error flag
         exit;
       end if;
@@ -360,8 +370,13 @@ package body can_bfm_pkg is
           can_tx_status.bit_error := true;
         end if;
 
-        -- Return on arbitration loss or bit errors
-        exit;
+
+        if bit_counter < crc_start_index+C_EOF_INDEX then
+          -- Return on arbitration loss or bit errors, but only before EOF.
+          -- CRC errors are reported by receivers immediately following the ack delimiter,
+          -- and we want to detect those.
+          exit;
+        end if;
       end if;
 
       -- Calculate number of consecutive bits of same value,

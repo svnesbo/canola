@@ -44,6 +44,7 @@ package can_uvvm_bfm_pkg is
     arb_lost_severity           : t_alert_level;
     bit_error_severity          : t_alert_level;
     ack_missing_severity        : t_alert_level;
+    error_flag_severity         : t_alert_level;
     crc_error_severity          : t_alert_level;
     error_flag_timeout_severity : t_alert_level;
     wrong_error_flag_severity   : t_alert_level;
@@ -58,7 +59,8 @@ package can_uvvm_bfm_pkg is
     max_wait_cycles_severity    => failure,
     arb_lost_severity           => warning,
     bit_error_severity          => failure,
-    ack_missing_severity        => warning,
+    ack_missing_severity        => failure,
+    error_flag_severity         => failure,
     crc_error_severity          => failure,
     error_flag_timeout_severity => failure,
     wrong_error_flag_severity   => failure,
@@ -85,9 +87,9 @@ package can_uvvm_bfm_pkg is
     signal can_rx             : in  std_logic;
     variable can_tx_status    : out can_tx_status_t;
     constant can_rx_error_gen : in  can_rx_error_gen_t    := C_CAN_RX_NO_ERROR_GEN;
+    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope            : in  string                := C_SCOPE;
     constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name        : in  string                := "can_uvvm_write"
     );
 
@@ -109,9 +111,9 @@ package can_uvvm_bfm_pkg is
     signal can_tx           : out std_logic;
     signal can_rx           : in  std_logic;
     variable timeout        : out std_logic;
+    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope          : in  string                := C_SCOPE;
     constant msg_id_panel   : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name      : in  string                := "can_uvvm_read"
     );
 
@@ -136,9 +138,9 @@ package can_uvvm_bfm_pkg is
     signal can_tx            : out std_logic;
     signal can_rx            : in  std_logic;
     constant alert_level     : in  t_alert_level         := error;
+    constant config          : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope           : in  string                := C_SCOPE;
-    constant msg_id_panel    : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config          : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT
+    constant msg_id_panel    : in  t_msg_id_panel        := shared_msg_id_panel
     );
 
 
@@ -159,9 +161,9 @@ package can_uvvm_bfm_pkg is
     constant timeout_baud_periods : in natural;
     constant msg                  : in string;
     signal   can_rx               : in std_logic;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope                : in string                := C_SCOPE;
     constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
-    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name            : in string                := "can_uvvm_read"
     );
 
@@ -182,9 +184,9 @@ package body can_uvvm_bfm_pkg is
     signal can_rx             : in  std_logic;
     variable can_tx_status    : out can_tx_status_t;
     constant can_rx_error_gen : in  can_rx_error_gen_t    := C_CAN_RX_NO_ERROR_GEN;
+    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope            : in  string                := C_SCOPE;
     constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config           : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name        : in  string                := "can_uvvm_write"
     ) is
     variable v_proc_call      : line;
@@ -233,8 +235,16 @@ package body can_uvvm_bfm_pkg is
 
     if can_tx_status.arbitration_lost then
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
+
+    elsif can_tx_status.crc_error_flag then
+      alert(config.crc_error_severity, v_proc_call.all & "=> Failed. Receiver CRC error.", scope);
+
+    elsif can_tx_status.got_active_error_flag then
+      alert(config.error_flag_severity, v_proc_call.all & "=> Failed. Got active error flag.", scope);
+
     elsif can_tx_status.bit_error then
       alert(config.bit_error_severity, v_proc_call.all & "=> Failed. Bit error.", scope);
+
     elsif can_tx_status.ack_missing then
       alert(config.ack_missing_severity, v_proc_call.all & "=> ACK missing.", scope);
     end if;
@@ -257,9 +267,9 @@ package body can_uvvm_bfm_pkg is
     signal can_tx           : out std_logic;
     signal can_rx           : in  std_logic;
     variable timeout        : out std_logic;
+    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope          : in  string                := C_SCOPE;
     constant msg_id_panel   : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config         : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name      : in  string                := "can_uvvm_read"
     )
   is
@@ -334,9 +344,9 @@ package body can_uvvm_bfm_pkg is
     signal can_tx            : out std_logic;
     signal can_rx            : in  std_logic;
     constant alert_level     : in  t_alert_level         := error;
+    constant config          : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope           : in  string                := C_SCOPE;
-    constant msg_id_panel    : in  t_msg_id_panel        := shared_msg_id_panel;
-    constant config          : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT
+    constant msg_id_panel    : in  t_msg_id_panel        := shared_msg_id_panel
     )
   is
     constant proc_name   : string := "can_uvvm_check";
@@ -397,9 +407,9 @@ package body can_uvvm_bfm_pkg is
                       can_rx,
                       v_can_tx_status,
                       C_CAN_RX_NO_ERROR_GEN,
+                      config,
                       scope,
                       msg_id_panel,
-                      config,
                       proc_name);
 
       if v_can_tx_status.arbitration_lost  then
@@ -428,9 +438,9 @@ package body can_uvvm_bfm_pkg is
                   can_tx,
                   can_rx,
                   v_timeout,
+                  config,
                   scope,
                   msg_id_panel,
-                  config,
                   proc_name);
 
     if v_timeout = '1' then
@@ -504,9 +514,9 @@ package body can_uvvm_bfm_pkg is
     constant timeout_baud_periods : in natural;
     constant msg                  : in string;
     signal   can_rx               : in std_logic;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope                : in string                := C_SCOPE;
     constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
-    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant proc_name            : in string                := "can_uvvm_read"
     )
   is

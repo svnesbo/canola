@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-11-29
+-- Last update: 2019-11-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -71,12 +71,15 @@ entity can_frame_rx_fsm is
     BSP_RX_STOP               : out std_logic;  -- Tell BSP to stop we've got EOF
     BSP_RX_CRC_CALC           : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK           : out std_logic;
-
     BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
     BSP_RX_PASSIVE_ERROR_FLAG : out std_logic;  -- Passive error flag received
     BSP_SEND_ERROR_FLAG       : out std_logic;  -- When pulsed, BSP cancels
                                                 -- whatever it is doing, and sends
                                                 -- an error flag of 6 bits
+    BSP_ERROR_FLAG_DONE       : in  std_logic;  -- Pulsed
+    BSP_ERROR_FLAG_BIT_ERROR  : in  std_logic;  -- Bit error was detected while
+                                                -- transmitting error flag
+                                                -- Note: Only for ACTIVE error flag
 
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -108,6 +111,7 @@ architecture rtl of can_frame_rx_fsm is
                               ST_CRC_ERROR,
                               ST_STUFF_ERROR,
                               ST_FORM_ERROR,
+                              ST_WAIT_ERROR_FLAG,
                               ST_DONE,
                               ST_WAIT_BUS_IDLE);
 
@@ -467,38 +471,64 @@ begin  -- architecture rtl
             -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
             --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
             --  ACK Delimiter, unless an Error flag for another error condition has already been started."
-            BSP_RX_STOP             <= '1';
-            BSP_SEND_ERROR_FLAG     <= '1';
-            s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
-            s_fsm_state             <= ST_IDLE;
+            if s_reg_tx_arb_won = '0' then
+              -- Increase error counters and send error flag if we are
+              -- receiving this message from a different node.
+              -- But we don't want to do that if we are transmitting this message
+              -- ourselves. Let the Tx FSM handle errors in that case.
+              BSP_SEND_ERROR_FLAG     <= '1';
+              s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
+              s_fsm_state             <= ST_WAIT_ERROR_FLAG;
+            else
+              -- Todo:
+              -- What if Tx frame FSM is sending error flag?
+              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              s_fsm_state <= ST_WAIT_BUS_IDLE;
+            end if;
 
           when ST_FORM_ERROR =>
             if s_reg_tx_arb_won = '0' then
-              -- Increase receive error counters if we are receiving this message
-              -- from a different node.
-              -- But we don't want to increase receive error counters if we are
-              -- transmitting this message ourselves. Let the Tx FSM handle
-              -- errors in that case.
+              -- Increase error counters and send error flag if we are
+              -- receiving this message from a different node.
+              -- But we don't want to do that if we are transmitting this message
+              -- ourselves. Let the Tx FSM handle errors in that case.
               BSP_SEND_ERROR_FLAG      <= '1';
               s_reg_form_error_counter <= s_reg_form_error_counter + 1;
+              s_fsm_state              <= ST_WAIT_ERROR_FLAG;
+            else
+              -- Todo:
+              -- What if Tx frame FSM is sending error flag?
+              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              s_fsm_state             <= ST_WAIT_BUS_IDLE;
             end if;
-
-            BSP_RX_STOP             <= '1';
-            s_fsm_state             <= ST_IDLE;
 
           when ST_STUFF_ERROR =>
             if s_reg_tx_arb_won = '0' then
-              -- Increase receive error counters if we are receiving this message
-              -- from a different node.
-              -- But we don't want to increase receive error counters if we are
-              -- transmitting this message ourselves. Let the Tx FSM handle
-              -- errors in that case.
+              -- Increase error counters and send error flag if we are
+              -- receiving this message from a different node.
+              -- But we don't want to do that if we are transmitting this message
+              -- ourselves. Let the Tx FSM handle errors in that case.
               BSP_SEND_ERROR_FLAG       <= '1';
+              s_fsm_state               <= ST_WAIT_ERROR_FLAG;
               s_reg_stuff_error_counter <= s_reg_stuff_error_counter + 1;
+            else
+              -- Todo:
+              -- What if Tx frame FSM is sending error flag?
+              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              s_fsm_state             <= ST_WAIT_BUS_IDLE;
             end if;
 
-            BSP_RX_STOP <= '1';
-            s_fsm_state <= ST_IDLE;
+          when ST_WAIT_ERROR_FLAG =>
+            if BSP_ERROR_FLAG_BIT_ERROR = '1' then
+              -- Todo:
+              -- Error handling on bit errors during error flag
+              null;
+            end if;
+
+            if BSP_ERROR_FLAG_DONE = '1' then
+              BSP_RX_STOP <= '1';
+              s_fsm_state <= ST_WAIT_BUS_IDLE;
+            end if;
 
           when ST_DONE =>
             -- Don't output messages we were transmitting ourselves

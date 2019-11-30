@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-27
+-- Last update: 2019-11-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -355,22 +355,15 @@ begin  -- architecture rtl
         BSP_TX_RX_MISMATCH        <= '0';
         BSP_TX_RX_STUFF_MISMATCH  <= '0';
         BSP_ERROR_FLAG_BIT_ERROR  <= '0';
-
-        -- Todo: Is this still used?
-        BSP_ERROR_FLAG_DONE      <= '1';
-
-
+        BSP_ERROR_FLAG_DONE      <= '0';
       else
-        -- Ok
         s_tx_restart_crc_pulse   <= '0';
         BTL_TX_BIT_VALID         <= '0';
         BSP_TX_DONE              <= '0';
         BSP_TX_RX_MISMATCH       <= '0';
         BSP_TX_RX_STUFF_MISMATCH <= '0';
         BSP_ERROR_FLAG_BIT_ERROR <= '0';
-
-        -- Todo: Is this still used?
-        BSP_ERROR_FLAG_DONE      <= '1';
+        BSP_ERROR_FLAG_DONE      <= '0';
 
         case s_tx_fsm_state is
           when ST_IDLE =>
