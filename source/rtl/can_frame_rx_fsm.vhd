@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-11-30
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -276,11 +276,8 @@ begin  -- architecture rtl
             elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
-              if BSP_RX_DATA(0) /= C_R1_VALUE then
-                s_fsm_state <= ST_FORM_ERROR;
-              else
-                s_fsm_state <= ST_RECV_R0;
-              end if;
+              -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
+              s_fsm_state <= ST_RECV_R0;
             end if;
 
           when ST_RECV_R0 =>
@@ -290,11 +287,8 @@ begin  -- architecture rtl
             elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
-              if BSP_RX_DATA(0) /= C_R0_VALUE then
-                s_fsm_state <= ST_FORM_ERROR;
-              else
-                s_fsm_state <= ST_RECV_DLC;
-              end if;
+              -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
+              s_fsm_state <= ST_RECV_DLC;
             end if;
 
           when ST_RECV_DLC =>
