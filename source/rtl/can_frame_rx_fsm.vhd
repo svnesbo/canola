@@ -432,8 +432,8 @@ begin  -- architecture rtl
                 s_fsm_state <= ST_CRC_ERROR;
               elsif BSP_RX_DATA(0) /= C_ACK_DELIM_VALUE then
                 if s_reg_tx_arb_won = '0' then
-                  -- Did we try to send ACK, but did not read ACK value back?
-                  -- Todo: What kind of error is that? Form error?
+                  -- Ack delimiter is a fixed field,
+                  -- it is a form error if it has the wrong value
                   s_fsm_state <= ST_FORM_ERROR;
                 else
                   -- In this case we were transmitting this message ourselves,

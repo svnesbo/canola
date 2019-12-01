@@ -1008,71 +1008,86 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #9: Test form error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    v_xmit_ext_id := '1';
-
+    v_test_num                           := 0;
+    v_xmit_ext_id                        := '1';
     v_can_bfm_config.form_error_severity := note;
 
-    v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-    v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-    v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-    v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-    v_receive_error_count  := s_can_ctrl_receive_error_count;
+    while v_test_num < C_NUM_ITERATIONS loop
 
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 v_xmit_ext_id);
+      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl_receive_error_count;
 
-    v_can_rx_error_gen := (crc_error   => false,
-                           stuff_error => false,
-                           form_error  => true);
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
 
-    -- Start transmitting from BFM
-    can_uvvm_write(v_xmit_arb_id,
-                   v_xmit_ext_id,
-                   v_xmit_remote_frame,
-                   v_xmit_data,
-                   v_xmit_data_length,
-                   "Send message with form error with CAN BFM",
-                   s_clk,
-                   s_can_bfm_tx,
-                   s_can_bfm_rx,
-                   v_can_tx_status,
-                   v_can_rx_error_gen,
-                   v_can_bfm_config);
+      v_can_rx_error_gen := (crc_error   => false,
+                             stuff_error => false,
+                             form_error  => true);
 
-    -- Wait for a baud before checking error counters
-    wait until rising_edge(s_can_baud_clk);
+      -- Start transmitting from BFM
+      can_uvvm_write(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send message with form error with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     v_can_rx_error_gen,
+                     v_can_bfm_config);
 
-    check_value(v_can_tx_status.got_active_error_flag, true, error,
-                "Check that active error flag was received from CAN controller");
+      -- Wait for a baud before checking error counters
+      wait until rising_edge(s_can_baud_clk);
 
-    check_value(v_can_tx_status.form_error_flag, true, error,
-                "Check that error flag was issued due to Form error");
+      check_value(v_can_tx_status.got_active_error_flag, true, error,
+                  "Check that active error flag was received from CAN controller");
 
-    -- Received message count should not have increased, because receiving this
-    -- message was supposed to fail..
-    check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
-                error, "Check received message count in CAN controller.");
+      check_value(v_can_tx_status.form_error_flag, true, error,
+                  "Check that error flag was issued due to Form error");
 
-    -- Not expecting increase, we did not generate a CRC error
-    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
-                error, "Check received CRC error count in CAN controller.");
+      -- Received message count should not have increased, because receiving this
+      -- message was supposed to fail..
+      check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+                  error, "Check received message count in CAN controller.");
 
-    -- Not expecting increase, we did not generate a stuff error
-    check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
-                error, "Check received stuff error count in CAN controller.");
+      -- Not expecting increase, we did not generate a CRC error
+      check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+                  error, "Check received CRC error count in CAN controller.");
 
-    -- Expecting increase by one since we asked to generate a form error
-    check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
-                unsigned(v_rx_form_error_count)+1,
-                error, "Check received form error count in CAN controller.");
+      -- Not expecting increase, we did not generate a stuff error
+      check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
+                  error, "Check received stuff error count in CAN controller.");
 
-    -- TODO: Add this test after EML is connected to Rx Frame FSM....
-    -- Expecting increase by one in receive error count
-    --check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
-    --            error, "Check receive error count in CAN controller.");
+      -- Expecting increase by one since we asked to generate a form error
+      check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
+                  unsigned(v_rx_form_error_count)+1,
+                  error, "Check received form error count in CAN controller.");
+
+      -- TODO: Add this test after EML is connected to Rx Frame FSM....
+      -- Expecting increase by one in receive error count
+      --check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+      --            error, "Check receive error count in CAN controller.");
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #10: Test ERROR PASSIVE/ACTIVE states when transmitting", C_SCOPE);

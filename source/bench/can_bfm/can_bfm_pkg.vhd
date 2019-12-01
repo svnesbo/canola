@@ -415,14 +415,33 @@ package body can_bfm_pkg is
       if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
         can_tx_status.got_active_error_flag := true;
 
-        -- CRC error are reported by receivers immediately following ACK delimiter
-        if bit_counter - C_ERROR_FLAG_LENGTH = crc_start_index + C_EOF_INDEX then
-          can_tx_status.crc_error_flag := true;
-        end if;
-
-        -- Detect error flags due to form errors that we inserted in the frame
+        ------------------------------------------------------------------------
+        -- Check for error flags due to form errors (which we generated)
+        ------------------------------------------------------------------------
         if can_rx_error_gen.form_error then
-          if extended_id = '1' and form_error_index = C_EXT_SRR_INDEX then
+          if bit_counter - C_ERROR_FLAG_LENGTH - 1 <= form_error_index and
+                bit_counter - 1 >= form_error_index and
+                bit_counter - 1 <= form_error_index + C_ERROR_FLAG_LENGTH
+          then
+            -- Exactly when the error flag is detected is hard to predict for
+            -- form errors, because we just detect the first 6 bits of low
+            -- value (we can only detect active error flag), and may end up
+            -- here before the receiver has actually sent all 6 bits of its
+            -- error flag.
+            -- But the actual form error bit (low) will be counted among the
+            -- detected error flag bits, and also any preceding bits that are
+            -- low (ie. for CRC delimiter, if one or more of the CRC bits
+            -- immediately before are low).
+            -- And an SRR form error can not be checked in the receiver before
+            -- receiving the IDE field.
+            -- So.. just assume that it is a form error if the error flag
+            -- starts around where the form error was generated.
+            can_tx_status.form_error_flag := true;
+
+            -- Avoid this form error being reported as arbitration lost
+            can_tx_status.arbitration_lost := false;
+
+          elsif extended_id = '1' and form_error_index = C_EXT_SRR_INDEX then
             -- Form error in SRR bit is not detected until the IDE bit is sent
             if bit_counter - C_ERROR_FLAG_LENGTH = C_EXT_IDE_INDEX+1 then
               can_tx_status.form_error_flag := true;
@@ -430,18 +449,14 @@ package body can_bfm_pkg is
               -- Avoid this form error being reported as arbitration lost
               can_tx_status.arbitration_lost := false;
             end if;
-
-          -- Other form errors are detected immediately and reported on the
-          -- following bit.
-          elsif bit_counter - C_ERROR_FLAG_LENGTH + 1 = form_error_index then
-            -- Since all the fixed form fields are supposed to have value '1',
-            -- the form error bit will be included in the count for the error flag
-            -- here, so we will detect the error flag one bit too early
-            -- (explains the -1 in the comparison)
-            -- We'll just assume that we would receive the last bit of the
-            -- error flag
-            can_tx_status.form_error_flag := true;
           end if;
+
+        ------------------------------------------------------------------------
+        -- Check for error flags due to CRC errors
+        ------------------------------------------------------------------------
+        elsif bit_counter - C_ERROR_FLAG_LENGTH = crc_start_index + C_EOF_INDEX then
+          -- CRC error are reported by receivers immediately following ACK delimiter
+          can_tx_status.crc_error_flag := true;
         end if;
 
         -- Return on active error flag
@@ -476,26 +491,10 @@ package body can_bfm_pkg is
           can_tx_status.bit_error := true;
         end if;
 
-        -- Exit on arbitration loss or bit errors
-        -- But not necessarily if we are generating CRC or Form errors
-        if can_rx_error_gen.form_error then
-          -- We want to verify that we get an error flag from the receiver when
-          -- it detects form error, and not interpret this flag as a bit error.
-          -- Allow to exit on bit errors before the form error occured
-          if bit_counter < form_error_index then
-            exit;
-          end if;
-
-
-        elsif can_rx_error_gen.crc_error then
-          -- CRC errors are reported with an error flag by receivers immediately following
-          -- the ack delimiter, and we want to detect those.
-          if bit_counter < crc_start_index+C_EOF_INDEX then
-            exit;
-          end if;
-
-        else
-          -- Default: bit error or arbitration loss, no error generation
+        -- Exit on on bit error or arbitration loss, but only when we are not
+        -- generating errors. When we are generating errors we want to identify
+        -- why we got the error flag.
+        if not can_rx_error_gen.form_error and not can_rx_error_gen.crc_error then
           exit;
         end if;
       end if;
