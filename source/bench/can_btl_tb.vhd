@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2019-08-16
+-- Last update: 2019-12-01
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -121,6 +121,7 @@ architecture tb of can_btl_tb is
   signal s_btl_rx_bit_value : std_logic;
   signal s_btl_rx_bit_valid : std_logic;
   signal s_btl_rx_synced    : std_logic;
+  signal s_btl_rx_stop      : std_logic;
 
   signal s_data_transmit     : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
   signal s_btl_data_received : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
@@ -164,6 +165,7 @@ begin
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
+      BTL_RX_STOP             => s_btl_rx_stop,
       TRIPLE_SAMPLING         => '0',
       PROP_SEG                => s_prop_seg,
       PHASE_SEG1              => s_phase_seg1,

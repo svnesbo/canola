@@ -62,6 +62,7 @@ entity can_frame_rx_fsm is
 
     -- Signals to/from BSP
     BSP_RX_ACTIVE             : in  std_logic;
+    BSP_RX_IFS                : in  std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA               : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
     BSP_RX_DATA_COUNT         : in  natural range 0 to C_BSP_DATA_LENGTH;
     BSP_RX_DATA_CLEAR         : out std_logic;
@@ -71,8 +72,8 @@ entity can_frame_rx_fsm is
     BSP_RX_STOP               : out std_logic;  -- Tell BSP to stop we've got EOF
     BSP_RX_CRC_CALC           : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK           : out std_logic;
-    BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
-    BSP_RX_PASSIVE_ERROR_FLAG : out std_logic;  -- Passive error flag received
+    BSP_RX_ACTIVE_ERROR_FLAG  : in  std_logic;  -- Active error flag received
+    BSP_RX_PASSIVE_ERROR_FLAG : in  std_logic;  -- Passive error flag received
     BSP_SEND_ERROR_FLAG       : out std_logic;  -- When pulsed, BSP cancels
                                                 -- whatever it is doing, and sends
                                                 -- an error flag of 6 bits
@@ -135,7 +136,7 @@ begin  -- architecture rtl
   REG_MSG_RECV_COUNT    <= std_logic_vector(s_reg_msg_recv_counter);
   REG_CRC_ERROR_COUNT   <= std_logic_vector(s_reg_crc_error_counter);
   REG_FORM_ERROR_COUNT  <= std_logic_vector(s_reg_form_error_counter);
-  REG_STUFF_ERROR_COUNT <= std_logic_vector(s_reg_form_error_counter);
+  REG_STUFF_ERROR_COUNT <= std_logic_vector(s_reg_stuff_error_counter);
 
   RX_MSG_OUT           <= s_reg_rx_msg;
 
@@ -154,9 +155,10 @@ begin  -- architecture rtl
 
         s_fsm_state                <= ST_IDLE;
         s_crc_mismatch             <= '0';
-        s_reg_msg_recv_counter     <= (others => '0');
-        s_reg_crc_error_counter    <= (others => '0');
-        s_reg_form_error_counter   <= (others => '0');
+        s_reg_msg_recv_counter    <= (others => '0');
+        s_reg_crc_error_counter   <= (others => '0');
+        s_reg_form_error_counter  <= (others => '0');
+        s_reg_stuff_error_counter <= (others => '0');
         BSP_RX_BIT_DESTUFF_EN      <= '1';
         BSP_RX_STOP                <= '0';
         RX_MSG_VALID               <= '0';
@@ -487,6 +489,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_FORM_ERROR =>
+            BSP_RX_BIT_DESTUFF_EN <= '0';
+
             if s_reg_tx_arb_won = '0' then
               -- Increase error counters and send error flag if we are
               -- receiving this message from a different node.
@@ -503,6 +507,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_STUFF_ERROR =>
+            BSP_RX_BIT_DESTUFF_EN <= '0';
+
             if s_reg_tx_arb_won = '0' then
               -- Increase error counters and send error flag if we are
               -- receiving this message from a different node.
@@ -519,6 +525,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_WAIT_ERROR_FLAG =>
+            BSP_RX_BIT_DESTUFF_EN <= '0';
+
             if BSP_ERROR_FLAG_BIT_ERROR = '1' then
               -- Todo:
               -- Error handling on bit errors during error flag
@@ -539,13 +547,16 @@ begin  -- architecture rtl
               s_reg_msg_recv_counter <= s_reg_msg_recv_counter + 1;
             end if;
 
-            s_fsm_state            <= ST_WAIT_BUS_IDLE;
+            BSP_RX_STOP <= '1';
+            s_fsm_state <= ST_WAIT_BUS_IDLE;
 
           when ST_WAIT_BUS_IDLE =>
+            BSP_RX_BIT_DESTUFF_EN <= '0';
+
             -- TODO:
             -- Handle this differently..
             -- I have a state in BSP that handles IFS now, and a signal for it
-            if BSP_RX_ACTIVE = '0' then
+            if BSP_RX_ACTIVE = '0' and BSP_RX_IFS = '0' then
               s_fsm_state <= ST_IDLE;
             end if;
 

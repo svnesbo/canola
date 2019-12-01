@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-30
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -124,7 +124,8 @@ entity can_bsp is
     BTL_TX_DONE                : in  std_logic;
     BTL_RX_BIT_VALUE           : in  std_logic;
     BTL_RX_BIT_VALID           : in  std_logic;
-    BTL_RX_SYNCED              : in  std_logic);
+    BTL_RX_SYNCED              : in  std_logic;
+    BTL_RX_STOP                : out std_logic);
 
 end entity can_bsp;
 
@@ -152,7 +153,8 @@ architecture rtl of can_bsp is
   -- Rx FSM state assertions
   -----------------------------------------------------------------------------
   -- psl default clock is rising_edge(CLK);
-  -- psl assert (always {(s_rx_fsm_state = ST_IDLE) and BTL_RX_SYNCED = '1'} |=>
+  -- psl assert (always {(s_rx_fsm_state = ST_IDLE) and
+  --                      BTL_RX_SYNCED = '1' and BTL_RX_STOP = '0'} |=>
   --                    {(s_rx_fsm_state = ST_WAIT_BTL_RX_RDY)} abort RESET);
   -- Todo: Add the rest of them...
 
@@ -176,21 +178,7 @@ architecture rtl of can_bsp is
   signal s_tx_error_flag_shift_reg : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
   signal s_tx_frame_started        : std_logic;
   signal s_tx_send_error_flag      : std_logic;
-
-
-  --signal s_tx_bit_sent         : std_logic;
-  --signal s_tx_bit_queued       : std_logic;
-  --signal s_tx_stuff_bit_sent   : std_logic;
-  --signal s_tx_stuff_bit_queued : std_logic;
-  --signal s_tx_rx_mismatch_flag : std_logic;
-
-  -- Indicates that we are ready to send next bit.
-  -- Initially high when setting up BSP for a chunk of data,
-  -- and goes high every time a bit has been fully transmitted and read back
-  --signal s_tx_bit_rdy            : std_logic;
-
-  signal s_send_ack              : std_logic;
-
+  signal s_send_ack                : std_logic;
 
 begin  -- architecture rtl
 
@@ -205,6 +193,7 @@ begin  -- architecture rtl
         s_rx_data_counter         <= 0;
         s_rx_stop_reg             <= '0';
         s_rx_start_of_frame       <= '0';
+        BTL_RX_STOP               <= '0';
         BSP_RX_DATA_OVERFLOW      <= '0';
         BSP_RX_ACTIVE             <= '0';
         BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
@@ -214,6 +203,7 @@ begin  -- architecture rtl
         s_rx_restart_crc_pulse    <= '0';
       else
         -- Default values
+        BTL_RX_STOP               <= '0';
         BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
         BSP_RX_PASSIVE_ERROR_FLAG <= '0';
         BSP_RX_IFS                <= '0';
@@ -247,7 +237,7 @@ begin  -- architecture rtl
             s_rx_data_counter      <= 0;
             s_rx_restart_crc_pulse <= '1';
 
-            if BTL_RX_SYNCED = '1' then
+            if BTL_RX_SYNCED = '1' and BTL_RX_STOP = '0' then
               s_rx_start_of_frame <= '1';
               BSP_RX_ACTIVE       <= '1';
               s_rx_fsm_state      <= ST_WAIT_BTL_RX_RDY;
@@ -312,6 +302,8 @@ begin  -- architecture rtl
             s_rx_fsm_state        <= ST_WAIT_BTL_RX_RDY;
 
           when ST_WAIT_BUS_IDLE =>
+            BSP_RX_IFS <= '1';
+
             if BTL_RX_BIT_VALID = '1' then
               s_rx_bit_stream_window <= s_rx_bit_stream_window(C_ERROR_FLAG_LENGTH-2 downto 0) & BTL_RX_BIT_VALUE;
               s_rx_fsm_state         <= ST_CHECK_BUS_IDLE;
@@ -321,15 +313,16 @@ begin  -- architecture rtl
             BSP_RX_IFS <= '1';
 
             if s_rx_bit_stream_window(C_IFS_LENGTH-1 downto 0) = C_IFS then
+              BTL_RX_STOP    <= '1';
               s_rx_fsm_state <= ST_IDLE;
 
             -- Todo: Check for OVERLOAD flag here
-
             else
               s_rx_fsm_state <= ST_WAIT_BUS_IDLE;
             end if;
 
           when others =>
+            BTL_RX_STOP    <= '1';
             s_rx_fsm_state <= ST_IDLE;
         end case;
       end if;  -- if/else RESET = '1'

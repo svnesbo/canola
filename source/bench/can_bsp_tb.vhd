@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-11-25
+-- Last update: 2019-12-01
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -132,6 +132,7 @@ architecture tb of can_bsp_tb is
   signal s_btl_rx_bit_value          : std_logic         := '0';
   signal s_btl_rx_bit_valid          : std_logic         := '0';
   signal s_btl_rx_synced             : std_logic         := '0';
+  signal s_btl_rx_stop               : std_logic         := '0';
 
   signal s_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -191,7 +192,8 @@ begin
       BTL_TX_DONE               => s_btl_tx_done,
       BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
-      BTL_RX_SYNCED             => s_btl_rx_synced);
+      BTL_RX_SYNCED             => s_btl_rx_synced,
+      BTL_RX_STOP               => s_btl_rx_stop);
 
   INST_can_btl : entity work.can_btl
     port map (
@@ -207,6 +209,7 @@ begin
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
+      BTL_RX_STOP             => s_btl_rx_stop,
       TRIPLE_SAMPLING         => '0',
       PROP_SEG                => s_prop_seg,
       PHASE_SEG1              => s_phase_seg1,

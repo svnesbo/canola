@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-11-30
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -138,6 +138,7 @@ architecture struct of can_top is
   signal s_btl_rx_bit_value    : std_logic;
   signal s_btl_rx_bit_valid    : std_logic;
   signal s_btl_rx_synced       : std_logic;
+  signal s_btl_rx_stop         : std_logic;
 
   -- EML signals
   signal s_eml_rx_stuff_error                   : std_logic;
@@ -217,6 +218,7 @@ begin  -- architecture struct
       RX_MSG_VALID              => RX_MSG_VALID,
       TX_ARB_WON                => s_tx_fsm_arb_won,
       BSP_RX_ACTIVE             => s_bsp_rx_active,
+      BSP_RX_IFS                => s_bsp_rx_ifs,
       BSP_RX_DATA               => s_bsp_rx_data,
       BSP_RX_DATA_COUNT         => s_bsp_rx_data_count,
       BSP_RX_DATA_CLEAR         => s_bsp_rx_data_clear,
@@ -274,7 +276,8 @@ begin  -- architecture struct
       BTL_TX_DONE               => s_btl_tx_done,
       BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
-      BTL_RX_SYNCED             => s_btl_rx_synced);
+      BTL_RX_SYNCED             => s_btl_rx_synced,
+      BTL_RX_STOP               => s_btl_rx_stop);
 
   s_btl_tx_active <= s_bsp_tx_active;
 
@@ -295,6 +298,7 @@ begin  -- architecture struct
       BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
       BTL_RX_SYNCED           => s_btl_rx_synced,
+      BTL_RX_STOP             => s_btl_rx_stop,
       TRIPLE_SAMPLING         => BTL_TRIPLE_SAMPLING,
       PROP_SEG                => BTL_PROP_SEG,
       PHASE_SEG1              => BTL_PHASE_SEG1,

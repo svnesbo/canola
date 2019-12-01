@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-11-27
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -50,6 +50,8 @@ entity can_btl is
     BTL_RX_BIT_VALUE        : out std_logic;  -- Received bit value
     BTL_RX_BIT_VALID        : out std_logic;  -- Received bit value is valid
     BTL_RX_SYNCED           : out std_logic;  -- BTL has sync to a frame and is receiving
+    BTL_RX_STOP             : in  std_logic;  -- Receiving frame is done, BTL
+                                              -- can go out of sync
 
     TRIPLE_SAMPLING         : in  std_logic;  -- Enable triple sampling
 
@@ -114,7 +116,6 @@ architecture rtl of can_btl is
   signal s_frame_hard_sync      : std_logic;
   signal s_resync_allowed       : std_logic;
   signal s_resync_done          : std_logic;
-  signal s_rx_active            : std_logic;
   signal s_phase_error          : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
   signal s_sample_point_rx      : std_logic;
   signal s_sample_point_tx      : std_logic;
@@ -171,7 +172,7 @@ begin  -- architecture rtl
     if rising_edge(CLK) then
       -- Synchronous reset
       if RESET = '1' then
-        s_rx_active               <= '0';
+        BTL_RX_SYNCED               <= '0';
         s_frame_hard_sync         <= '0';
         s_resync_allowed          <= '0';
         s_resync_done             <= '0';
@@ -191,21 +192,23 @@ begin  -- architecture rtl
           s_got_rx_bit_falling_edge <= '1';
         end if;
 
-        -----------------------------------------------------------------------
-        -- Enable Rx when falling edge is detected
-        -----------------------------------------------------------------------
-        if s_rx_active = '0' and v_got_rx_bit_falling_edge = '1' then
-          s_rx_active <= '1';
+
+        if BTL_RX_STOP = '1' then
+          -- Go out of sync when instructed to (by BSP)
+          BTL_RX_SYNCED <= '0';
+        elsif BTL_RX_SYNCED = '0' and v_got_rx_bit_falling_edge = '1' then
+          -- Enable Rx when falling edge is detected
+          BTL_RX_SYNCED <= '1';
         end if;
 
         -----------------------------------------------------------------------
         -- Hard sync (ie. jump to SYNC_SEG, reset baud gen) to incoming frame
         -- when we are not already receiving a frame, and not transmitting
         -----------------------------------------------------------------------
-        if s_rx_active = '0' and v_got_rx_bit_falling_edge = '1' and BTL_TX_ACTIVE = '0' then
+        if BTL_RX_SYNCED = '0' and v_got_rx_bit_falling_edge = '1' and BTL_TX_ACTIVE = '0' then
           -- This will reset the time quanta generator, and next time quanta pulse
           -- should be in exactly one time quanta from now.
-          -- s_rx_active and s_got_rx_bit_falling_edge should both be '1' by then,
+          -- BTL_RX_SYNCED and s_got_rx_bit_falling_edge should both be '1' by then,
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
             s_frame_hard_sync <= '1';
@@ -223,7 +226,7 @@ begin  -- architecture rtl
           case s_sync_state is
             when ST_SYNC_SEG =>
 
-              if s_rx_active = '1' and s_got_rx_bit_falling_edge = '0' then
+              if BTL_RX_SYNCED = '1' and s_got_rx_bit_falling_edge = '0' then
                 s_resync_allowed <= '1';
               else
                 s_resync_allowed <= '0';
@@ -328,15 +331,6 @@ begin  -- architecture rtl
                 v_phase_error               := 0;
                 s_got_rx_bit_falling_edge   <= '0';
                 s_sync_state                <= ST_SYNC_SEG;
-
-                ---------------------------------------------------------------
-                -- If we've had 6 consecutive recessive bits (one more than
-                -- stuffing threshold, ie. the rule of bit stuffing was broken)
-                -- then we are no longer in rx sync.
-                ---------------------------------------------------------------
-                if s_rx_active = '1' and s_recessive_bit_count = C_STUFF_BIT_THRESHOLD+1 then
-                  s_rx_active <= '0';
-                end if;
               end if;
 
               s_segment                 <= v_segment;
@@ -500,7 +494,7 @@ begin  -- architecture rtl
 
   -- purpose: Output received bit value output from BTL (this module)
   -- type   : sequential
-  -- inputs : CLK, RESET, s_baud_sampled_bit, s_rx_active, s_output_rx_bit_pulse
+  -- inputs : CLK, RESET, s_sampled_bit, s_output_rx_bit_pulse
   -- outputs: BTL_RX_BIT_VALUE, BTL_RX_BIT_VALID
   proc_rx_bit_output : process(CLK) is
   begin
@@ -519,6 +513,5 @@ begin  -- architecture rtl
     end if;
   end process proc_rx_bit_output;
 
-  BTL_RX_SYNCED <= s_rx_active;
 
 end architecture rtl;
