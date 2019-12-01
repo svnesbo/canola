@@ -44,7 +44,7 @@ architecture tb of can_btl_tb is
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
 
   constant C_CAN_BAUD_PERIOD  : time    := 10000 ns;  -- 100 kHz
-  constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CLK_PERIOD;
+  constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
 
   -- Indicates where in a bit the Rx sample point should be
   -- Real value from 0.0 to 1.0. Not used by BTL.
@@ -121,7 +121,7 @@ architecture tb of can_btl_tb is
   signal s_btl_rx_bit_value : std_logic;
   signal s_btl_rx_bit_valid : std_logic;
   signal s_btl_rx_synced    : std_logic;
-  signal s_btl_rx_stop      : std_logic;
+  signal s_btl_rx_stop      : std_logic := '0';
 
   signal s_data_transmit     : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
   signal s_btl_data_received : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
@@ -379,7 +379,7 @@ begin
     wait for 10*C_CAN_BAUD_PERIOD;
 
     ---------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test BTL sync after SOF, desync after EOF", C_SCOPE);
+    log(ID_LOG_HDR, "Test BTL sync after start of frame (falling edge)", C_SCOPE);
     ---------------------------------------------------------------------------
 
     check_value(s_btl_rx_synced, '0', ERROR, "Check that BTL is not synced.");
@@ -400,12 +400,11 @@ begin
       wait until rising_edge(s_can_baud_clk);
     end loop;
 
-    -- Wait an additional baud period to allow BTL to
-    -- detect EOF and loss of Rx sync
+    s_btl_rx_stop <= '1';
+    wait until rising_edge(s_clk);
+    s_btl_rx_stop <= '0';
+    wait until rising_edge(s_clk);
     wait until rising_edge(s_can_baud_clk);
-
-    -- BTL should go out of sync after the 7 recessive EOF bits
-    check_value(s_btl_rx_synced, '0', ERROR, "Check that BTL is not synced after EOF.");
 
     ---------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test receiving with BTL", C_SCOPE);
@@ -422,16 +421,16 @@ begin
 
       transmit_on_bus(v_data_length, s_data_transmit);
 
-      wait until s_btl_rx_synced = '0'
-        for 2*C_CAN_BAUD_PERIOD;
-
-      check_value(s_btl_rx_synced, '0', error, "Check that BTL is not synced after EOF.");
-
+      check_value(s_btl_rx_synced, '1', error, "Check that BTL has synced.");
       check_value(s_btl_recv_data_count, v_data_length, error, "Check number of bits received.");
       check_value(s_btl_data_received(0 to v_data_length-1),
                   s_data_transmit(0 to v_data_length-1),
                   error, "Verify data received by BTL.");
 
+      s_btl_rx_stop <= '1';
+      wait until rising_edge(s_clk);
+      s_btl_rx_stop <= '0';
+      wait until rising_edge(s_clk);
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
 
@@ -454,16 +453,16 @@ begin
 
       transmit_on_bus(v_data_length, s_data_transmit);
 
-      wait until s_btl_rx_synced = '0'
-        for 2*C_CAN_BAUD_PERIOD;
-
-      check_value(s_btl_rx_synced, '0', error, "Check that BTL is not synced after EOF.");
-
+      check_value(s_btl_rx_synced, '1', error, "Check that BTL has synced.");
       check_value(s_btl_recv_data_count, v_data_length, error, "Check number of bits received.");
       check_value(s_btl_data_received(0 to v_data_length-1),
                   s_data_transmit(0 to v_data_length-1),
                   error, "Verify data received by BTL.");
 
+      s_btl_rx_stop <= '1';
+      wait until rising_edge(s_clk);
+      s_btl_rx_stop <= '0';
+      wait until rising_edge(s_clk);
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
 
@@ -486,16 +485,16 @@ begin
 
       transmit_on_bus(v_data_length, s_data_transmit);
 
-      wait until s_btl_rx_synced = '0'
-        for 2*C_CAN_BAUD_PERIOD;
-
-      check_value(s_btl_rx_synced, '0', error, "Check that BTL is not synced after EOF.");
-
+      check_value(s_btl_rx_synced, '1', error, "Check that BTL has synced.");
       check_value(s_btl_recv_data_count, v_data_length, error, "Check number of bits received.");
       check_value(s_btl_data_received(0 to v_data_length-1),
                   s_data_transmit(0 to v_data_length-1),
                   error, "Verify data received by BTL.");
 
+      s_btl_rx_stop <= '1';
+      wait until rising_edge(s_clk);
+      s_btl_rx_stop <= '0';
+      wait until rising_edge(s_clk);
       wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
 
