@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-11-30
+-- Last update: 2019-12-01
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -856,7 +856,7 @@ begin
                      v_xmit_remote_frame,
                      v_xmit_data,
                      v_xmit_data_length,
-                     "Send higher priority message with CAN BFM",
+                     "Send message with CRC error with CAN BFM",
                      s_clk,
                      s_can_bfm_tx,
                      s_can_bfm_rx,
@@ -910,88 +910,98 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #8: Test stuff error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- Todo
-    -- Send a message using can_uvvm_write(), and insert a stuff error in the stream
-    -- Verify that the stuff error is detected by Canola controller
-    -- Verify that an active error flag is sent by Canola controller
-    -- Verify correct receive error count increase?
-    -- Verify that Rx stuff error count increases
+    v_test_num := 0;
 
-    v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-    v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-    v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-    v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-    v_receive_error_count  := s_can_ctrl_receive_error_count;
+    while v_test_num < C_NUM_ITERATIONS loop
 
-    -- Generate random data frame. To guarantee that stuff errors can be
-    -- generated in the frame, we want a data frame where we can force a byte
-    -- of data to one value.
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 v_xmit_ext_id,
-                                 '0'); -- Don't allow remote frame
+      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl_receive_error_count;
 
-    -- Minimum 1 byte data length
-    -- Force the first byte to one value to make it possible for
-    -- can_uvvm_write to generate stuff errors in the frame.
-    if v_xmit_data_length = 0 then
-      v_xmit_data_length := 1;
-    end if;
-    v_xmit_data(0) := (others => '1');
+      -- Generate random data frame. To guarantee that stuff errors can be
+      -- generated in the frame, we want a data frame where we can force a byte
+      -- of data to one value.
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id,
+                                   '0');  -- Don't allow remote frame
 
-    v_can_rx_error_gen := (crc_error   => false,
-                           stuff_error => true,
-                           form_error  => false);
+      -- Minimum 1 byte data length
+      -- Force the first byte to one value to make it possible for
+      -- can_uvvm_write to generate stuff errors in the frame.
+      if v_xmit_data_length = 0 then
+        v_xmit_data_length := 1;
+      end if;
+      v_xmit_data(0) := (others => '1');
 
-    -- Start transmitting from BFM
-    can_uvvm_write(v_xmit_arb_id,
-                   v_xmit_ext_id,
-                   v_xmit_remote_frame,
-                   v_xmit_data,
-                   v_xmit_data_length,
-                   "Send higher priority message with CAN BFM",
-                   s_clk,
-                   s_can_bfm_tx,
-                   s_can_bfm_rx,
-                   v_can_tx_status,
-                   v_can_rx_error_gen);
+      v_can_rx_error_gen := (crc_error   => false,
+                             stuff_error => true,
+                             form_error  => false);
 
-    --check_value(v_can_tx_status.got_active_error_flag, true, error,
-    --            "Check that active error flag was received from CAN controller");
+      -- Start transmitting from BFM
+      can_uvvm_write(v_xmit_arb_id,
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send message with stuff error with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     v_can_rx_error_gen);
 
-    -- Expect error flag from CAN controller due to missing ACK,
-    -- since BFM should have lost arbitration and was not receiving
-    -- so no ACK has been sent
-    can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
-                             200,
-                             "Receive error flag with CAN BFM",
-                             s_can_bfm_rx);
+      -- Expect error flag from CAN controller due to missing ACK,
+      -- since BFM should have lost arbitration and was not receiving
+      -- so no ACK has been sent
+      can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
+                               200,
+                               "Receive error flag with CAN BFM",
+                               s_can_bfm_rx);
 
-    -- Received message count should not have increased, because receiving this
-    -- message was supposed to fail..
-    check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
-                error, "Check received message count in CAN controller.");
+      -- Wait for a baud before checking error counters
+      wait until rising_edge(s_can_baud_clk);
 
-    -- Not expecting increase, we did not generate a CRC error
-    check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
-                error, "Check received CRC error count in CAN controller.");
+      -- Received message count should not have increased, because receiving this
+      -- message was supposed to fail..
+      check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+                  error, "Check received message count in CAN controller.");
 
-    -- Expecting increase by one since we asked to generate a stuff error
-    check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
-                unsigned(v_rx_stuff_error_count)+1,
-                error, "Check received stuff error count in CAN controller.");
+      -- Not expecting increase, we did not generate a CRC error
+      check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+                  error, "Check received CRC error count in CAN controller.");
 
-    -- Not expecting increase, we did not generate a form error
-    check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
-                error, "Check received form error count in CAN controller.");
+      -- Expecting increase by one since we asked to generate a stuff error
+      check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
+                  unsigned(v_rx_stuff_error_count)+1,
+                  error, "Check received stuff error count in CAN controller.");
 
-    -- TODO: Add this test after EML is connected to Rx Frame FSM....
-    -- Expecting increase by one in receive error count
-    --check_value(unsigned(s_can_ctrl_receive_error_count),
-    --            unsigned(v_receive_error_count)+1,
-    --            error, "Check receive error count in CAN controller.");
+      -- Not expecting increase, we did not generate a form error
+      check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
+                  error, "Check received form error count in CAN controller.");
+
+      -- TODO: Add this test after EML is connected to Rx Frame FSM....
+      -- Expecting increase by one in receive error count
+      --check_value(unsigned(s_can_ctrl_receive_error_count),
+      --            unsigned(v_receive_error_count)+1,
+      --            error, "Check receive error count in CAN controller.");
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #9: Test form error in received message", C_SCOPE);
