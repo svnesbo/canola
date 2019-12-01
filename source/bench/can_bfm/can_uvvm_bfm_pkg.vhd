@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-11-29
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -555,35 +555,11 @@ package body can_uvvm_bfm_pkg is
 
     if can_rx = '0' then
       v_frame_started := true;
+      v_can_rx_prev   := '0';
     end if;
 
+
     while v_bauds_waited /= timeout_baud_periods loop
-      v_can_rx_prev := can_rx;
-
-      -- Wait till next bit edge
-      wait for (baud_period-sample_point_time);
-
-      -- Wait for next bit
-      if not v_frame_started then
-        -- Wait for first falling edge if we are not in a frame already
-        wait until can_rx = '0' for baud_period;
-
-        if can_rx = '0' then
-          wait for sample_point_time;
-          v_frame_started := true;
-        end if;
-      else
-        -- Wait till next sample point if we are already in a frame
-        wait until can_rx /= v_can_rx_prev for sample_point_time;
-
-        if can_rx /= v_can_rx_prev then
-          -- Got an edge before reaching sample point,
-          -- resynchronize sample point based on this edge
-          -- (technically resync should only be done on falling edge in CAN,
-          --  but we do it on both edges here..)
-          wait for sample_point_time;
-        end if;
-      end if;
 
       if v_frame_started and v_can_rx_prev = can_rx then
         -- In frame and receiving consecutive bits of same value -> increase counter
@@ -607,7 +583,6 @@ package body can_uvvm_bfm_pkg is
         v_recessive_count := 0;
       end if;
 
-      v_bauds_waited := v_bauds_waited + 1;
 
       if v_dominant_count = error_flag_length then
         -- Got active error flag
@@ -638,6 +613,24 @@ package body can_uvvm_bfm_pkg is
         alert(config.error_flag_timeout_severity,
               v_proc_call.all & "Failed. Timeout. " & msg, scope);
       end if;
+
+
+      v_can_rx_prev := can_rx;
+
+      -- Wait for next bit
+      if not v_frame_started then
+        -- Wait for first falling edge if we are not in a frame already
+        wait until can_rx = '0' for baud_period;
+
+        if can_rx = '0' then
+          wait for sample_point_time;
+          v_frame_started := true;
+        end if;
+      else
+        wait for baud_period;
+      end if;
+
+      v_bauds_waited := v_bauds_waited + 1;
     end loop;
   end procedure can_uvvm_recv_error_flag;
 
