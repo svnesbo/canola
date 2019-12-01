@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-11-29
+-- Last update: 2019-11-30
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -200,9 +200,9 @@ package body can_bfm_pkg is
     -- polarity is sent to help with synchronization
     variable bit_stuffing_counter : natural   := 0;
     variable previous_bit_value   : std_logic := '0';
+    variable stuff_error_inserted : boolean   := false;
 
     variable bit_counter       : natural := 0;
-
     variable error_flag_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
 
     constant bit_period        : time := 1 sec / can_config.bit_rate;
@@ -402,10 +402,16 @@ package body can_bfm_pkg is
       if bit_stuffing_counter = 5 and
          bit_counter < crc_start_index+C_CRC_DELIM_INDEX
       then
-        bit_stuffing_dbg := '1';
-        can_tx <= not bit_buffer(bit_counter-1);
-        previous_bit_value := not bit_buffer(bit_counter-1);
+        bit_stuffing_dbg     := '1';
+        can_tx               <= not bit_buffer(bit_counter-1);
+        previous_bit_value   := not bit_buffer(bit_counter-1);
         bit_stuffing_counter := 1;
+
+        -- Revert CAN TX value to previous value if we are generating stuff errors
+        if can_rx_error_gen.stuff_error then
+          can_tx               <= bit_buffer(bit_counter-1);
+          stuff_error_inserted := true;
+        end if;
 
         for cycle_count in 0 to sample_point_cycles-1 loop
           wait until rising_edge(clk);
@@ -414,7 +420,7 @@ package body can_bfm_pkg is
 
         -- Check for active error flag
         error_flag_window := error_flag_window(C_ERROR_FLAG_LENGTH-2 downto 0) & can_rx;
-        if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
+        if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE and not stuff_error_inserted then
           can_tx_status.got_active_error_flag := true;
 
           -- I believe this should be a bit error, becaues it means
@@ -429,7 +435,7 @@ package body can_bfm_pkg is
         -- This check is probably redundant, because the previous check for
         -- active error flag would cover the possible scenarios where another
         -- transmitter could have overwritten the stuff bit.
-        if can_rx /= previous_bit_value then
+        if can_rx /= previous_bit_value and not stuff_error_inserted then
           -- I believe this should be a bit error, becaues it means
           -- the recessive stuff bit was overwritten by a dominant
           -- bit by another transmitter
@@ -445,6 +451,10 @@ package body can_bfm_pkg is
         end loop;  -- cycle_count
 
         bit_stuffing_dbg := '0';
+
+        if stuff_error_inserted then
+          exit;
+        end if;
       end if;
     end loop;  -- bit_counter
 
