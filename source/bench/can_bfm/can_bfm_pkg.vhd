@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-11-30
+-- Last update: 2019-12-01
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -21,6 +21,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 
 package can_bfm_pkg is
@@ -77,6 +78,7 @@ package can_bfm_pkg is
     bit_error             : boolean;
     got_active_error_flag : boolean;
     crc_error_flag        : boolean;
+    form_error_flag       : boolean;
   end record can_tx_status_t;
 
   type can_error_flag_t is (ACTIVE_ERROR_FLAG, PASSIVE_ERROR_FLAG, ANY_ERROR_FLAG);
@@ -166,6 +168,9 @@ end package can_bfm_pkg;
 
 package body can_bfm_pkg is
 
+  shared variable rand_seed1 : positive := 12345;
+  shared variable rand_seed2 : positive := 67890;
+
   procedure can_write (
     constant arb_id           : in  std_logic_vector(28 downto 0);
     constant remote_request   : in  std_logic;
@@ -215,6 +220,10 @@ package body can_bfm_pkg is
     constant phase2_cycles : natural := can_config.phase2_quanta * bit_quanta_cycles;
 
     constant sample_point_cycles : natural := sync_cycles+prop_cycles+phase1_cycles;
+
+    variable rand_real        : real;
+    variable rand_int         : natural;
+    variable form_error_index : natural;
 
   begin
     can_tx_status.arbitration_lost      := false;
@@ -271,6 +280,34 @@ package body can_bfm_pkg is
       frame_end_index := crc_start_index+C_EOF_INDEX+C_EOF_SIZE+C_IFS_SIZE-1;
 
       bit_buffer(crc_start_index+C_EOF_INDEX to frame_end_index) := (others => '1');
+
+      -- Generate a random form error if requested to
+      if can_rx_error_gen.form_error then
+        uniform(rand_seed1, rand_seed2, rand_real);
+        -- 8 bits that can have form error in standard frame:
+        -- CRC delimiter
+        -- ACK delimiter
+        -- EOF (the first 6 bits)
+        rand_int := natural(round(rand_real * real(8)));
+
+        if rand_int = 0 then
+          report "Generating form error in CRC delimiter";
+          form_error_index := crc_start_index+C_CRC_DELIM_INDEX;
+        elsif rand_int = 1 then
+          report "Generating form error in ACK delimiter";
+          form_error_index := crc_start_index+C_ACK_DELIM_INDEX;
+        else
+          report "Generating form error in EOF";
+          form_error_index := crc_start_index+C_EOF_INDEX+rand_int-2;
+
+          -- For form errors in EOF: extend frame a little so that
+          -- we can receive error flag generated in EOF bits
+          bit_buffer(frame_end_index to frame_end_index + C_ERROR_FLAG_LENGTH-1) := (others => '1');
+          frame_end_index := frame_end_index + C_ERROR_FLAG_LENGTH;
+        end if;
+
+        bit_buffer(form_error_index) := '0';
+      end if;
     else
       -- -----------------------------------------------------------------------
       -- Extended frame
@@ -320,6 +357,38 @@ package body can_bfm_pkg is
 
       bit_buffer(crc_start_index+C_EOF_INDEX to frame_end_index)
         := (others => '1');
+
+      -- Generate a random form error if requested to
+      if can_rx_error_gen.form_error then
+        uniform(rand_seed1, rand_seed2, rand_real);
+        -- 9 bits that can have form error in standard frame:
+        -- SRR
+        -- CRC delimiter
+        -- ACK delimiter
+        -- EOF (the first 6 bits)
+        rand_int := natural(round(rand_real * real(9)));
+
+        if rand_int = 0 then
+          report "Generating form error in SRR";
+          form_error_index := C_EXT_SRR_INDEX;
+        elsif rand_int = 1 then
+          report "Generating form error in CRC delimiter";
+          form_error_index := crc_start_index+C_CRC_DELIM_INDEX;
+        elsif rand_int = 2 then
+          report "Generating form error in ACK delimiter";
+          form_error_index := crc_start_index+C_ACK_DELIM_INDEX;
+        else
+          report "Generating form error in EOF";
+          form_error_index := crc_start_index+C_EOF_INDEX+rand_int-3;
+
+          -- For form errors in EOF: extend frame a little so that
+          -- we can receive error flag generated in EOF bits
+          bit_buffer(frame_end_index to frame_end_index + C_ERROR_FLAG_LENGTH-1) := (others => '1');
+          frame_end_index := frame_end_index + C_ERROR_FLAG_LENGTH;
+        end if;
+
+        bit_buffer(form_error_index) := '0';
+      end if;
     end if;
 
 
@@ -339,7 +408,9 @@ package body can_bfm_pkg is
 
       sample_point_dbg := '1';
 
+      --------------------------------------------------------------------------
       -- Check for active error flag
+      --------------------------------------------------------------------------
       error_flag_window := error_flag_window(C_ERROR_FLAG_LENGTH-2 downto 0) & can_rx;
       if error_flag_window = C_ACTIVE_ERROR_FLAG_VALUE then
         can_tx_status.got_active_error_flag := true;
@@ -349,32 +420,82 @@ package body can_bfm_pkg is
           can_tx_status.crc_error_flag := true;
         end if;
 
+        -- Detect error flags due to form errors that we inserted in the frame
+        if can_rx_error_gen.form_error then
+          if extended_id = '1' and form_error_index = C_EXT_SRR_INDEX then
+            -- Form error in SRR bit is not detected until the IDE bit is sent
+            if bit_counter - C_ERROR_FLAG_LENGTH = C_EXT_IDE_INDEX+1 then
+              can_tx_status.form_error_flag := true;
+
+              -- Avoid this form error being reported as arbitration lost
+              can_tx_status.arbitration_lost := false;
+            end if;
+
+          -- Other form errors are detected immediately and reported on the
+          -- following bit.
+          elsif bit_counter - C_ERROR_FLAG_LENGTH + 1 = form_error_index then
+            -- Since all the fixed form fields are supposed to have value '1',
+            -- the form error bit will be included in the count for the error flag
+            -- here, so we will detect the error flag one bit too early
+            -- (explains the -1 in the comparison)
+            -- We'll just assume that we would receive the last bit of the
+            -- error flag
+            can_tx_status.form_error_flag := true;
+          end if;
+        end if;
+
         -- Return on active error flag
         exit;
       end if;
 
-      -- Check for ACK and arbitration lost
+      --------------------------------------------------------------------------
+      -- Check for bit errors, form errors, ACK and arbitration lost
+      --------------------------------------------------------------------------
       if bit_counter = crc_start_index+C_ACK_SLOT_INDEX then
         if can_rx /= '0' then
           can_tx_status.ack_missing := true;
         end if;
       elsif can_rx /= bit_buffer(bit_counter) then
         if bit_counter >= C_STD_ARB_ID_INDEX and bit_counter <= C_STD_ARB_ID_INDEX+10 then
+          -- Mismatch of value in arbitration field indicates loss of arbitration
           can_tx_status.arbitration_lost := true;
+
         elsif extended_id = '1' and
           bit_counter >= C_EXT_ARB_ID_B_INDEX  and
           bit_counter <= C_EXT_ARB_ID_B_INDEX+17
         then
+          -- Mismatch of value in IDE for extended frame indicates loss of arbitration
           can_tx_status.arbitration_lost := true;
         else
+          -- Main check for bit errors in transmitted data,
+          -- but only if we are not generating a form error at all,
+          -- or if we are generating a form error but did not get to it yet.
+          -- We want to receive the error flag the receiver sends when
+          -- discovering hte form error, and don't want to interpret it as a
+          -- bit error
           can_tx_status.bit_error := true;
         end if;
 
+        -- Exit on arbitration loss or bit errors
+        -- But not necessarily if we are generating CRC or Form errors
+        if can_rx_error_gen.form_error then
+          -- We want to verify that we get an error flag from the receiver when
+          -- it detects form error, and not interpret this flag as a bit error.
+          -- Allow to exit on bit errors before the form error occured
+          if bit_counter < form_error_index then
+            exit;
+          end if;
 
-        if bit_counter < crc_start_index+C_EOF_INDEX then
-          -- Return on arbitration loss or bit errors, but only before EOF.
-          -- CRC errors are reported by receivers immediately following the ack delimiter,
-          -- and we want to detect those.
+
+        elsif can_rx_error_gen.crc_error then
+          -- CRC errors are reported with an error flag by receivers immediately following
+          -- the ack delimiter, and we want to detect those.
+          if bit_counter < crc_start_index+C_EOF_INDEX then
+            exit;
+          end if;
+
+        else
+          -- Default: bit error or arbitration loss, no error generation
           exit;
         end if;
       end if;
@@ -388,6 +509,7 @@ package body can_bfm_pkg is
         bit_stuffing_counter := 1;
       end if;
 
+      -- Wait till start of next bit
       for cycle_count in 0 to phase2_cycles-1 loop
         wait until rising_edge(clk);
         sample_point_dbg := '0';
@@ -395,11 +517,14 @@ package body can_bfm_pkg is
 
       bit_counter := bit_counter + 1;
 
-      -- Do bit stuffing if we sent 5 consecutive bits of same value
-      -- Bit stuffing should end after CRC code (before delimiter)
-      -- See page 45 here:
-      -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
+      --------------------------------------------------------------------------
+      -- Bit stuffing
+      --------------------------------------------------------------------------
       if bit_stuffing_counter = 5 and
+        -- Do bit stuffing if we sent 5 consecutive bits of same value
+        -- Bit stuffing should end after CRC code (before delimiter)
+        -- See page 45 here:
+        -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
          bit_counter < crc_start_index+C_CRC_DELIM_INDEX
       then
         bit_stuffing_dbg     := '1';

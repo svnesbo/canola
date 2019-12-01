@@ -82,6 +82,9 @@ entity can_frame_rx_fsm is
                                                 -- transmitting error flag
                                                 -- Note: Only for ACTIVE error flag
 
+    BTL_RX_BIT_VALID          : in  std_logic;
+    BTL_RX_BIT_VALUE          : in  std_logic;
+
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -447,20 +450,16 @@ begin  -- architecture rtl
             -- No bit stuffing for EOF (End of Frame)
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if BSP_RX_ACTIVE = '0' then
-              -- Did frame end unexpectedly?
-              s_fsm_state <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
-              BSP_RX_DATA_CLEAR <= '1';
-
+            if BSP_RX_DATA_COUNT < C_EOF_LENGTH then
+              -- Check for bit errors in EOF in the first 6 bits of EOF
               -- Note: Last bit of EOF is don't care for the receiver
               -- See CAN specification 2.0B: 5 Message Validation
-              if BSP_RX_DATA(0 to C_EOF_LENGTH-2) /= C_EOF(0 to C_EOF_LENGTH-2) then
-                -- Is this a form error?
+              if BTL_RX_BIT_VALID = '1' and BTL_RX_BIT_VALUE /= C_EOF_VALUE then
                 s_fsm_state <= ST_FORM_ERROR;
-              else
-                s_fsm_state <= ST_DONE;
               end if;
+            elsif BSP_RX_DATA_COUNT = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+              BSP_RX_DATA_CLEAR <= '1';
+              s_fsm_state       <= ST_DONE;
             end if;
 
           when ST_CRC_ERROR =>

@@ -46,6 +46,7 @@ package can_uvvm_bfm_pkg is
     ack_missing_severity        : t_alert_level;
     error_flag_severity         : t_alert_level;
     crc_error_severity          : t_alert_level;
+    form_error_severity         : t_alert_level;
     error_flag_timeout_severity : t_alert_level;
     wrong_error_flag_severity   : t_alert_level;
     id_for_bfm                  : t_msg_id;
@@ -62,6 +63,7 @@ package can_uvvm_bfm_pkg is
     ack_missing_severity        => failure,
     error_flag_severity         => failure,
     crc_error_severity          => failure,
+    form_error_severity         => failure,
     error_flag_timeout_severity => failure,
     wrong_error_flag_severity   => failure,
     id_for_bfm                  => ID_BFM,
@@ -237,7 +239,10 @@ package body can_uvvm_bfm_pkg is
       alert(config.arb_lost_severity, v_proc_call.all & "=> Failed. Arbitration lost.", scope);
 
     elsif can_tx_status.crc_error_flag then
-      alert(config.crc_error_severity, v_proc_call.all & "=> Failed. Receiver CRC error.", scope);
+      alert(config.crc_error_severity, v_proc_call.all & "=> Failed. Receiver reported CRC error.", scope);
+
+    elsif can_tx_status.form_error_flag then
+      alert(config.form_error_severity, v_proc_call.all & "=> Failed. Receiver reported Form error.", scope);
 
     elsif can_tx_status.got_active_error_flag then
       alert(config.error_flag_severity, v_proc_call.all & "=> Failed. Got active error flag.", scope);

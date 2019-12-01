@@ -912,6 +912,8 @@ begin
     -----------------------------------------------------------------------------------------------
     v_test_num := 0;
 
+    v_can_bfm_config.crc_error_severity  := failure;
+
     while v_test_num < C_NUM_ITERATIONS loop
 
       v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
@@ -1006,12 +1008,10 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #9: Test form error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- Todo
-    -- Send a message using can_uvvm_write() with a form error
-    -- Verify that the form error is detected by Canola controller
-    -- Verify that an active error flag is sent by Canola controller
-    -- Verify correct receive error count increase?
-    -- Verify that Rx form error count increases
+    v_xmit_ext_id := '1';
+
+    v_can_bfm_config.form_error_severity := note;
+
     v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
     v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
     v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
@@ -1034,15 +1034,22 @@ begin
                    v_xmit_remote_frame,
                    v_xmit_data,
                    v_xmit_data_length,
-                   "Send higher priority message with CAN BFM",
+                   "Send message with form error with CAN BFM",
                    s_clk,
                    s_can_bfm_tx,
                    s_can_bfm_rx,
                    v_can_tx_status,
-                   v_can_rx_error_gen);
+                   v_can_rx_error_gen,
+                   v_can_bfm_config);
+
+    -- Wait for a baud before checking error counters
+    wait until rising_edge(s_can_baud_clk);
 
     check_value(v_can_tx_status.got_active_error_flag, true, error,
                 "Check that active error flag was received from CAN controller");
+
+    check_value(v_can_tx_status.form_error_flag, true, error,
+                "Check that error flag was issued due to Form error");
 
     -- Received message count should not have increased, because receiving this
     -- message was supposed to fail..

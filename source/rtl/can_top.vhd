@@ -232,6 +232,8 @@ begin  -- architecture struct
       BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag_rx_fsm,
       BSP_ERROR_FLAG_DONE       => s_bsp_error_flag_done,
       BSP_ERROR_FLAG_BIT_ERROR  => s_bsp_error_flag_bit_error,
+      BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
+      BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
       REG_MSG_RECV_COUNT        => REG_RX_MSG_RECV_COUNT,
       REG_CRC_ERROR_COUNT       => REG_RX_CRC_ERROR_COUNT,
       REG_FORM_ERROR_COUNT      => REG_RX_FORM_ERROR_COUNT,
