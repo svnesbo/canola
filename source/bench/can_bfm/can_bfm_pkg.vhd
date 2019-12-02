@@ -374,18 +374,22 @@ package body can_bfm_pkg is
         -- EOF (the first 6 bits)
         rand_int := natural(round(rand_real * real(9)));
 
-        if bit_buffer(crc_start_index+C_CRC_DELIM_INDEX-5 to
-                      crc_start_index+C_CRC_DELIM_INDEX-1) = "00000" and
+        if bit_buffer(crc_start_index+C_CRC_DELIM_INDEX-4 to
+                      crc_start_index+C_CRC_DELIM_INDEX-1) = "0000" and
            rand_int = 1
         then
-          -- Don't generate form error in CRC delimiter if the last 5 bits of
-          -- the CRC are already zeros, because we'll interpret those 5 bits +
-          -- CRC delim as active error flag. Generate ACK delim form error instead
+          -- Don't generate form error in CRC delimiter if the last 4 bits of
+          -- the CRC are already zeros, because we'll interpret those 4 bits +
+          -- CRC delim (and possibly a stuff bit) as active error flag.
+          -- Generate ACK delim form error instead
           rand_int := 2;
         end if;
 
         if rand_int = 0 then
           report "Generating form error in SRR";
+          -- Modify arb ID to avoid stuff errors when
+          -- looking for error flag due to SRR
+          bit_buffer(C_EXT_ARB_ID_B_INDEX to C_EXT_ARB_ID_B_INDEX+4) := "10101";
           form_error_index := C_EXT_SRR_INDEX;
         elsif rand_int = 1 then
           report "Generating form error in CRC delimiter";
@@ -459,14 +463,13 @@ package body can_bfm_pkg is
           elsif extended_id = '1' and form_error_index = C_EXT_SRR_INDEX then
             -- Form error in SRR bit is not detected until the IDE bit is sent,
             -- so the active error flag would start on the first bit in ID B
-            if bit_counter = C_EXT_ARB_ID_B_INDEX+(C_ERROR_FLAG_LENGTH-1)  then
+            if bit_counter = C_EXT_ARB_ID_B_INDEX+(C_ERROR_FLAG_LENGTH-1)
+            then
               can_tx_status.form_error_flag := true;
 
               -- Avoid this form error being reported as arbitration lost
               can_tx_status.arbitration_lost := false;
             end if;
-          else
-            null;
           end if;
 
         ------------------------------------------------------------------------
@@ -538,11 +541,11 @@ package body can_bfm_pkg is
       -- Bit stuffing
       --------------------------------------------------------------------------
       if bit_stuffing_counter = 5 and
-        -- Do bit stuffing if we sent 5 consecutive bits of same value
-        -- Bit stuffing should end after CRC code (before delimiter)
-        -- See page 45 here:
-        -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
          bit_counter < crc_start_index+C_CRC_DELIM_INDEX
+      -- Do bit stuffing if we sent 5 consecutive bits of same value
+      -- Bit stuffing should end after CRC code (before delimiter)
+      -- See page 45 here:
+      -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
       then
         bit_stuffing_dbg     := '1';
         can_tx               <= not bit_buffer(bit_counter-1);
