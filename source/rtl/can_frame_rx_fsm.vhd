@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ begin  -- architecture rtl
         RX_MSG_VALID          <= '0';
         BSP_RX_SEND_ACK       <= '0';
         BSP_RX_DATA_CLEAR     <= '0';
-        BSP_SEND_ERROR_FLAG   <= '0';
+        --BSP_SEND_ERROR_FLAG   <= '0';
         BSP_RX_BIT_DESTUFF_EN <= '1';
         BSP_RX_STOP           <= '0';
 
@@ -471,7 +471,7 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              BSP_SEND_ERROR_FLAG     <= '1';
+              --BSP_SEND_ERROR_FLAG     <= '1';
               s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
               s_fsm_state             <= ST_WAIT_ERROR_FLAG;
             else
@@ -489,7 +489,7 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              BSP_SEND_ERROR_FLAG      <= '1';
+              --BSP_SEND_ERROR_FLAG      <= '1';
               s_reg_form_error_counter <= s_reg_form_error_counter + 1;
               s_fsm_state              <= ST_WAIT_ERROR_FLAG;
             else
@@ -507,7 +507,7 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              BSP_SEND_ERROR_FLAG       <= '1';
+              --BSP_SEND_ERROR_FLAG       <= '1';
               s_fsm_state               <= ST_WAIT_ERROR_FLAG;
               s_reg_stuff_error_counter <= s_reg_stuff_error_counter + 1;
             else
@@ -572,5 +572,11 @@ begin  -- architecture rtl
       end if;
     end if;
   end process proc_fsm;
+
+  BSP_SEND_ERROR_FLAG <= '1' when (s_fsm_state = ST_FORM_ERROR or
+                                   s_fsm_state = ST_STUFF_ERROR or
+                                   s_fsm_state = ST_CRC_ERROR) and
+                                   s_reg_tx_arb_won = '0'
+                             else '0';
 
 end architecture rtl;

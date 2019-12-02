@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -167,8 +167,7 @@ architecture rtl of can_bsp is
                         ST_WAIT_BTL_TX_RDY,
                         ST_WAIT_BTL_TX_DONE,
                         ST_WAIT_BTL_RX_VALID,
-                        ST_SEND_ERROR_FLAG,
-                        ST_NEXT_ERROR_FLAG_BIT);
+                        ST_SEND_ERROR_FLAG);
 
   signal s_tx_fsm_state            : bsp_tx_fsm_t := ST_IDLE;
   signal s_tx_restart_crc_pulse    : std_logic;
@@ -466,7 +465,7 @@ begin  -- architecture rtl
 
 
               if s_tx_send_error_flag = '1' then
-                s_tx_fsm_state <= ST_NEXT_ERROR_FLAG_BIT;
+                s_tx_fsm_state <= ST_SEND_ERROR_FLAG;
               elsif s_send_ack = '1' then
                 -- Return to idle if we were just sending ACK
                 s_tx_fsm_state <= ST_IDLE;
@@ -485,20 +484,6 @@ begin  -- architecture rtl
             end if;
 
           when ST_SEND_ERROR_FLAG =>
-            if BSP_ERROR_STATE = ERROR_ACTIVE then
-              BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
-            else
-              BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;
-            end if;
-
-            s_tx_error_flag_shift_reg    <= (others => '0');
-            -- This bit is shifted left as error flag bits are transmitted
-            -- When the bit is shifted out of the register the error flag is done
-            s_tx_error_flag_shift_reg(0) <= '1';
-
-            s_tx_fsm_state <= ST_NEXT_ERROR_FLAG_BIT;
-
-          when ST_NEXT_ERROR_FLAG_BIT =>
             s_tx_send_error_flag <= '1';
 
             if unsigned(s_tx_error_flag_shift_reg) = 0 then
@@ -514,8 +499,19 @@ begin  -- architecture rtl
         end case;
 
         -- If case the BSP is requested to send an error flag,
-        -- ignore any other state assignments and go directly to ST_SEND_ERROR_FLAG
+        -- ignore any other state assignments and go directly to ST_NEXT_ERROR_FLAG_BIT
         if BSP_SEND_ERROR_FLAG = '1' then
+          if BSP_ERROR_STATE = ERROR_ACTIVE then
+            BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
+          else
+            BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;
+          end if;
+
+          s_tx_error_flag_shift_reg    <= (others => '0');
+          -- This bit is shifted left as error flag bits are transmitted
+          -- When the bit is shifted out of the register the error flag is done
+          s_tx_error_flag_shift_reg(0) <= '1';
+
           s_tx_fsm_state <= ST_SEND_ERROR_FLAG;
         end if;
 
