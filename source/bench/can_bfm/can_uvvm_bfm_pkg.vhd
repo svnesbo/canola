@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -78,7 +78,8 @@ package can_uvvm_bfm_pkg is
   -- If remote_request is set high, a remote request frame will be sent,
   -- and any specified data is ignored.
   procedure can_uvvm_write (
-    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant arb_id_a         : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b         : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant extended_id      : in  std_logic;
     constant remote_request   : in  std_logic;
     constant data             : in  can_payload_t;
@@ -103,7 +104,8 @@ package can_uvvm_bfm_pkg is
   -- was a remote frame request.
   -- Data is only valid if the remote_frame output is low
   procedure can_uvvm_read (
-    variable arb_id         : out std_logic_vector(28 downto 0);
+    variable arb_id_a       : out std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    variable arb_id_b       : out std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     variable extended_id    : out std_logic;
     variable remote_frame   : out std_logic;
     variable data           : out can_payload_t;
@@ -129,7 +131,8 @@ package can_uvvm_bfm_pkg is
   -- remote frame request and then wait for any incoming CAN message
   -- Setting both remote_expect and remote_request high is illlegal
   procedure can_uvvm_check (
-    constant arb_id_exp      : in  std_logic_vector(28 downto 0);
+    constant arb_id_a_exp    : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b_exp    : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant extended_id     : in  std_logic;
     constant remote_expect   : in  std_logic;
     constant remote_request  : in  std_logic;
@@ -175,7 +178,8 @@ end package can_uvvm_bfm_pkg;
 package body can_uvvm_bfm_pkg is
 
   procedure can_uvvm_write (
-    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant arb_id_a         : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b         : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant extended_id      : in  std_logic;
     constant remote_request   : in  std_logic;
     constant data             : in  can_payload_t;
@@ -191,20 +195,22 @@ package body can_uvvm_bfm_pkg is
     constant msg_id_panel     : in  t_msg_id_panel        := shared_msg_id_panel;
     constant proc_name        : in  string                := "can_uvvm_write"
     ) is
-    variable v_proc_call      : line;
-    variable bit_stuff_dbg    : std_logic := '0';
-    variable sample_point_dbg : std_logic := '0';
-    variable arb_lost         : std_logic := '0';
-    variable bit_error        : std_logic := '0';
-    variable ack_received     : std_logic := '0';
+    variable v_proc_call       : line;
+    variable v_arb_id_ext_full : std_logic_vector(C_ARB_ID_A_SIZE+C_ARB_ID_B_SIZE-1 downto 0);
+    variable bit_stuff_dbg     : std_logic := '0';
+    variable sample_point_dbg  : std_logic := '0';
+    variable arb_lost          : std_logic := '0';
+    variable bit_error         : std_logic := '0';
+    variable ack_received      : std_logic := '0';
   begin
     -- Format procedure call string
     write(v_proc_call, to_string("can_uvvm_write(ID:"));
 
     if extended_id = '1' then
-      write(v_proc_call,to_string(arb_id, HEX, AS_IS, INCL_RADIX));
+      v_arb_id_ext_full := arb_id_a & arb_id_b;
+      write(v_proc_call, to_string(v_arb_id_ext_full, HEX, AS_IS, INCL_RADIX));
     else
-      write(v_proc_call,to_string(arb_id(10 downto 0), HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(arb_id_a, HEX, AS_IS, INCL_RADIX));
     end if;
 
     write(v_proc_call, to_string(", Length:"));
@@ -221,7 +227,8 @@ package body can_uvvm_bfm_pkg is
     end if;
     write(v_proc_call, to_string(")"));
 
-    can_write(arb_id,
+    can_write(arb_id_a,
+              arb_id_b,
               remote_request,
               extended_id,
               data,
@@ -262,7 +269,8 @@ package body can_uvvm_bfm_pkg is
 
 
   procedure can_uvvm_read (
-    variable arb_id         : out std_logic_vector(28 downto 0);
+    variable arb_id_a       : out std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    variable arb_id_b       : out std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     variable extended_id    : out std_logic;
     variable remote_frame   : out std_logic;
     variable data           : out can_payload_t;
@@ -278,12 +286,14 @@ package body can_uvvm_bfm_pkg is
     constant proc_name      : in  string                := "can_uvvm_read"
     )
   is
-    variable v_proc_call      : line;
-    variable crc_error        : std_logic := '0';
-    variable bit_stuff_dbg    : std_logic := '0';
-    variable sample_point_dbg : std_logic := '0';
+    variable v_proc_call       : line;
+    variable v_arb_id_ext_full : std_logic_vector(C_ARB_ID_A_SIZE+C_ARB_ID_B_SIZE-1 downto 0);
+    variable crc_error         : std_logic := '0';
+    variable bit_stuff_dbg     : std_logic := '0';
+    variable sample_point_dbg  : std_logic := '0';
   begin
-    can_read(arb_id,
+    can_read(arb_id_a,
+             arb_id_b,
              remote_frame,
              extended_id,
              data,
@@ -305,9 +315,10 @@ package body can_uvvm_bfm_pkg is
       write(v_proc_call, to_string("can_uvvm_read()=> ID:"));
 
       if extended_id = '1' then
-        write(v_proc_call, to_string(arb_id, HEX, AS_IS, INCL_RADIX));
+        v_arb_id_ext_full := arb_id_a & arb_id_b;
+        write(v_proc_call, to_string(v_arb_id_ext_full, HEX, AS_IS, INCL_RADIX));
       else
-        write(v_proc_call, to_string(arb_id(10 downto 0), HEX, AS_IS, INCL_RADIX));
+        write(v_proc_call, to_string(arb_id_a, HEX, AS_IS, INCL_RADIX));
       end if;
 
 
@@ -338,7 +349,8 @@ package body can_uvvm_bfm_pkg is
 
 
   procedure can_uvvm_check (
-    constant arb_id_exp      : in  std_logic_vector(28 downto 0);
+    constant arb_id_a_exp    : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b_exp    : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant extended_id     : in  std_logic;
     constant remote_expect   : in  std_logic;
     constant remote_request  : in  std_logic;
@@ -360,13 +372,15 @@ package body can_uvvm_bfm_pkg is
 
     variable v_empty_data : can_payload_t;
 
-    variable v_arb_id       : std_logic_vector(28 downto 0);
-    variable v_remote_frame : std_logic;
-    variable v_extended_id  : std_logic;
-    variable v_data         : can_payload_t;
-    variable v_data_length  : natural;
-    variable v_timeout      : std_logic;
-    variable v_can_tx_status : can_tx_status_t;
+    variable v_arb_id_a        : std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    variable v_arb_id_b        : std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
+    variable v_arb_id_ext_full : std_logic_vector(C_ARB_ID_A_SIZE+C_ARB_ID_B_SIZE-1 downto 0);
+    variable v_remote_frame    : std_logic;
+    variable v_extended_id     : std_logic;
+    variable v_data            : can_payload_t;
+    variable v_data_length     : natural;
+    variable v_timeout         : std_logic;
+    variable v_can_tx_status   : can_tx_status_t;
   begin
     if remote_expect = '1' and remote_request = '1' then
       write(v_error_msg, to_string(" => Failed. Can not request and expect remote frame"));
@@ -378,9 +392,10 @@ package body can_uvvm_bfm_pkg is
     write(v_proc_call, to_string("can_uvvm_check(ID:"));
 
     if extended_id = '1' then
-      write(v_proc_call, to_string(arb_id_exp, HEX, AS_IS, INCL_RADIX));
+      v_arb_id_ext_full := arb_id_a_exp & arb_id_b_exp;
+      write(v_proc_call, to_string(v_arb_id_ext_full, HEX, AS_IS, INCL_RADIX));
     else
-      write(v_proc_call, to_string(arb_id_exp(10 downto 0), HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(arb_id_a_exp, HEX, AS_IS, INCL_RADIX));
     end if;
 
     write(v_proc_call, to_string(", Length:"));
@@ -401,7 +416,8 @@ package body can_uvvm_bfm_pkg is
 
     -- Send a remote frame first if requested, and wait for response
     if remote_request = '1' then
-      can_uvvm_write (arb_id_exp,
+      can_uvvm_write (arb_id_a_exp,
+                      arb_id_b_exp,
                       extended_id,
                       remote_request,
                       v_empty_data,
@@ -433,7 +449,8 @@ package body can_uvvm_bfm_pkg is
     end if;
 
     -- Read CAN message
-    can_uvvm_read(v_arb_id,
+    can_uvvm_read(v_arb_id_a,
+                  v_arb_id_b,
                   v_extended_id,
                   v_remote_frame,
                   v_data,
@@ -465,15 +482,16 @@ package body can_uvvm_bfm_pkg is
 
     -- Compare received ID with expected
     if v_extended_id = '1' then
-      if v_arb_id /= arb_id_exp then
+      if v_arb_id_a /= arb_id_a_exp or v_arb_id_b /= arb_id_b_exp then
+        v_arb_id_ext_full := v_arb_id_a & v_arb_id_b;
         alert(alert_level, v_proc_call.all & "=> Failed. Got ID:0x" &
-              to_string(v_arb_id, HEX) & LF & msg);
+              to_string(v_arb_id_ext_full, HEX) & LF & msg);
         return;
       end if;
     else
-      if v_arb_id(10 downto 0) /= arb_id_exp(10 downto 0) then
+      if v_arb_id_a /= arb_id_a_exp then
         alert(alert_level, v_proc_call.all & "=> Failed. Got ID:0x" &
-              to_string(v_arb_id(10 downto 0), HEX) & LF & msg);
+              to_string(v_arb_id_a, HEX) & LF & msg);
         return;
       end if;
     end if;

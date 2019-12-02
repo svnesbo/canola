@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-11-27
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -148,11 +148,8 @@ architecture rtl of can_frame_tx_fsm is
 
   signal s_bsp_tx_write_en : std_logic;
 
-  alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is
-    s_reg_tx_msg.arb_id(C_ID_A_LENGTH-1 downto 0);
-
-  alias a_tx_msg_id_b : std_logic_vector(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_A_LENGTH) is
-    s_reg_tx_msg.arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_A_LENGTH);
+  alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_a;
+  alias a_tx_msg_id_b : std_logic_vector(C_ID_B_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_b;
 
   alias a_tx_msg_id_a_reversed : std_logic_vector(a_tx_msg_id_a'reverse_range) is a_tx_msg_id_a;
   alias a_tx_msg_id_b_reversed : std_logic_vector(a_tx_msg_id_b'reverse_range) is a_tx_msg_id_b;

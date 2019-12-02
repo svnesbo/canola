@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-11-20
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,7 +42,8 @@ package can_pkg is
 
   constant C_ID_A_LENGTH : natural := 11;   -- Standard arbitration ID
   constant C_ID_B_LENGTH : natural := 18;   -- Extended arbitration ID
-                                                -- (ID A + B)
+                                            -- (ID A + B)
+
   constant C_DLC_LENGTH    : natural := 4;
   constant C_DLC_MAX_VALUE : natural := 8;
 
@@ -81,7 +82,8 @@ package can_pkg is
   type can_payload_t is array (0 to 7) of std_logic_vector(7 downto 0);
 
   type can_msg_t is record
-    arb_id         : std_logic_vector(C_EXT_ARB_ID_LENGTH-1 downto 0);
+    arb_id_a       : std_logic_vector(C_ID_A_LENGTH-1 downto 0);
+    arb_id_b       : std_logic_vector(C_ID_B_LENGTH-1 downto 0);
     remote_request : std_logic;
     ext_id         : std_logic;
     data           : can_payload_t;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -55,6 +55,7 @@ architecture tb of can_top_tb is
   constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
+  --constant C_NUM_ITERATIONS  : natural := 10000;
   constant C_NUM_ITERATIONS  : natural := 100;
 
   constant C_BUS_REG_WIDTH : natural := 16;
@@ -382,7 +383,8 @@ begin
 
       wait until rising_edge(s_clk);
 
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -400,11 +402,13 @@ begin
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       if v_xmit_ext_id = '1' then
-        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
-                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+        check_value(s_msg.arb_id_a,
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
@@ -445,7 +449,8 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
       s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
       s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
@@ -459,7 +464,8 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      can_uvvm_check(v_xmit_arb_id,
+      can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      '0', -- Don't send remote request and expect response
@@ -502,7 +508,8 @@ begin
 
       wait until rising_edge(s_clk);
 
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -520,11 +527,13 @@ begin
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       if v_xmit_ext_id = '1' then
-        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
-                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+        check_value(s_msg.arb_id_a,
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
@@ -564,7 +573,8 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
       s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
       s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
@@ -578,7 +588,8 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      can_uvvm_check(v_xmit_arb_id,
+      can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      '0', -- Don't send remote request and expect response
@@ -633,15 +644,16 @@ begin
         s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.arb_id         <= v_xmit_arb_id;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
       s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
       s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
 
-      -- Make arbitration ID for BFM 1 lower than ID used by CAN controller,
+      -- Make arbitration ID for BFM lower than ID used by CAN controller,
       -- so that BFM will win the arbitration
       if unsigned(v_xmit_arb_id) = 0 then
-        s_can_ctrl_tx_msg.arb_id(0) <= '1';
+        s_can_ctrl_tx_msg.arb_id_a(0) <= '1';
       else
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
@@ -657,7 +669,8 @@ begin
       wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from BFM
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -681,13 +694,14 @@ begin
 
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
-
       if v_xmit_ext_id = '1' then
-        check_value(s_msg.arb_id, v_xmit_arb_id, error, "Check received ID");
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id(C_ID_A_LENGTH-1 downto 0),
-                    v_xmit_arb_id(C_ID_A_LENGTH-1 downto 0),
+        check_value(s_msg.arb_id_a,
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
@@ -756,14 +770,18 @@ begin
       s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
       s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
 
+      if unsigned(v_xmit_arb_id) = 0 then
+        v_xmit_arb_id(0) := '1';
+      end if;
+
       -- Make arbitration ID for CAN controller 1 lower than ID used by BFM,
       -- so that the CAN controller will win the arbitration
-      if unsigned(v_xmit_arb_id) = 0 then
-        s_can_ctrl_tx_msg.arb_id <= v_xmit_arb_id;
-        v_xmit_arb_id(0)         := '1';
-      else
-        s_can_ctrl_tx_msg.arb_id <= std_logic_vector(unsigned(v_xmit_arb_id) - 1);
-      end if;
+      v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
+
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) + 1);
 
       wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
 
@@ -776,7 +794,8 @@ begin
       wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
 
       -- Start transmitting from BFM. It should lose the arbitration
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -851,7 +870,8 @@ begin
                              form_error  => false);
 
       -- Start transmitting from BFM
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -945,7 +965,8 @@ begin
                              form_error  => false);
 
       -- Start transmitting from BFM
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -1031,7 +1052,8 @@ begin
                              form_error  => true);
 
       -- Start transmitting from BFM
-      can_uvvm_write(v_xmit_arb_id,
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                      v_xmit_ext_id,
                      v_xmit_remote_frame,
                      v_xmit_data,
@@ -1044,7 +1066,8 @@ begin
                      v_can_rx_error_gen,
                      v_can_bfm_config);
 
-      -- Wait for a baud before checking error counters
+      -- Wait two bauds before checking error counters
+      wait until rising_edge(s_can_baud_clk);
       wait until rising_edge(s_can_baud_clk);
 
       check_value(v_can_tx_status.got_active_error_flag, true, error,

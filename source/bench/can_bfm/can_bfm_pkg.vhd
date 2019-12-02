@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -83,8 +83,12 @@ package can_bfm_pkg is
 
   type can_error_flag_t is (ACTIVE_ERROR_FLAG, PASSIVE_ERROR_FLAG, ANY_ERROR_FLAG);
 
+  constant C_ARB_ID_A_SIZE : natural := 11;
+  constant C_ARB_ID_B_SIZE : natural := 18;
+
   procedure can_write (
-    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant arb_id_a         : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b         : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant remote_request   : in  std_logic;
     constant extended_id      : in  std_logic;
     constant data             : in  can_payload_t;
@@ -100,7 +104,8 @@ package can_bfm_pkg is
     );
 
   procedure can_read (
-    variable arb_id           : out std_logic_vector(28 downto 0);
+    variable arb_id_a         : out std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    variable arb_id_b         : out std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     variable remote_frame     : out std_logic;
     variable extended_id      : out std_logic;
     variable data             : out can_payload_t;
@@ -172,7 +177,8 @@ package body can_bfm_pkg is
   shared variable rand_seed2 : positive := 67890;
 
   procedure can_write (
-    constant arb_id           : in  std_logic_vector(28 downto 0);
+    constant arb_id_a         : in  std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    constant arb_id_b         : in  std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     constant remote_request   : in  std_logic;
     constant extended_id      : in  std_logic;
     constant data             : in  can_payload_t;
@@ -245,7 +251,7 @@ package body can_bfm_pkg is
       -- Standard frame
       -- -----------------------------------------------------------------------
       bit_buffer(C_STD_SOF_INDEX) := '0';
-      bit_buffer(C_STD_ARB_ID_INDEX to C_STD_ARB_ID_INDEX+10) := arb_id(10 downto 0);
+      bit_buffer(C_STD_ARB_ID_INDEX to C_STD_ARB_ID_INDEX+C_ARB_ID_A_SIZE-1) := arb_id_a;
       bit_buffer(C_STD_RTR_INDEX) := remote_request;
       bit_buffer(C_STD_IDE_INDEX) := extended_id;
       bit_buffer(C_STD_R0_INDEX) := '0';
@@ -313,7 +319,7 @@ package body can_bfm_pkg is
       -- Extended frame
       -- -----------------------------------------------------------------------
       bit_buffer(C_EXT_SOF_INDEX) := '0';
-      bit_buffer(C_EXT_ARB_ID_A_INDEX to C_EXT_ARB_ID_A_INDEX+10) := arb_id(10 downto 0);
+      bit_buffer(C_EXT_ARB_ID_A_INDEX to C_EXT_ARB_ID_A_INDEX+C_ARB_ID_A_SIZE-1) := arb_id_a;
 
       -- RTR bit has a different position in extended frame.
       -- The SRR bit is placed in the same position as RTR a in standard frame.
@@ -321,7 +327,7 @@ package body can_bfm_pkg is
       -- giving an extended frame lower priority than a standard frame
       bit_buffer(C_EXT_SRR_INDEX) := '1';
       bit_buffer(C_EXT_IDE_INDEX) := extended_id;
-      bit_buffer(C_EXT_ARB_ID_B_INDEX to C_EXT_ARB_ID_B_INDEX+17) := arb_id(28 downto 11);
+      bit_buffer(C_EXT_ARB_ID_B_INDEX to C_EXT_ARB_ID_B_INDEX+C_ARB_ID_B_SIZE-1) := arb_id_b;
       bit_buffer(C_EXT_RTR_INDEX) := remote_request;
       bit_buffer(C_EXT_R0_INDEX) := '0';
       bit_buffer(C_EXT_R1_INDEX) := '0';
@@ -367,6 +373,16 @@ package body can_bfm_pkg is
         -- ACK delimiter
         -- EOF (the first 6 bits)
         rand_int := natural(round(rand_real * real(9)));
+
+        if bit_buffer(crc_start_index+C_CRC_DELIM_INDEX-5 to
+                      crc_start_index+C_CRC_DELIM_INDEX-1) = "00000" and
+           rand_int = 1
+        then
+          -- Don't generate form error in CRC delimiter if the last 5 bits of
+          -- the CRC are already zeros, because we'll interpret those 5 bits +
+          -- CRC delim as active error flag. Generate ACK delim form error instead
+          rand_int := 2;
+        end if;
 
         if rand_int = 0 then
           report "Generating form error in SRR";
@@ -419,18 +435,17 @@ package body can_bfm_pkg is
         -- Check for error flags due to form errors (which we generated)
         ------------------------------------------------------------------------
         if can_rx_error_gen.form_error then
-          if bit_counter - C_ERROR_FLAG_LENGTH - 1 <= form_error_index and
-                bit_counter - 1 >= form_error_index and
-                bit_counter - 1 <= form_error_index + C_ERROR_FLAG_LENGTH
+          if bit_counter >= form_error_index and
+             bit_counter <= form_error_index+(C_ERROR_FLAG_LENGTH-1)
           then
             -- Exactly when the error flag is detected is hard to predict for
             -- form errors, because we just detect the first 6 bits of low
             -- value (we can only detect active error flag), and may end up
             -- here before the receiver has actually sent all 6 bits of its
             -- error flag.
-            -- But the actual form error bit (low) will be counted among the
-            -- detected error flag bits, and also any preceding bits that are
-            -- low (ie. for CRC delimiter, if one or more of the CRC bits
+            -- Not only the actual form error bit (low) will be counted among the
+            -- detected error flag bits, but also any preceding bits that are
+            -- low (ie. for CRC delimiter, or if one or more of the CRC bits
             -- immediately before are low).
             -- And an SRR form error can not be checked in the receiver before
             -- receiving the IDE field.
@@ -442,19 +457,22 @@ package body can_bfm_pkg is
             can_tx_status.arbitration_lost := false;
 
           elsif extended_id = '1' and form_error_index = C_EXT_SRR_INDEX then
-            -- Form error in SRR bit is not detected until the IDE bit is sent
-            if bit_counter - C_ERROR_FLAG_LENGTH = C_EXT_IDE_INDEX+1 then
+            -- Form error in SRR bit is not detected until the IDE bit is sent,
+            -- so the active error flag would start on the first bit in ID B
+            if bit_counter = C_EXT_ARB_ID_B_INDEX+(C_ERROR_FLAG_LENGTH-1)  then
               can_tx_status.form_error_flag := true;
 
               -- Avoid this form error being reported as arbitration lost
               can_tx_status.arbitration_lost := false;
             end if;
+          else
+            null;
           end if;
 
         ------------------------------------------------------------------------
         -- Check for error flags due to CRC errors
         ------------------------------------------------------------------------
-        elsif bit_counter - C_ERROR_FLAG_LENGTH = crc_start_index + C_EOF_INDEX then
+        elsif bit_counter - (C_ERROR_FLAG_LENGTH-1) = crc_start_index + C_EOF_INDEX then
           -- CRC error are reported by receivers immediately following ACK delimiter
           can_tx_status.crc_error_flag := true;
         end if;
@@ -589,7 +607,8 @@ package body can_bfm_pkg is
 
 
   procedure can_read (
-    variable arb_id           : out std_logic_vector(28 downto 0);
+    variable arb_id_a         : out std_logic_vector(C_ARB_ID_A_SIZE-1 downto 0);
+    variable arb_id_b         : out std_logic_vector(C_ARB_ID_B_SIZE-1 downto 0);
     variable remote_frame     : out std_logic;
     variable extended_id      : out std_logic;
     variable data             : out can_payload_t;
@@ -820,18 +839,18 @@ package body can_bfm_pkg is
     -- -------------------------------------------------------------------------
     if bit_buffer(C_STD_IDE_INDEX) = '0' then
       -- Standard frame
-      arb_id(10 downto 0)  := bit_buffer(C_STD_ARB_ID_INDEX to C_STD_ARB_ID_INDEX+10);
-      arb_id(28 downto 11) := (others => '0');
-      remote_frame         := bit_buffer(C_STD_RTR_INDEX);
-      extended_id          := '0';
-      data_bits_index      := C_STD_DATA_INDEX;
+      arb_id_a        := bit_buffer(C_STD_ARB_ID_INDEX to C_STD_ARB_ID_INDEX+C_ARB_ID_A_SIZE-1);
+      arb_id_b        := (others => '0');
+      remote_frame    := bit_buffer(C_STD_RTR_INDEX);
+      extended_id     := '0';
+      data_bits_index := C_STD_DATA_INDEX;
     else
       -- Extended frame
-      arb_id(10 downto 0)  := bit_buffer(C_EXT_ARB_ID_A_INDEX to C_EXT_ARB_ID_A_INDEX+10);
-      arb_id(28 downto 11) := bit_buffer(C_EXT_ARB_ID_B_INDEX to C_EXT_ARB_ID_B_INDEX+17);
-      remote_frame         := bit_buffer(C_EXT_RTR_INDEX);
-      extended_id          := '1';
-      data_bits_index      := C_EXT_DATA_INDEX;
+      arb_id_a        := bit_buffer(C_EXT_ARB_ID_A_INDEX to C_EXT_ARB_ID_A_INDEX+C_ARB_ID_A_SIZE-1);
+      arb_id_b        := bit_buffer(C_EXT_ARB_ID_B_INDEX to C_EXT_ARB_ID_B_INDEX+C_ARB_ID_B_SIZE-1);
+      remote_frame    := bit_buffer(C_EXT_RTR_INDEX);
+      extended_id     := '1';
+      data_bits_index := C_EXT_DATA_INDEX;
     end if;
 
     -- Copy data from bit buffer

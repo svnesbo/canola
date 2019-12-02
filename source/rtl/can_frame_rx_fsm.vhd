@@ -147,7 +147,8 @@ begin  -- architecture rtl
   begin  -- process proc_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_reg_rx_msg.arb_id         <= (others => '0');
+        s_reg_rx_msg.arb_id_a       <= (others => '0');
+        s_reg_rx_msg.arb_id_b       <= (others => '0');
         s_reg_rx_msg.remote_request <= '0';
         s_reg_rx_msg.ext_id         <= '0';
         s_reg_rx_msg.data_length    <= (others => '0');
@@ -209,9 +210,9 @@ begin  -- architecture rtl
               -- Did frame end unexpectedly?
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_RX_DATA_COUNT = C_ID_A_LENGTH and BSP_RX_DATA_CLEAR = '0' then
-              BSP_RX_DATA_CLEAR                             <= '1';
-              s_reg_rx_msg.arb_id(C_ID_A_LENGTH-1 downto 0) <= BSP_RX_DATA(0 to C_ID_A_LENGTH-1);
-              s_fsm_state                                   <= ST_RECV_SRR_RTR;
+              BSP_RX_DATA_CLEAR     <= '1';
+              s_reg_rx_msg.arb_id_a <= BSP_RX_DATA(0 to C_ID_A_LENGTH-1);
+              s_fsm_state           <= ST_RECV_SRR_RTR;
             end if;
 
           when ST_RECV_SRR_RTR =>
@@ -254,12 +255,9 @@ begin  -- architecture rtl
               -- Did frame end unexpectedly?
               s_fsm_state <= ST_FORM_ERROR;
             elsif BSP_RX_DATA_COUNT = C_ID_B_LENGTH and BSP_RX_DATA_CLEAR = '0' then
-              BSP_RX_DATA_CLEAR <= '1';
-
-              s_reg_rx_msg.arb_id(C_ID_B_LENGTH+C_ID_A_LENGTH-1 downto C_ID_A_LENGTH) <=
-                BSP_RX_DATA(0 to C_ID_B_LENGTH-1);
-
-              s_fsm_state <= ST_RECV_EXT_FRAME_RTR;
+              BSP_RX_DATA_CLEAR     <= '1';
+              s_reg_rx_msg.arb_id_b <= BSP_RX_DATA(0 to C_ID_B_LENGTH-1);
+              s_fsm_state           <= ST_RECV_EXT_FRAME_RTR;
             end if;
 
           when ST_RECV_EXT_FRAME_RTR =>
