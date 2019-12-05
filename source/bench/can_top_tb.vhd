@@ -843,6 +843,7 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
+    v_can_bfm_config.ack_missing_severity := FAILURE;
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #7: Test CRC error in received message", C_SCOPE);
@@ -1121,14 +1122,167 @@ begin
     end loop;
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #10: Test ERROR PASSIVE/ACTIVE states when transmitting", C_SCOPE);
+    log(ID_LOG_HDR, "Test #10: Test ERROR ACTIVE->PASSIVE on missing ACKs, but not BUS OFF", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    -- Send some messages without ack or something, to increase error counters
-    -- beyond error passive threshold
-    -- Check that controller becomes error passive
-    -- Check that controller sends passive error flags on errors now
-    -- Check that controller returns to error active after succesfully
-    -- transmitting some messages where ACK is received
+    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+
+    -- In this test the CAN controller sends messages, but receives no ACK.
+    -- This should increase the transmit error counter to the error passive threshold,
+    -- causing the controller to become error passive. But the counter should not
+    -- increase further on missing ACK after that.
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    v_can_bfm_config.ack_missing_severity := NO_ALERT;
+
+    -- Transmit Error Count (TEC) increases by 8 per missing ack
+    -- Run test till twice the amount of time it would take to bring the
+    -- controller into BUS OFF, if the TEC increased by 8 every time.
+    -- The controller should not actually go into BUS OFF for missing ack,
+    -- it should stop in ERROR PASSIVE, and we want to verify that
+    while v_test_num < 2*C_BUS_OFF_THRESHOLD/8 loop
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
+
+      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      if s_can_ctrl_error_state = ERROR_ACTIVE then
+        -- Expect error flag from CAN controller due to missing ACK
+        -- (but only when in ERROR ACTIVE state)
+        can_uvvm_recv_active_error_flag(200,
+                                        "Expect active error flag when controller is error active",
+                                        s_can_bfm_rx);
+      end if;
+
+      wait until s_can_ctrl_tx_busy = '0'
+        for 200*C_CAN_BAUD_PERIOD;
+
+      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
+
+      -- Arbitration loss count should not have increased
+      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+                  error, "Check arbitration loss count in CAN controller.");
+
+      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+                  error, "Check ACK received count in CAN controller.");
+
+      -- Error count should only increase while ERROR ACTIVE
+      if s_can_ctrl_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
+        check_value(to_integer(s_can_ctrl_transmit_error_count), (v_test_num+1) * 8,
+                    error, "Check that transmit error count increased by eight");
+      else
+        check_value(to_integer(s_can_ctrl_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD,
+                    error, "Check no transmit error count increase on missing ACK in error passive");
+      end if;
+
+      if s_can_ctrl_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check that controller is error active");
+      else
+        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check that controller is error passive");
+      end if;
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+
+    -----------------------------------------------------------------------------------------------
+    -- Now test that the controller returns to error active after a succesful transmit
+    -----------------------------------------------------------------------------------------------
+    v_test_num := 0;
+
+    while v_test_num < C_ERROR_PASSIVE_THRESHOLD loop
+      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     '0',  -- Don't send remote request and expect response
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Receive and check message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     error);
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      -- Arbitration loss count should not have increased
+      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+                  error, "Check arbitration loss count in CAN controller.");
+
+      -- Ack received count should have increased now
+      check_value(unsigned(s_can_ctrl_reg_tx_ack_recv_count), unsigned(v_ack_recv_count)+1,
+                  error, "Check ACK received count increased in CAN controller.");
+
+      check_value(to_integer(s_can_ctrl_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD-(v_test_num+1),
+                  error, "Check that transmit error count decreased on successful transmit");
+
+      check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check that controller is now error active");
+
+      v_test_num := v_test_num + 1;
+
+    end loop;
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #11: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
