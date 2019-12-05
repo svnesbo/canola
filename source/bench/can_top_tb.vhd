@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-12-02
+-- Last update: 2019-12-05
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -747,6 +747,10 @@ begin
     v_can_bfm_config.ack_missing_severity := NO_ALERT;
 
     while v_test_num < C_NUM_ITERATIONS loop
+      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+      end if;
+
       s_msg_reset <= '1';
       wait until rising_edge(s_clk);
       s_msg_reset <= '0';
@@ -809,15 +813,12 @@ begin
       -- Expect error flag from CAN controller due to missing ACK,
       -- since BFM should have lost arbitration and was not receiving
       -- so no ACK has been sent
-      can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
-                               200,
-                               "Receive error flag with CAN BFM",
-                               s_can_bfm_rx);
+      can_uvvm_recv_active_error_flag(200, "Receive error flag with CAN BFM", s_can_bfm_rx);
 
-      wait until s_can_ctrl_tx_done = '1'
+      wait until s_can_ctrl_tx_busy = '0'
         for 200*C_CAN_BAUD_PERIOD;
 
-      check_value(s_can_ctrl_tx_done, '1', error, "Check that CAN controller transmitted message.");
+      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
 
       -- Arbitration loss count should not have increased
       check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
@@ -849,6 +850,10 @@ begin
     v_test_num := 0;
 
     while v_test_num < C_NUM_ITERATIONS loop
+
+      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+      end if;
 
       v_can_bfm_config.crc_error_severity := NOTE;
 
@@ -930,10 +935,13 @@ begin
     log(ID_LOG_HDR, "Test #8: Test stuff error in received message", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     v_test_num := 0;
-
     v_can_bfm_config.crc_error_severity  := failure;
 
     while v_test_num < C_NUM_ITERATIONS loop
+
+      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+      end if;
 
       v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
       v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
@@ -980,10 +988,7 @@ begin
       -- Expect error flag from CAN controller due to missing ACK,
       -- since BFM should have lost arbitration and was not receiving
       -- so no ACK has been sent
-      can_uvvm_recv_error_flag(ANY_ERROR_FLAG,
-                               200,
-                               "Receive error flag with CAN BFM",
-                               s_can_bfm_rx);
+      can_uvvm_recv_active_error_flag(200, "Receive error flag with CAN BFM", s_can_bfm_rx);
 
       -- Wait for a baud before checking error counters
       wait until rising_edge(s_can_baud_clk);
@@ -1033,6 +1038,10 @@ begin
     v_can_bfm_config.form_error_severity := note;
 
     while v_test_num < C_NUM_ITERATIONS loop
+
+      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+      end if;
 
       v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
       v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
@@ -1155,6 +1164,6 @@ begin
     std.env.stop;
     wait;  -- to stop completely
 
-  end process p_main;
+end process p_main;
 
 end tb;

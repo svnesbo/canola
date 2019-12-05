@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-12-01
+-- Last update: 2019-12-02
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -124,7 +124,7 @@ architecture tb of can_bsp_tb is
   signal s_bsp_rx_active_error_flag  : std_logic;
   signal s_bsp_rx_passive_error_flag : std_logic;
   signal s_bsp_send_error_flag       : std_logic         := '0';
-  signal s_bsp_error_state           : can_error_state_t := ERROR_ACTIVE;
+  signal s_eml_error_state           : can_error_state_t := ERROR_ACTIVE;
   signal s_btl_tx_bit_value          : std_logic         := '0';
   signal s_btl_tx_bit_valid          : std_logic         := '0';
   signal s_btl_tx_rdy                : std_logic         := '0';
@@ -185,7 +185,7 @@ begin
       BSP_RX_ACTIVE_ERROR_FLAG  => s_bsp_rx_active_error_flag,
       BSP_RX_PASSIVE_ERROR_FLAG => s_bsp_rx_passive_error_flag,
       BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag,
-      BSP_ERROR_STATE           => s_bsp_error_state,
+      EML_ERROR_STATE           => s_eml_error_state,
       BTL_TX_BIT_VALUE          => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID          => s_btl_tx_bit_valid,
       BTL_TX_RDY                => s_btl_tx_rdy,

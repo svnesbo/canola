@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-12-02
+-- Last update: 2019-12-05
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -80,8 +80,6 @@ package can_bfm_pkg is
     crc_error_flag        : boolean;
     form_error_flag       : boolean;
   end record can_tx_status_t;
-
-  type can_error_flag_t is (ACTIVE_ERROR_FLAG, PASSIVE_ERROR_FLAG, ANY_ERROR_FLAG);
 
   constant C_ARB_ID_A_SIZE : natural := 11;
   constant C_ARB_ID_B_SIZE : natural := 18;

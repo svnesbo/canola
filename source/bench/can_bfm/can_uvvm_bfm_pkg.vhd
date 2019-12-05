@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-12-02
+-- Last update: 2019-12-05
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -48,7 +48,6 @@ package can_uvvm_bfm_pkg is
     crc_error_severity          : t_alert_level;
     form_error_severity         : t_alert_level;
     error_flag_timeout_severity : t_alert_level;
-    wrong_error_flag_severity   : t_alert_level;
     id_for_bfm                  : t_msg_id;
     id_for_bfm_wait             : t_msg_id;
     id_for_bfm_poll             : t_msg_id;
@@ -65,7 +64,6 @@ package can_uvvm_bfm_pkg is
     crc_error_severity          => failure,
     form_error_severity         => failure,
     error_flag_timeout_severity => failure,
-    wrong_error_flag_severity   => failure,
     id_for_bfm                  => ID_BFM,
     id_for_bfm_wait             => ID_BFM_WAIT,
     id_for_bfm_poll             => ID_BFM_POLL
@@ -149,20 +147,13 @@ package can_uvvm_bfm_pkg is
     );
 
 
-  -- Wait for an incoming CAN error flag
-  -- Wait for an error flag of type specified by error_flag_type.
-  -- The procedure (almost) blindly looks for a sequence of 6 passive or active
-  -- bits, depending on the error flag type.
-  -- If error_flag_type is ANY_ERROR_FLAG or PASSIVE_ERROR_FLAG,
-  -- and there is no activity on can_rx, then the procedure will wait for a
-  -- falling edge on can_rx before looking for a passive error flag.
-  -- If an error flag is not received within the timeout (in bauds),
+  -- Wait for an incoming CAN active error flag
+  -- The active error flag is detected by looking for the first sequence of 6
+  -- dominant bits.
+  -- If the active error flag is not received within the timeout (in bauds),
   -- an alert of severity specified by config.error_flag_timeout_severity
   -- will be given.
-  -- If an error flag of the wrong type is received then an alert of severity
-  -- specified by config.wrong_error_flag_severity will be given.
-  procedure can_uvvm_recv_error_flag (
-    constant error_flag_type      : in can_error_flag_t;
+  procedure can_uvvm_recv_active_error_flag (
     constant timeout_baud_periods : in natural;
     constant msg                  : in string;
     signal   can_rx               : in std_logic;
@@ -532,8 +523,7 @@ package body can_uvvm_bfm_pkg is
   end procedure can_uvvm_check;
 
 
-  procedure can_uvvm_recv_error_flag (
-    constant error_flag_type      : in can_error_flag_t;
+  procedure can_uvvm_recv_active_error_flag (
     constant timeout_baud_periods : in natural;
     constant msg                  : in string;
     signal   can_rx               : in std_logic;
@@ -565,16 +555,7 @@ package body can_uvvm_bfm_pkg is
   begin
 
     -- Format procedure call string
-    write(v_proc_call, to_string("can_uvvm_recv_error_flag("));
-
-    if error_flag_type = ANY_ERROR_FLAG then
-      write(v_proc_call, to_string("ANY_ERROR_FLAG) => "));
-    elsif error_flag_type = ACTIVE_ERROR_FLAG then
-      write(v_proc_call, to_string("ACTIVE_ERROR_FLAG) => "));
-    else
-      write(v_proc_call, to_string("PASSIVE_ERROR_FLAG) => "));
-    end if;
-
+    write(v_proc_call, to_string("can_uvvm_recv_error_flag() => "));
 
     if can_rx = '0' then
       v_frame_started := true;
@@ -609,34 +590,11 @@ package body can_uvvm_bfm_pkg is
 
       if v_dominant_count = error_flag_length then
         -- Got active error flag
-        if error_flag_type = ANY_ERROR_FLAG or error_flag_type = ACTIVE_ERROR_FLAG then
           log(config.id_for_bfm,
               v_proc_call.all & "Ok. Got active error flag. " & msg,
               scope, msg_id_panel);
           return;
-        else
-          alert(config.wrong_error_flag_severity,
-                v_proc_call.all & "Failed. Got active error flag. " & msg, scope);
-          return;
-        end if;
-      elsif v_recessive_count = error_flag_length then
-        -- Got passive error flag
-        if error_flag_type = ANY_ERROR_FLAG or error_flag_type = PASSIVE_ERROR_FLAG then
-          log(config.id_for_bfm,
-              v_proc_call.all & "Ok. Got passive error flag. " & msg,
-              scope, msg_id_panel);
-          return;
-        else
-          alert(config.wrong_error_flag_severity,
-                v_proc_call.all & "Failed. Got passive error flag. " & msg, scope);
-          return;
-        end if;
-      elsif v_bauds_waited = timeout_baud_periods then
-        -- Timeout
-        alert(config.error_flag_timeout_severity,
-              v_proc_call.all & "Failed. Timeout. " & msg, scope);
       end if;
-
 
       v_can_rx_prev := can_rx;
 
@@ -655,6 +613,10 @@ package body can_uvvm_bfm_pkg is
 
       v_bauds_waited := v_bauds_waited + 1;
     end loop;
-  end procedure can_uvvm_recv_error_flag;
+
+    alert(config.error_flag_timeout_severity,
+          v_proc_call.all & "Failed. Timeout. " & msg, scope);
+
+  end procedure can_uvvm_recv_active_error_flag;
 
 end package body can_uvvm_bfm_pkg;
