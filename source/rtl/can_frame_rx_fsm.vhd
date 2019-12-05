@@ -82,8 +82,16 @@ entity can_frame_rx_fsm is
                                                 -- transmitting error flag
                                                 -- Note: Only for ACTIVE error flag
 
+    -- Signals from BTL
     BTL_RX_BIT_VALID          : in  std_logic;
     BTL_RX_BIT_VALUE          : in  std_logic;
+
+    -- Signals to/from EML
+    EML_RX_STUFF_ERROR                 : out std_logic;
+    EML_RX_CRC_ERROR                   : out std_logic;
+    EML_RX_FORM_ERROR                  : out std_logic;
+    EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
+    EML_ERROR_STATE                    : in  can_error_state_t;
 
     -- Counter registers for FSM
     REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -119,13 +127,15 @@ architecture rtl of can_frame_rx_fsm is
                               ST_DONE,
                               ST_WAIT_BUS_IDLE);
 
-  signal s_fsm_state        : can_frame_rx_fsm_t;
-  signal s_reg_rx_msg       : can_msg_t;
-  signal s_srr_rtr_bit      : std_logic;
-  signal s_crc_mismatch     : std_logic;
-  signal s_crc_calc         : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_data_cleared : std_logic;
-  signal s_reg_tx_arb_won   : std_logic;
+  signal s_fsm_state                      : can_frame_rx_fsm_t;
+  signal s_reg_rx_msg                     : can_msg_t;
+  signal s_srr_rtr_bit                    : std_logic;
+  signal s_crc_mismatch                   : std_logic;
+  signal s_crc_calc                       : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+  signal s_bsp_data_cleared               : std_logic;
+  signal s_reg_tx_arb_won                 : std_logic;
+  signal s_eml_error_state                : can_error_state_t;
+  signal s_rx_active_error_flag_bit_error : std_logic;
 
   signal s_reg_msg_recv_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
   signal s_reg_crc_error_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
@@ -157,22 +167,28 @@ begin  -- architecture rtl
           s_reg_rx_msg.data(0) <= (others => '0');
         end loop;
 
-        s_fsm_state                <= ST_IDLE;
-        s_crc_mismatch             <= '0';
-        s_reg_msg_recv_counter    <= (others => '0');
-        s_reg_crc_error_counter   <= (others => '0');
-        s_reg_form_error_counter  <= (others => '0');
-        s_reg_stuff_error_counter <= (others => '0');
-        BSP_RX_BIT_DESTUFF_EN      <= '1';
-        BSP_RX_STOP                <= '0';
-        RX_MSG_VALID               <= '0';
+        s_fsm_state                      <= ST_IDLE;
+        s_crc_mismatch                   <= '0';
+        s_reg_msg_recv_counter           <= (others => '0');
+        s_reg_crc_error_counter          <= (others => '0');
+        s_reg_form_error_counter         <= (others => '0');
+        s_reg_stuff_error_counter        <= (others => '0');
+        s_rx_active_error_flag_bit_error <= '0';
+        BSP_RX_BIT_DESTUFF_EN            <= '1';
+        BSP_RX_STOP                      <= '0';
+        RX_MSG_VALID                     <= '0';
+        EML_RX_STUFF_ERROR               <= '0';
+        EML_RX_CRC_ERROR                 <= '0';
+        EML_RX_FORM_ERROR                <= '0';
       else
         RX_MSG_VALID          <= '0';
         BSP_RX_SEND_ACK       <= '0';
         BSP_RX_DATA_CLEAR     <= '0';
-        --BSP_SEND_ERROR_FLAG   <= '0';
         BSP_RX_BIT_DESTUFF_EN <= '1';
         BSP_RX_STOP           <= '0';
+        EML_RX_STUFF_ERROR    <= '0';
+        EML_RX_CRC_ERROR      <= '0';
+        EML_RX_FORM_ERROR     <= '0';
 
         -- Tx FSM is transmitting message, and won arbitration
         if TX_ARB_WON = '1' then
@@ -181,10 +197,15 @@ begin  -- architecture rtl
 
         case s_fsm_state is
           when ST_IDLE =>
-            s_crc_mismatch <= '0';
+            s_crc_mismatch                   <= '0';
+            s_rx_active_error_flag_bit_error <= '0';
 
             -- Clear flag from Tx FSM
             s_reg_tx_arb_won <= '0';
+
+            -- EML_ERROR_STATE may change after transmission of error flag has started.
+            -- Keep a registered version since we need to know its value while transmitting error flag
+            s_eml_error_state     <= EML_ERROR_STATE;
 
             if BSP_RX_ACTIVE = '1' then
               BSP_RX_DATA_CLEAR <= '1';
@@ -469,8 +490,8 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              --BSP_SEND_ERROR_FLAG     <= '1';
               s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
+              EML_RX_CRC_ERROR        <= '1';
               s_fsm_state             <= ST_WAIT_ERROR_FLAG;
             else
               -- Todo:
@@ -487,7 +508,7 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              --BSP_SEND_ERROR_FLAG      <= '1';
+              EML_RX_FORM_ERROR        <= '1';
               s_reg_form_error_counter <= s_reg_form_error_counter + 1;
               s_fsm_state              <= ST_WAIT_ERROR_FLAG;
             else
@@ -505,7 +526,7 @@ begin  -- architecture rtl
               -- receiving this message from a different node.
               -- But we don't want to do that if we are transmitting this message
               -- ourselves. Let the Tx FSM handle errors in that case.
-              --BSP_SEND_ERROR_FLAG       <= '1';
+              EML_RX_STUFF_ERROR        <= '1';
               s_fsm_state               <= ST_WAIT_ERROR_FLAG;
               s_reg_stuff_error_counter <= s_reg_stuff_error_counter + 1;
             else
@@ -518,10 +539,12 @@ begin  -- architecture rtl
           when ST_WAIT_ERROR_FLAG =>
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if BSP_ERROR_FLAG_BIT_ERROR = '1' then
-              -- Todo:
-              -- Error handling on bit errors during error flag
-              null;
+            if s_eml_error_state = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+              EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= not s_rx_active_error_flag_bit_error;
+
+              -- Send only one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR per
+              -- error flag, even if there are more than 1 bit errors
+              s_rx_active_error_flag_bit_error   <= '1';
             end if;
 
             if BSP_ERROR_FLAG_DONE = '1' then

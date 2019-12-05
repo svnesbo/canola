@@ -60,12 +60,7 @@ entity can_frame_tx_fsm is
     TX_ACK_RECV                    : out std_logic;  -- Acknowledge was received
     TX_ARB_LOST                    : out std_logic;  -- Arbitration was lost
     TX_ARB_WON                     : out std_logic;  -- Arbitration was won (pulsed)
-    TX_BIT_ERROR                   : out std_logic;  -- Mismatch transmitted vs. monitored bit
-    TX_ACK_ERROR                   : out std_logic;  -- No ack received
-    TX_ARB_STUFF_ERROR             : out std_logic;  -- Stuff error during arbitration field
-    TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
-    ERROR_STATE                    : in  can_error_state_t;
 
     -- Signals to/from BSP
     BSP_TX_DATA                : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -81,6 +76,13 @@ entity can_frame_tx_fsm is
     BSP_SEND_ERROR_FLAG        : out std_logic;
     BSP_ERROR_FLAG_DONE        : in  std_logic;
     BSP_ERROR_FLAG_BIT_ERROR   : in  std_logic;
+
+    -- Signals to/from EML
+    EML_TX_BIT_ERROR                   : out std_logic;  -- Mismatch transmitted vs. monitored bit
+    EML_TX_ACK_ERROR                   : out std_logic;  -- No ack received
+    EML_TX_ARB_STUFF_ERROR             : out std_logic;  -- Stuff error during arbitration field
+    EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
+    EML_ERROR_STATE                    : in  can_error_state_t;
 
     -- Counter registers for FSM
     REG_MSG_SENT_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
@@ -146,7 +148,9 @@ architecture rtl of can_frame_tx_fsm is
   signal s_reg_error_counter       : unsigned(G_BUS_REG_WIDTH-1 downto 0);
   signal s_reg_retransmit_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
 
-  signal s_bsp_tx_write_en : std_logic;
+  signal s_bsp_tx_write_en                : std_logic;
+  signal s_eml_error_state                : can_error_state_t;
+  signal s_tx_active_error_flag_bit_error : std_logic;
 
   alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_a;
   alias a_tx_msg_id_b : std_logic_vector(C_ID_B_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_b;
@@ -171,29 +175,45 @@ begin  -- architecture rtl
   begin  -- process proc_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_fsm_state               <= ST_IDLE;
-        TX_BUSY                   <= '0';
-        BSP_TX_DATA               <= (others => '0');
-        BSP_TX_ACTIVE             <= '0';
-        s_tx_ack_recv             <= '0';
-        s_reg_msg_sent_counter    <= (others => '0');
-        s_reg_ack_recv_counter    <= (others => '0');
-        s_reg_ack_missing_counter <= (others => '0');
-        s_reg_arb_lost_counter    <= (others => '0');
-        s_reg_error_counter       <= (others => '0');
-        s_retransmit_attempts     <= 0;
+        s_fsm_state                        <= ST_IDLE;
+        TX_BUSY                            <= '0';
+        BSP_TX_DATA                        <= (others => '0');
+        BSP_TX_ACTIVE                      <= '0';
+        TX_DONE                            <= '0';
+        EML_TX_BIT_ERROR                   <= '0';
+        EML_TX_ACK_ERROR                   <= '0';
+        EML_TX_ARB_STUFF_ERROR             <= '0';
+        EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+        s_tx_ack_recv                      <= '0';
+        s_reg_msg_sent_counter             <= (others => '0');
+        s_reg_ack_recv_counter             <= (others => '0');
+        s_reg_ack_missing_counter          <= (others => '0');
+        s_reg_arb_lost_counter             <= (others => '0');
+        s_reg_error_counter                <= (others => '0');
+        s_retransmit_attempts              <= 0;
+        s_tx_active_error_flag_bit_error   <= '0';
       else
-        BSP_SEND_ERROR_FLAG  <= '0';
-        s_bsp_tx_write_en    <= '0';
-        BSP_TX_BIT_STUFF_EN  <= '1';
-        TX_ARB_WON           <= '0';
+        BSP_SEND_ERROR_FLAG                <= '0';
+        s_bsp_tx_write_en                  <= '0';
+        BSP_TX_BIT_STUFF_EN                <= '1';
+        TX_ARB_WON                         <= '0';
+        TX_DONE                            <= '0';
+        EML_TX_BIT_ERROR                   <= '0';
+        EML_TX_ACK_ERROR                   <= '0';
+        EML_TX_ARB_STUFF_ERROR             <= '0';
+        EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
 
         case s_fsm_state is
           when ST_IDLE =>
-            BSP_TX_ACTIVE         <= '0';
-            TX_BUSY               <= '0';
-            s_tx_ack_recv         <= '0';
-            s_retransmit_attempts <= 0;
+            BSP_TX_ACTIVE                    <= '0';
+            TX_BUSY                          <= '0';
+            s_tx_ack_recv                    <= '0';
+            s_retransmit_attempts            <= 0;
+            s_tx_active_error_flag_bit_error <= '0';
+
+            -- EML_ERROR_STATE may change after transmission of error flag has started.
+            -- Keep a registered version since we need to know its value while transmitting error flag
+            s_eml_error_state     <= EML_ERROR_STATE;
 
             if TX_START = '1' then
               TX_BUSY       <= '1';
@@ -513,12 +533,15 @@ begin  -- architecture rtl
             s_fsm_state         <= ST_SEND_ERROR_FLAG;
 
           when ST_SEND_ERROR_FLAG =>
-            if ERROR_STATE = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+            if s_eml_error_state = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
               -- CAN specification 7.1:
               -- Bit errors while sending active error flag should be detected,
               -- and leads to an increase in transmit error count by 8 in the EML
-              TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '1';
-              s_fsm_state                    <= ST_RETRANSMIT;
+              EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= not s_tx_active_error_flag_bit_error;
+
+              -- Send only one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR per
+              -- error flag, even if there are more than 1 bit errors
+              s_tx_active_error_flag_bit_error   <= '1';
             elsif BSP_ERROR_FLAG_DONE = '1' then
               s_fsm_state <= ST_RETRANSMIT;
             end if;
@@ -529,23 +552,16 @@ begin  -- architecture rtl
             s_fsm_state            <= ST_RETRANSMIT;
 
           when ST_BIT_ERROR =>
-            BSP_SEND_ERROR_FLAG  <= '1';
-            s_reg_error_counter  <= s_reg_error_counter + 1;
-            s_fsm_state          <= ST_RETRANSMIT;
+            BSP_SEND_ERROR_FLAG <= '1';
+            EML_TX_BIT_ERROR    <= '1';
+            s_reg_error_counter <= s_reg_error_counter + 1;
+            s_fsm_state         <= ST_RETRANSMIT;
 
           when ST_ACK_ERROR =>
             BSP_SEND_ERROR_FLAG       <= '1';
+            EML_TX_ACK_ERROR          <= '1';
             s_reg_ack_missing_counter <= s_reg_ack_missing_counter + 1;
             s_fsm_state               <= ST_RETRANSMIT;
-
-            --when ST_BIT_ERROR =>
-            -- Page 49: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
-            -- "A node which is sending a bit on the bus also monitors the bus. The node must detect, and interpret
-            --  as a Bit error, the situation where the bit value monitored is different from the bit value being sent.
-            --  An exception to this is the sending of a recessive bit during the stuffed bit-stream of the Arbitration
-            --  field or during the ACK Slot; in this case no Bit error occurs when a dominant bit is monitored.
-            --  A transmitter sending a PASSIVE Error flag and detecting a dominant bit does not interpret this
-            --  as a Bit error"
 
           when ST_RETRANSMIT =>
             -- TODO:

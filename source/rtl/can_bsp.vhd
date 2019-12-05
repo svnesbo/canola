@@ -113,7 +113,9 @@ entity can_bsp is
     BSP_ERROR_FLAG_BIT_ERROR  : out std_logic;  -- Bit error was detected while
                                                 -- transmitting error flag
                                                 -- Note: Only for ACTIVE error flag
-    BSP_ERROR_STATE           : in  can_error_state_t;  -- Indicates if the CAN controller
+
+    -- Interface to EML
+    EML_ERROR_STATE           : in  can_error_state_t;  -- Indicates if the CAN controller
                                                         -- is in active or passive error
                                                         -- state,  or bus off state
 
@@ -501,7 +503,7 @@ begin  -- architecture rtl
         -- If case the BSP is requested to send an error flag,
         -- ignore any other state assignments and go directly to ST_NEXT_ERROR_FLAG_BIT
         if BSP_SEND_ERROR_FLAG = '1' then
-          if BSP_ERROR_STATE = ERROR_ACTIVE then
+          if EML_ERROR_STATE = ERROR_ACTIVE then
             BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
           else
             BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;
