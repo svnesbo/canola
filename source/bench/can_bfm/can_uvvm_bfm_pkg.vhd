@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-12-05
+-- Last update: 2019-12-06
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -160,7 +160,20 @@ package can_uvvm_bfm_pkg is
     constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope                : in string                := C_SCOPE;
     constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
-    constant proc_name            : in string                := "can_uvvm_read"
+    constant proc_name            : in string                := "can_uvvm_recv_active_error_flag"
+    );
+
+  -- Wait for a sequence of 6 recessive (low) bits, ie. CAN passive error flag
+  -- If the active error flag is not received within the timeout (in bauds),
+  -- an alert of severity specified by config.error_flag_timeout_severity
+  -- will be given.
+  procedure can_uvvm_recv_passive_error_flag (
+    constant timeout_baud_periods : in natural;
+    constant msg                  : in string;
+    signal   can_rx               : in std_logic;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant scope                : in string                := C_SCOPE;
+    constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel
     );
 
 end package can_uvvm_bfm_pkg;
@@ -530,7 +543,7 @@ package body can_uvvm_bfm_pkg is
     constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
     constant scope                : in string                := C_SCOPE;
     constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel;
-    constant proc_name            : in string                := "can_uvvm_read"
+    constant proc_name            : in string                := "can_uvvm_recv_active_error_flag"
     )
   is
     variable v_proc_call : line;
@@ -538,7 +551,7 @@ package body can_uvvm_bfm_pkg is
 
     variable v_bauds_waited    : natural := 0;
     variable v_can_rx_prev     : std_logic;
-    variable v_frame_started   : boolean   := false;
+    variable v_error_flag_started   : boolean   := false;
     variable v_recessive_count : natural   := 0;
     variable v_dominant_count  : natural   := 0;
     constant baud_period       : time      := 1 sec / config.can_config.bit_rate;
@@ -558,28 +571,30 @@ package body can_uvvm_bfm_pkg is
     write(v_proc_call, to_string("can_uvvm_recv_error_flag() => "));
 
     if can_rx = '0' then
-      v_frame_started := true;
+      v_error_flag_started := true;
       v_can_rx_prev   := '0';
     end if;
 
 
-    while v_bauds_waited /= timeout_baud_periods loop
+    while v_bauds_waited < timeout_baud_periods or v_error_flag_started = true loop
 
-      if v_frame_started and v_can_rx_prev = can_rx then
+      if v_error_flag_started and v_can_rx_prev = can_rx then
         -- In frame and receiving consecutive bits of same value -> increase counter
         if can_rx = '0' then
           v_dominant_count := v_dominant_count + 1;
         else
           v_recessive_count := v_recessive_count + 1;
         end if;
-      elsif v_frame_started and v_can_rx_prev /= can_rx then
+      elsif v_error_flag_started and v_can_rx_prev /= can_rx then
         -- Bit transition in frame, reset counters
         if can_rx = '0' then
-          v_dominant_count  := 1;
-          v_recessive_count := 0;
+          v_dominant_count     := 1;
+          v_recessive_count    := 0;
+          v_error_flag_started := true;
         else
-          v_dominant_count  := 0;
-          v_recessive_count := 1;
+          v_dominant_count     := 0;
+          v_recessive_count    := 1;
+          v_error_flag_started := false;
         end if;
       else
         -- Not in a frame
@@ -599,13 +614,13 @@ package body can_uvvm_bfm_pkg is
       v_can_rx_prev := can_rx;
 
       -- Wait for next bit
-      if not v_frame_started then
+      if not v_error_flag_started then
         -- Wait for first falling edge if we are not in a frame already
         wait until can_rx = '0' for baud_period;
 
         if can_rx = '0' then
           wait for sample_point_time;
-          v_frame_started := true;
+          v_error_flag_started := true;
         end if;
       else
         wait for baud_period;
@@ -618,5 +633,95 @@ package body can_uvvm_bfm_pkg is
           v_proc_call.all & "Failed. Timeout. " & msg, scope);
 
   end procedure can_uvvm_recv_active_error_flag;
+
+
+  procedure can_uvvm_recv_passive_error_flag (
+    constant timeout_baud_periods : in natural;
+    constant msg                  : in string;
+    signal   can_rx               : in std_logic;
+    constant config               : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    constant scope                : in string                := C_SCOPE;
+    constant msg_id_panel         : in t_msg_id_panel        := shared_msg_id_panel
+    )
+  is
+    variable v_proc_call : line;
+    variable v_error_msg : line;
+
+    variable v_bauds_waited       : natural := 0;
+    variable v_can_rx_prev        : std_logic;
+    variable v_error_flag_started : boolean := false;
+    variable v_recessive_count    : natural := 0;
+    constant baud_period          : time    := 1 sec / config.can_config.bit_rate;
+    constant num_time_quanta      : natural := config.can_config.sync_quanta +
+                                          config.can_config.prop_quanta +
+                                          config.can_config.phase1_quanta +
+                                          config.can_config.phase2_quanta;
+    constant sample_point_quanta : natural := config.can_config.sync_quanta +
+                                              config.can_config.prop_quanta +
+                                              config.can_config.phase1_quanta;
+    constant sample_point_time : time    := (baud_period*sample_point_quanta)/num_time_quanta;
+    constant error_flag_length : natural := 6;
+  begin
+
+    -- Format procedure call string
+    write(v_proc_call, to_string("can_uvvm_recv_error_flag() => "));
+
+    if can_rx = '1' then
+      v_error_flag_started := true;
+      v_can_rx_prev   := '0';
+    end if;
+
+
+    while v_bauds_waited < timeout_baud_periods+1 or v_error_flag_started = true loop
+
+      if v_error_flag_started and v_can_rx_prev = can_rx then
+        -- In frame and receiving consecutive bits of same value -> increase counter
+        if can_rx = '1' then
+          v_recessive_count := v_recessive_count + 1;
+        end if;
+      elsif v_error_flag_started and v_can_rx_prev /= can_rx then
+        -- Bit transition in frame, reset counters
+        if can_rx = '1' then
+          v_recessive_count    := 1;
+          v_error_flag_started := true;
+        else
+          v_error_flag_started := false;
+        end if;
+      else
+        -- Not in a frame
+        v_recessive_count := 0;
+      end if;
+
+
+      if v_recessive_count = error_flag_length then
+        -- Got passive error flag
+          log(config.id_for_bfm,
+              v_proc_call.all & "Ok. Got passive error flag. " & msg,
+              scope, msg_id_panel);
+          return;
+      end if;
+
+      v_can_rx_prev := can_rx;
+
+      -- Wait for next bit
+      if not v_error_flag_started then
+        -- Wait for first falling edge if we are not in a frame already
+        wait until can_rx = '1' for baud_period;
+
+        if can_rx = '1' then
+          wait for sample_point_time;
+          v_error_flag_started := true;
+        end if;
+      else
+        wait for baud_period;
+      end if;
+
+      v_bauds_waited := v_bauds_waited + 1;
+    end loop;
+
+    alert(config.error_flag_timeout_severity,
+          v_proc_call.all & "Failed. Timeout. " & msg, scope);
+
+  end procedure can_uvvm_recv_passive_error_flag;
 
 end package body can_uvvm_bfm_pkg;

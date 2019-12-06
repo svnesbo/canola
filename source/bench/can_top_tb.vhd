@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-12-05
+-- Last update: 2019-12-06
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -339,11 +339,15 @@ begin
 
     variable v_arb_lost_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_ack_recv_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_msg_count         : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+
+    variable v_rand_baud_delay : natural;
+    variable v_rand_real       : real;
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -1284,8 +1288,143 @@ begin
 
     end loop;
 
+
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #11: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
+    log(ID_LOG_HDR, "Test #12: Test that BUS OFF state is reached after too many Tx errors", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+
+    -- In this test the CAN controller sends messages, but receives no ACK.
+    -- This should increase the transmit error counter to the error passive threshold,
+    -- causing the controller to become error passive. But the counter should not
+    -- increase further on missing ACK after that.
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    v_can_bfm_config.ack_missing_severity := FAILURE;
+
+    while s_can_ctrl_error_state /= BUS_OFF loop
+      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+      v_tx_error_count := s_can_ctrl_reg_tx_error_count;
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      for i in 0 to 7 loop
+        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+      end loop;
+
+      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      log(ID_SEQUENCER, "Transmit from CAN controller", C_SCOPE);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl_tx_start <= '1';
+      wait for 0 ns;  -- Delta cycle only
+      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      -- Wait till we're after the (extended) arbitration field
+      wait until << signal INST_can_top.INST_can_frame_tx_fsm.s_fsm_state : work.can_pkg.can_frame_tx_fsm_t >>
+        = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
+
+      uniform(seed1, seed2, v_rand_real);
+
+      -- Wait for a random number of bauds, from 0 to 8
+      v_rand_baud_delay := natural(round(v_rand_real * real(8)));
+      wait for v_rand_baud_delay*C_CAN_BAUD_PERIOD;
+
+      wait until s_can_bfm_rx = '0' for 7*C_CAN_BAUD_PERIOD;
+      -- Wait till beginning of a high bit from CAN controller
+      wait until rising_edge(s_can_bfm_rx) for 6*C_CAN_BAUD_PERIOD;
+
+      check_value(s_can_bfm_rx, '1', error,
+                  "Waited for 6 bauds and no high bit from CAN controller");
+
+      -- Overwrite controller's high bit (recessive) with a low (dominant) value
+      s_can_bfm_tx <= '0';
+      wait for 0 ns;  -- Delta cycle only
+      s_can_bfm_tx <= transport '1' after C_CAN_BAUD_PERIOD;
+
+      wait for C_CAN_BAUD_PERIOD;
+
+      -- Controller should generate an error flag
+      if s_can_ctrl_error_state = ERROR_ACTIVE then
+        can_uvvm_recv_active_error_flag(0, -- Expect error active flag immediately in ERROR ACTIVE
+                                        "Expect active error flag when controller is error active",
+                                        s_can_bfm_rx);
+      elsif s_can_ctrl_error_state = ERROR_PASSIVE then
+
+        can_uvvm_recv_passive_error_flag(0, -- Expect error passive flag immediately in ERROR PASSIVE
+                                        "Expect passive error flag when controller is error passive",
+                                        s_can_bfm_rx);
+      end if;
+
+      -- Wait beyond IFS after error flag
+      wait until s_can_ctrl_tx_busy = '0' for (C_IFS_LENGTH+1)*C_CAN_BAUD_PERIOD;
+
+      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy");
+
+      -- Arbitration loss count should not have increased
+      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+                  error, "Check arbitration loss count in CAN controller.");
+
+      -- Ack received count should not have increased
+      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+                  error, "Check ACK received count in CAN controller.");
+
+      -- Tx error should have increased
+      check_value(unsigned(s_can_ctrl_reg_tx_error_count), unsigned(v_tx_error_count)+1,
+                  error, "Check Tx error increase in CAN controller.");
+
+      check_value(to_integer(s_can_ctrl_transmit_error_count), (v_test_num+1)*8,
+                  error, "Check that transmit error count increase by 8");
+
+      if unsigned(s_can_ctrl_transmit_error_count) >= C_BUS_OFF_THRESHOLD then
+        check_value(s_can_ctrl_error_state, BUS_OFF, error, "Check error state.");
+      elsif unsigned(s_can_ctrl_transmit_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check error state.");
+      else
+        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check error state.");
+      end if;
+
+      v_test_num := v_test_num + 1;
+
+    end loop;
+
+    ----------------------------------------------------------------------------
+    -- Controller should now be in BUS OFF state. Test that it will not transmit
+    ----------------------------------------------------------------------------
+    check_value(s_can_ctrl_error_state, BUS_OFF, error, "Check error state.");
+
+    wait for 6*C_CAN_BAUD_PERIOD;
+
+    log(ID_SEQUENCER, "Attempt transmit with CAN controller in BUS OFF", C_SCOPE);
+
+    -- Start transmitting from CAN controller
+    wait until falling_edge(s_clk);
+    s_can_ctrl_tx_start <= '1';
+    wait for 0 ns;  -- Delta cycle only
+    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+
+    wait until s_can_bfm_rx = '0' for 200*C_CAN_BAUD_PERIOD;
+    check_value(s_can_bfm_rx, '1', error, "Check that no dominant bits were transmitted");
+
+    -- Todo:
+    -- Test that CAN controller returns to ERROR_PASSIVE after receiving
+    -- 11 consecutive '1' bits X number of times
+
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #13: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     -- Send some messages from BFM with wrong CRC or something, to increase error counters
     -- beyond error passive threshold
@@ -1294,7 +1433,7 @@ begin
     -- Check that controller returns to error active after succesfully receiving some messages
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #12: Test BUS OFF state when transmitting", C_SCOPE);
+    log(ID_LOG_HDR, "Test #13: Test BUS OFF state when transmitting", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     -- Find a way to overwrite CAN_RX while controller is transmitting, in
     -- order to generate tx bit/stuff errors
