@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-12-06
+-- Last update: 2019-12-09
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -63,19 +63,19 @@ entity can_frame_tx_fsm is
     TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
 
     -- Signals to/from BSP
-    BSP_TX_DATA                : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_TX_DATA_COUNT          : out natural range 0 to C_BSP_DATA_LENGTH;
-    BSP_TX_WRITE_EN            : out std_logic;
-    BSP_TX_BIT_STUFF_EN        : out std_logic;
-    BSP_TX_RX_MISMATCH         : in  std_logic;
-    BSP_TX_RX_STUFF_MISMATCH   : in  std_logic;
-    BSP_TX_DONE                : in  std_logic;
-    BSP_TX_CRC_CALC            : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-    BSP_TX_ACTIVE              : out std_logic;
-    BSP_RX_ACTIVE              : in  std_logic;
-    BSP_SEND_ERROR_FLAG        : out std_logic;
-    BSP_ERROR_FLAG_DONE        : in  std_logic;
-    BSP_ERROR_FLAG_BIT_ERROR   : in  std_logic;
+    BSP_TX_DATA                     : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
+    BSP_TX_DATA_COUNT               : out natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_TX_WRITE_EN                 : out std_logic;
+    BSP_TX_BIT_STUFF_EN             : out std_logic;
+    BSP_TX_RX_MISMATCH              : in  std_logic;
+    BSP_TX_RX_STUFF_MISMATCH        : in  std_logic;
+    BSP_TX_DONE                     : in  std_logic;
+    BSP_TX_CRC_CALC                 : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_TX_ACTIVE                   : out std_logic;
+    BSP_RX_ACTIVE                   : in  std_logic;
+    BSP_SEND_ERROR_FLAG             : out std_logic;
+    BSP_ERROR_FLAG_DONE             : in  std_logic;
+    BSP_ACTIVE_ERROR_FLAG_BIT_ERROR : in  std_logic;
 
     -- Signals to/from EML
     EML_TX_BIT_ERROR                   : out std_logic;  -- Mismatch transmitted vs. monitored bit
@@ -492,7 +492,7 @@ begin  -- architecture rtl
             s_fsm_state         <= ST_SEND_ERROR_FLAG;
 
           when ST_SEND_ERROR_FLAG =>
-            if s_eml_error_state = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+            if s_eml_error_state = ERROR_ACTIVE and BSP_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
               -- CAN specification 7.1:
               -- Bit errors while sending active error flag should be detected,
               -- and leads to an increase in transmit error count by 8 in the EML

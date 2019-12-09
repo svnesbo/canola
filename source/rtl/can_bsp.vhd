@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-12-02
+-- Last update: 2019-12-09
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -109,10 +109,9 @@ entity can_bsp is
                                                 -- whatever it is doing, and sends
                                                 -- an error flag. The type of flag
                                                 -- depends on BSP_ERROR_STATE input
-    BSP_ERROR_FLAG_DONE       : out std_logic;  -- Pulsed
-    BSP_ERROR_FLAG_BIT_ERROR  : out std_logic;  -- Bit error was detected while
-                                                -- transmitting error flag
-                                                -- Note: Only for ACTIVE error flag
+    BSP_ERROR_FLAG_DONE             : out std_logic;  -- Pulsed
+    BSP_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;  -- Bit error was detected while
+                                                      -- transmitting active error flag
 
     -- Interface to EML
     EML_ERROR_STATE           : in  can_error_state_t;  -- Indicates if the CAN controller
@@ -335,29 +334,28 @@ begin  -- architecture rtl
   begin  -- process proc_tx_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        -- Ok
-        s_tx_restart_crc_pulse    <= '1';
-        s_tx_stuff_bit            <= '0';
-        s_tx_write_counter        <= 0;
-        s_tx_bit_stream_window    <= (others => '1');  -- Recessive
-        s_tx_frame_started        <= '0';
-        s_tx_error_flag_shift_reg <= (others => '0');
-        s_send_ack                <= '0';
-        BSP_TX_DONE               <= '0';
-        BTL_TX_BIT_VALUE          <= '1'; -- Recessive
-        BTL_TX_BIT_VALID          <= '0';
-        BSP_TX_RX_MISMATCH        <= '0';
-        BSP_TX_RX_STUFF_MISMATCH  <= '0';
-        BSP_ERROR_FLAG_BIT_ERROR  <= '0';
-        BSP_ERROR_FLAG_DONE      <= '0';
+        s_tx_restart_crc_pulse          <= '1';
+        s_tx_stuff_bit                  <= '0';
+        s_tx_write_counter              <= 0;
+        s_tx_bit_stream_window          <= (others => '1');  -- Recessive
+        s_tx_frame_started              <= '0';
+        s_tx_error_flag_shift_reg       <= (others => '0');
+        s_send_ack                      <= '0';
+        BSP_TX_DONE                     <= '0';
+        BTL_TX_BIT_VALUE                <= '1';              -- Recessive
+        BTL_TX_BIT_VALID                <= '0';
+        BSP_TX_RX_MISMATCH              <= '0';
+        BSP_TX_RX_STUFF_MISMATCH        <= '0';
+        BSP_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+        BSP_ERROR_FLAG_DONE             <= '0';
       else
-        s_tx_restart_crc_pulse   <= '0';
-        BTL_TX_BIT_VALID         <= '0';
-        BSP_TX_DONE              <= '0';
-        BSP_TX_RX_MISMATCH       <= '0';
-        BSP_TX_RX_STUFF_MISMATCH <= '0';
-        BSP_ERROR_FLAG_BIT_ERROR <= '0';
-        BSP_ERROR_FLAG_DONE      <= '0';
+        s_tx_restart_crc_pulse          <= '0';
+        BTL_TX_BIT_VALID                <= '0';
+        BSP_TX_DONE                     <= '0';
+        BSP_TX_RX_MISMATCH              <= '0';
+        BSP_TX_RX_STUFF_MISMATCH        <= '0';
+        BSP_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+        BSP_ERROR_FLAG_DONE             <= '0';
 
         case s_tx_fsm_state is
           when ST_IDLE =>
@@ -456,8 +454,20 @@ begin  -- architecture rtl
             if BTL_RX_BIT_VALID = '1' then
               -- Tx/Rx mismatch?
               if BTL_TX_BIT_VALUE /= BTL_RX_BIT_VALUE then
-                if s_tx_send_error_flag = '1' then
-                  BSP_ERROR_FLAG_BIT_ERROR <= '1';
+                -- Tx/Rx mismatch while sending active error flag?
+                if s_tx_send_error_flag = '1' and BTL_TX_BIT_VALUE = '0' then
+                  BSP_ACTIVE_ERROR_FLAG_BIT_ERROR <= '1';
+
+                -- Tx/Rx mismatch while sending passive error flag?
+                elsif s_tx_send_error_flag = '1' and BTL_TX_BIT_VALUE = '1' then
+                  -- The CAN 2.0B specification requires the transmitter of passive
+                  -- error flag to keep trying to send it until it observes the
+                  -- 6 recessive bits of the error flag on the bus (see 3.2.3 Error Frame)
+
+                  -- Restart passive error flag by reinitializing the shift reg used
+                  -- to clock out the error flag bits
+                  s_tx_error_flag_shift_reg    <= (others => '0');
+                  s_tx_error_flag_shift_reg(0) <= '1';
                 elsif s_tx_stuff_bit = '1' then
                   BSP_TX_RX_STUFF_MISMATCH <= '1';
                 else

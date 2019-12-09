@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-12-02
+-- Last update: 2019-12-09
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -77,10 +77,9 @@ entity can_frame_rx_fsm is
     BSP_SEND_ERROR_FLAG       : out std_logic;  -- When pulsed, BSP cancels
                                                 -- whatever it is doing, and sends
                                                 -- an error flag of 6 bits
-    BSP_ERROR_FLAG_DONE       : in  std_logic;  -- Pulsed
-    BSP_ERROR_FLAG_BIT_ERROR  : in  std_logic;  -- Bit error was detected while
-                                                -- transmitting error flag
-                                                -- Note: Only for ACTIVE error flag
+    BSP_ERROR_FLAG_DONE             : in std_logic;  -- Pulsed
+    BSP_ACTIVE_ERROR_FLAG_BIT_ERROR : in std_logic;  -- Bit error was detected while
+                                                     -- transmitting active error flag
 
     -- Signals from BTL
     BTL_RX_BIT_VALID          : in  std_logic;
@@ -167,28 +166,30 @@ begin  -- architecture rtl
           s_reg_rx_msg.data(0) <= (others => '0');
         end loop;
 
-        s_fsm_state                      <= ST_IDLE;
-        s_crc_mismatch                   <= '0';
-        s_reg_msg_recv_counter           <= (others => '0');
-        s_reg_crc_error_counter          <= (others => '0');
-        s_reg_form_error_counter         <= (others => '0');
-        s_reg_stuff_error_counter        <= (others => '0');
-        s_rx_active_error_flag_bit_error <= '0';
-        BSP_RX_BIT_DESTUFF_EN            <= '1';
-        BSP_RX_STOP                      <= '0';
-        RX_MSG_VALID                     <= '0';
-        EML_RX_STUFF_ERROR               <= '0';
-        EML_RX_CRC_ERROR                 <= '0';
-        EML_RX_FORM_ERROR                <= '0';
+        s_fsm_state                        <= ST_IDLE;
+        s_crc_mismatch                     <= '0';
+        s_reg_msg_recv_counter             <= (others => '0');
+        s_reg_crc_error_counter            <= (others => '0');
+        s_reg_form_error_counter           <= (others => '0');
+        s_reg_stuff_error_counter          <= (others => '0');
+        s_rx_active_error_flag_bit_error   <= '0';
+        BSP_RX_BIT_DESTUFF_EN              <= '1';
+        BSP_RX_STOP                        <= '0';
+        RX_MSG_VALID                       <= '0';
+        EML_RX_STUFF_ERROR                 <= '0';
+        EML_RX_CRC_ERROR                   <= '0';
+        EML_RX_FORM_ERROR                  <= '0';
+        EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
       else
-        RX_MSG_VALID          <= '0';
-        BSP_RX_SEND_ACK       <= '0';
-        BSP_RX_DATA_CLEAR     <= '0';
-        BSP_RX_BIT_DESTUFF_EN <= '1';
-        BSP_RX_STOP           <= '0';
-        EML_RX_STUFF_ERROR    <= '0';
-        EML_RX_CRC_ERROR      <= '0';
-        EML_RX_FORM_ERROR     <= '0';
+        RX_MSG_VALID                       <= '0';
+        BSP_RX_SEND_ACK                    <= '0';
+        BSP_RX_DATA_CLEAR                  <= '0';
+        BSP_RX_BIT_DESTUFF_EN              <= '1';
+        BSP_RX_STOP                        <= '0';
+        EML_RX_STUFF_ERROR                 <= '0';
+        EML_RX_CRC_ERROR                   <= '0';
+        EML_RX_FORM_ERROR                  <= '0';
+        EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
 
         -- Tx FSM is transmitting message, and won arbitration
         if TX_ARB_WON = '1' then
@@ -539,7 +540,7 @@ begin  -- architecture rtl
           when ST_WAIT_ERROR_FLAG =>
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if s_eml_error_state = ERROR_ACTIVE and BSP_ERROR_FLAG_BIT_ERROR = '1' then
+            if s_eml_error_state = ERROR_ACTIVE and BSP_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
               EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= not s_rx_active_error_flag_bit_error;
 
               -- Send only one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR per

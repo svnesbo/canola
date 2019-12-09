@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-12-02
+-- Last update: 2019-12-09
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -120,14 +120,14 @@ architecture struct of can_top is
   signal s_bsp_rx_send_ack             : std_logic;
 
   -- BSP interface for error flag
-  signal s_bsp_send_error_flag         : std_logic;
-  signal s_bsp_send_error_flag_tx_fsm  : std_logic;
-  signal s_bsp_send_error_flag_rx_fsm  : std_logic;
-  signal s_bsp_rx_active_error_flag    : std_logic;
-  signal s_bsp_rx_passive_error_flag   : std_logic;
-  signal s_bsp_error_flag_done         : std_logic;
-  signal s_bsp_error_flag_bit_error    : std_logic;
-  signal s_bsp_error_state             : can_error_state_t;
+  signal s_bsp_send_error_flag             : std_logic;
+  signal s_bsp_send_error_flag_tx_fsm      : std_logic;
+  signal s_bsp_send_error_flag_rx_fsm      : std_logic;
+  signal s_bsp_rx_active_error_flag        : std_logic;
+  signal s_bsp_rx_passive_error_flag       : std_logic;
+  signal s_bsp_error_flag_done             : std_logic;
+  signal s_bsp_active_error_flag_bit_error : std_logic;
+  signal s_bsp_error_state                 : can_error_state_t;
 
   -- BTL signals
   signal s_btl_tx_bit_value    : std_logic;
@@ -195,7 +195,7 @@ begin  -- architecture struct
       BSP_RX_ACTIVE                      => s_bsp_rx_active,
       BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE                => s_bsp_error_flag_done,
-      BSP_ERROR_FLAG_BIT_ERROR           => s_bsp_error_flag_bit_error,
+      BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
       EML_TX_BIT_ERROR                   => s_eml_tx_bit_error,
       EML_TX_ACK_ERROR                   => s_eml_tx_ack_error,
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
@@ -212,36 +212,37 @@ begin  -- architecture struct
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
     port map (
-      CLK                       => CLK,
-      RESET                     => RESET,
-      RX_MSG_OUT                => RX_MSG,
-      RX_MSG_VALID              => RX_MSG_VALID,
-      TX_ARB_WON                => s_tx_fsm_arb_won,
-      BSP_RX_ACTIVE             => s_bsp_rx_active,
-      BSP_RX_IFS                => s_bsp_rx_ifs,
-      BSP_RX_DATA               => s_bsp_rx_data,
-      BSP_RX_DATA_COUNT         => s_bsp_rx_data_count,
-      BSP_RX_DATA_CLEAR         => s_bsp_rx_data_clear,
-      BSP_RX_DATA_OVERFLOW      => s_bsp_rx_data_overflow,
-      BSP_RX_BIT_DESTUFF_EN     => s_bsp_rx_bit_destuff_en,
-      BSP_RX_STOP               => s_bsp_rx_stop,
-      BSP_RX_CRC_CALC           => s_bsp_rx_crc_calc,
-      BSP_RX_SEND_ACK           => s_bsp_rx_send_ack,
-      BSP_RX_ACTIVE_ERROR_FLAG  => s_bsp_rx_active_error_flag,
-      BSP_RX_PASSIVE_ERROR_FLAG => s_bsp_rx_passive_error_flag,
-      BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag_rx_fsm,
-      BSP_ERROR_FLAG_DONE       => s_bsp_error_flag_done,
-      BSP_ERROR_FLAG_BIT_ERROR  => s_bsp_error_flag_bit_error,
-      BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
-      BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
-      EML_RX_STUFF_ERROR        => s_eml_rx_stuff_error,
-      EML_RX_CRC_ERROR          => s_eml_rx_crc_error,
-      EML_RX_FORM_ERROR         => s_eml_rx_form_error,
-      EML_ERROR_STATE           => s_eml_error_state,
-      REG_MSG_RECV_COUNT        => REG_RX_MSG_RECV_COUNT,
-      REG_CRC_ERROR_COUNT       => REG_RX_CRC_ERROR_COUNT,
-      REG_FORM_ERROR_COUNT      => REG_RX_FORM_ERROR_COUNT,
-      REG_STUFF_ERROR_COUNT     => REG_RX_STUFF_ERROR_COUNT);
+      CLK                                => CLK,
+      RESET                              => RESET,
+      RX_MSG_OUT                         => RX_MSG,
+      RX_MSG_VALID                       => RX_MSG_VALID,
+      TX_ARB_WON                         => s_tx_fsm_arb_won,
+      BSP_RX_ACTIVE                      => s_bsp_rx_active,
+      BSP_RX_IFS                         => s_bsp_rx_ifs,
+      BSP_RX_DATA                        => s_bsp_rx_data,
+      BSP_RX_DATA_COUNT                  => s_bsp_rx_data_count,
+      BSP_RX_DATA_CLEAR                  => s_bsp_rx_data_clear,
+      BSP_RX_DATA_OVERFLOW               => s_bsp_rx_data_overflow,
+      BSP_RX_BIT_DESTUFF_EN              => s_bsp_rx_bit_destuff_en,
+      BSP_RX_STOP                        => s_bsp_rx_stop,
+      BSP_RX_CRC_CALC                    => s_bsp_rx_crc_calc,
+      BSP_RX_SEND_ACK                    => s_bsp_rx_send_ack,
+      BSP_RX_ACTIVE_ERROR_FLAG           => s_bsp_rx_active_error_flag,
+      BSP_RX_PASSIVE_ERROR_FLAG          => s_bsp_rx_passive_error_flag,
+      BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_rx_fsm,
+      BSP_ERROR_FLAG_DONE                => s_bsp_error_flag_done,
+      BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
+      BTL_RX_BIT_VALUE                   => s_btl_rx_bit_value,
+      BTL_RX_BIT_VALID                   => s_btl_rx_bit_valid,
+      EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error,
+      EML_RX_CRC_ERROR                   => s_eml_rx_crc_error,
+      EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
+      EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error,
+      EML_ERROR_STATE                    => s_eml_error_state,
+      REG_MSG_RECV_COUNT                 => REG_RX_MSG_RECV_COUNT,
+      REG_CRC_ERROR_COUNT                => REG_RX_CRC_ERROR_COUNT,
+      REG_FORM_ERROR_COUNT               => REG_RX_FORM_ERROR_COUNT,
+      REG_STUFF_ERROR_COUNT              => REG_RX_STUFF_ERROR_COUNT);
 
   -- Bit Stream Processor (BSP)
   -- Responsible for bit stuffing/destuffing and
@@ -249,41 +250,41 @@ begin  -- architecture struct
   -- Acts as a layer between the BTL and Tx/Rx state machines
   INST_can_bsp : entity work.can_bsp
     port map (
-      CLK                       => CLK,
-      RESET                     => RESET,
-      BSP_TX_DATA               => s_bsp_tx_data,
-      BSP_TX_DATA_COUNT         => s_bsp_tx_data_count,
-      BSP_TX_WRITE_EN           => s_bsp_tx_write_en,
-      BSP_TX_BIT_STUFF_EN       => s_bsp_tx_bit_stuff_en,
-      BSP_TX_RX_MISMATCH        => s_bsp_tx_rx_mismatch,
-      BSP_TX_RX_STUFF_MISMATCH  => s_bsp_tx_rx_stuff_mismatch,
-      BSP_TX_DONE               => s_bsp_tx_done,
-      BSP_TX_CRC_CALC           => s_bsp_tx_crc_calc,
-      BSP_TX_ACTIVE             => s_bsp_tx_active,
-      BSP_RX_ACTIVE             => s_bsp_rx_active,
-      BSP_RX_IFS                => s_bsp_rx_ifs,
-      BSP_RX_DATA               => s_bsp_rx_data,
-      BSP_RX_DATA_COUNT         => s_bsp_rx_data_count,
-      BSP_RX_DATA_CLEAR         => s_bsp_rx_data_clear,
-      BSP_RX_DATA_OVERFLOW      => s_bsp_rx_data_overflow,
-      BSP_RX_BIT_DESTUFF_EN     => s_bsp_rx_bit_destuff_en,
-      BSP_RX_STOP               => s_bsp_rx_stop,
-      BSP_RX_CRC_CALC           => s_bsp_rx_crc_calc,
-      BSP_RX_SEND_ACK           => s_bsp_rx_send_ack,
-      BSP_RX_ACTIVE_ERROR_FLAG  => s_bsp_rx_active_error_flag,
-      BSP_RX_PASSIVE_ERROR_FLAG => s_bsp_rx_passive_error_flag,
-      BSP_SEND_ERROR_FLAG       => s_bsp_send_error_flag,
-      BSP_ERROR_FLAG_DONE       => s_bsp_error_flag_done,
-      BSP_ERROR_FLAG_BIT_ERROR  => s_bsp_error_flag_bit_error,
-      EML_ERROR_STATE           => s_eml_error_state,
-      BTL_TX_BIT_VALUE          => s_btl_tx_bit_value,
-      BTL_TX_BIT_VALID          => s_btl_tx_bit_valid,
-      BTL_TX_RDY                => s_btl_tx_rdy,
-      BTL_TX_DONE               => s_btl_tx_done,
-      BTL_RX_BIT_VALUE          => s_btl_rx_bit_value,
-      BTL_RX_BIT_VALID          => s_btl_rx_bit_valid,
-      BTL_RX_SYNCED             => s_btl_rx_synced,
-      BTL_RX_STOP               => s_btl_rx_stop);
+      CLK                             => CLK,
+      RESET                           => RESET,
+      BSP_TX_DATA                     => s_bsp_tx_data,
+      BSP_TX_DATA_COUNT               => s_bsp_tx_data_count,
+      BSP_TX_WRITE_EN                 => s_bsp_tx_write_en,
+      BSP_TX_BIT_STUFF_EN             => s_bsp_tx_bit_stuff_en,
+      BSP_TX_RX_MISMATCH              => s_bsp_tx_rx_mismatch,
+      BSP_TX_RX_STUFF_MISMATCH        => s_bsp_tx_rx_stuff_mismatch,
+      BSP_TX_DONE                     => s_bsp_tx_done,
+      BSP_TX_CRC_CALC                 => s_bsp_tx_crc_calc,
+      BSP_TX_ACTIVE                   => s_bsp_tx_active,
+      BSP_RX_ACTIVE                   => s_bsp_rx_active,
+      BSP_RX_IFS                      => s_bsp_rx_ifs,
+      BSP_RX_DATA                     => s_bsp_rx_data,
+      BSP_RX_DATA_COUNT               => s_bsp_rx_data_count,
+      BSP_RX_DATA_CLEAR               => s_bsp_rx_data_clear,
+      BSP_RX_DATA_OVERFLOW            => s_bsp_rx_data_overflow,
+      BSP_RX_BIT_DESTUFF_EN           => s_bsp_rx_bit_destuff_en,
+      BSP_RX_STOP                     => s_bsp_rx_stop,
+      BSP_RX_CRC_CALC                 => s_bsp_rx_crc_calc,
+      BSP_RX_SEND_ACK                 => s_bsp_rx_send_ack,
+      BSP_RX_ACTIVE_ERROR_FLAG        => s_bsp_rx_active_error_flag,
+      BSP_RX_PASSIVE_ERROR_FLAG       => s_bsp_rx_passive_error_flag,
+      BSP_SEND_ERROR_FLAG             => s_bsp_send_error_flag,
+      BSP_ERROR_FLAG_DONE             => s_bsp_error_flag_done,
+      BSP_ACTIVE_ERROR_FLAG_BIT_ERROR => s_bsp_active_error_flag_bit_error,
+      EML_ERROR_STATE                 => s_eml_error_state,
+      BTL_TX_BIT_VALUE                => s_btl_tx_bit_value,
+      BTL_TX_BIT_VALID                => s_btl_tx_bit_valid,
+      BTL_TX_RDY                      => s_btl_tx_rdy,
+      BTL_TX_DONE                     => s_btl_tx_done,
+      BTL_RX_BIT_VALUE                => s_btl_rx_bit_value,
+      BTL_RX_BIT_VALID                => s_btl_rx_bit_valid,
+      BTL_RX_SYNCED                   => s_btl_rx_synced,
+      BTL_RX_STOP                     => s_btl_rx_stop);
 
   s_btl_tx_active <= s_bsp_tx_active;
 

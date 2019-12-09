@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-09-19
+-- Last update: 2019-12-09
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -179,6 +179,7 @@ begin  -- architecture rtl
           -- Don't start counts of 11 recessive bit sequences
           -- before we are in bus off
           v_receive_11_recessive_bits_count := (others => '0');
+          v_exit_bus_off                    := '0';
         end if;
 
         ------------------------------------------------------------------------
