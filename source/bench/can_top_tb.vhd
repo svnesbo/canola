@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-12-06
+-- Last update: 2019-12-09
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -964,9 +964,9 @@ begin
                                    v_xmit_ext_id,
                                    '0');  -- Don't allow remote frame
 
-      -- Minimum 1 byte data length
-      -- Force the first byte to one value to make it possible for
-      -- can_uvvm_write to generate stuff errors in the frame.
+      -- Ensure that message will have at least one stuff bit,
+      -- by forcing data frames with minimum 1 byte data length
+      v_xmit_remote_frame := '0';
       if v_xmit_data_length = 0 then
         v_xmit_data_length := 1;
       end if;
@@ -1426,24 +1426,151 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #13: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
     -----------------------------------------------------------------------------------------------
+    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+    v_test_num := 0;
+
+    -- Generate errors till receive error count saturates
+    while unsigned(s_can_ctrl_receive_error_count) < C_BUS_OFF_THRESHOLD loop
+      v_can_bfm_config.crc_error_severity   := NO_ALERT;
+      v_can_bfm_config.form_error_severity  := NO_ALERT;
+      v_can_bfm_config.ack_missing_severity := NO_ALERT;
+
+      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl_receive_error_count;
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      -- Alternate between generating CRC, stuff and form errors
+      if v_test_num mod 3 = 0 then
+        v_can_rx_error_gen := (crc_error   => true,
+                               stuff_error => false,
+                               form_error  => false);
+
+        can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                       v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                       v_xmit_ext_id,
+                       v_xmit_remote_frame,
+                       v_xmit_data,
+                       v_xmit_data_length,
+                       "Send message with CRC error with CAN BFM",
+                       s_clk,
+                       s_can_bfm_tx,
+                       s_can_bfm_rx,
+                       v_can_tx_status,
+                       v_can_rx_error_gen,
+                       v_can_bfm_config);
+
+      elsif v_test_num mod 3 = 1 then
+        v_can_rx_error_gen := (crc_error   => false,
+                               stuff_error => true,
+                               form_error  => false);
+
+        -- Ensure that message will have at least one stuff bit,
+        -- by forcing data frames with minimum 1 byte data length
+        v_xmit_remote_frame := '0';
+        if v_xmit_data_length = 0 then
+          v_xmit_data_length := 1;
+        end if;
+        v_xmit_data(0) := (others => '1');
+
+        can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                       v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                       v_xmit_ext_id,
+                       v_xmit_remote_frame,
+                       v_xmit_data,
+                       v_xmit_data_length,
+                       "Send message with stuff error with CAN BFM",
+                       s_clk,
+                       s_can_bfm_tx,
+                       s_can_bfm_rx,
+                       v_can_tx_status,
+                       v_can_rx_error_gen,
+                       v_can_bfm_config);
+      else
+        v_can_rx_error_gen := (crc_error   => false,
+                               stuff_error => false,
+                               form_error  => true);
+
+        can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                       v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                       v_xmit_ext_id,
+                       v_xmit_remote_frame,
+                       v_xmit_data,
+                       v_xmit_data_length,
+                       "Send message with form error with CAN BFM",
+                       s_clk,
+                       s_can_bfm_tx,
+                       s_can_bfm_rx,
+                       v_can_tx_status,
+                       v_can_rx_error_gen,
+                       v_can_bfm_config);
+      end if;
+
+      wait until v_receive_error_count /= s_can_ctrl_receive_error_count
+        for 20*C_CAN_BAUD_PERIOD;
+
+      -- CRC, stuff and form errors increase receive error count by 1
+      check_value(unsigned(s_can_ctrl_receive_error_count),
+                  unsigned(v_receive_error_count)+1,
+                  error, "Check receive error count increase.");
+
+      -- Check that correct error types were detected
+      if v_can_rx_error_gen.crc_error then
+        check_value(unsigned(s_can_ctrl_reg_rx_crc_error_count),
+                    unsigned(v_rx_crc_error_count)+1,
+                    error, "Check received CRC error count in CAN controller.");
+      elsif v_can_rx_error_gen.stuff_error then
+        check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
+                    unsigned(v_rx_stuff_error_count)+1,
+                    error, "Check received stuff error count in CAN controller.");
+      else
+        check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
+                    unsigned(v_rx_form_error_count)+1,
+                    error, "Check received form error count in CAN controller.");
+      end if;
+
+      -- Check error state
+      if unsigned(s_can_ctrl_receive_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check error state.");
+      else
+        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check error state.");
+      end if;
+
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    check_value(to_integer(unsigned(s_can_ctrl_receive_error_count)), C_BUS_OFF_THRESHOLD,
+                error, "Receive error count should be at BUS OFF threshold now.");
+
+    check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Receive errors should not cause BUS OFF");
+
+    v_can_bfm_config.crc_error_severity   := FAILURE;
+    v_can_bfm_config.form_error_severity  := FAILURE;
+
     -- Send some messages from BFM with wrong CRC or something, to increase error counters
     -- beyond error passive threshold
     -- Check that controller becomes error passive
     -- Check that controller sends passive error flags on errors now
     -- Check that controller returns to error active after succesfully receiving some messages
-
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test #13: Test BUS OFF state when transmitting", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
-    -- Find a way to overwrite CAN_RX while controller is transmitting, in
-    -- order to generate tx bit/stuff errors
-    -- Verify that controller becomes error passive, and eventually BUS OFF
-    -- Verify that after 128 x 11 consecutive recessive bits, controller
-    -- returns to error passive (just wait for sufficiently long)
-    -- Bring controller into BUS OFF again
-    -- Transmit messages with BFM, with some gaps in between, and verify that
-    -- controller returns to error passive again at some point
-    -- Verify that controller can not transmit while in BUS OFF state
 
 
     -----------------------------------------------------------------------------------------------
