@@ -5,7 +5,7 @@
 -- File       : can_axi_slave_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
--- Created    : 2019-08-05
+-- Created    : 2019-12-17
 -- Last update: 2019-12-17
 -- Platform   :
 -- Target     :
