@@ -85,11 +85,11 @@ package canola_axi_slave_pif_pkg is
     CONFIG => (
       TX_RETRANSMIT_EN => '0',
       BTL_TRIPLE_SAMPLING_EN => '0'),
-    BTL_PROP_SEG => (others => '0'),
-    BTL_PHASE_SEG1 => (others => '0'),
-    BTL_PHASE_SEG2 => (others => '0'),
-    BTL_SYNC_JUMP_WIDTH => (others => '0'),
-    BTL_TIME_QUANTA_CLOCK_SCALE => (others => '0'),
+    BTL_PROP_SEG => 16X"7",
+    BTL_PHASE_SEG1 => 16X"7",
+    BTL_PHASE_SEG2 => 16X"7",
+    BTL_SYNC_JUMP_WIDTH => 2X"1",
+    BTL_TIME_QUANTA_CLOCK_SCALE => 8X"F",
     TX_MSG_ID => (
       EXT_ID_EN => '0',
       RTR_EN => '0',

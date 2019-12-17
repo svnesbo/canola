@@ -84,7 +84,7 @@
             "type": "slv",
             "address": "0x20",
             "length": 16,
-            "reset": "0x0",
+            "reset": "0x7",
             "description": "Propagation bit timing segment"
         },
         {
@@ -93,7 +93,7 @@
             "type": "slv",
             "address": "0x24",
             "length": 16,
-            "reset": "0x0",
+            "reset": "0x7",
             "description": "Phase 1 bit timing segment"
         },
         {
@@ -102,7 +102,7 @@
             "type": "slv",
             "address": "0x28",
             "length": 16,
-            "reset": "0x0",
+            "reset": "0x7",
             "description": "Phase segment 2 of bit timing"
         },
         {
@@ -111,7 +111,7 @@
             "type": "slv",
             "address": "0x2c",
             "length": 2,
-            "reset": "0x0",
+            "reset": "0x1",
             "description": "Synchronization jump width"
         },
         {
@@ -120,7 +120,7 @@
             "type": "slv",
             "address": "0x30",
             "length": 8,
-            "reset": "0x0",
+            "reset": "0xF",
             "description": "Clock prescale ratio for time quanta generator"
         },
         {

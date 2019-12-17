@@ -53,15 +53,15 @@ AXI-Lite slave for Canola CAN Controller
       \hline
       2 & CONFIG & RW & \texttt{0x00000008} & FIELDS & 2 & \texttt{0x0} \\
       \hline
-      3 & BTL{\_}PROP{\_}SEG & RW & \texttt{0x00000020} & SLV & 16 & \texttt{0x0} \\
+      3 & BTL{\_}PROP{\_}SEG & RW & \texttt{0x00000020} & SLV & 16 & \texttt{0x7} \\
       \hline
-      4 & BTL{\_}PHASE{\_}SEG1 & RW & \texttt{0x00000024} & SLV & 16 & \texttt{0x0} \\
+      4 & BTL{\_}PHASE{\_}SEG1 & RW & \texttt{0x00000024} & SLV & 16 & \texttt{0x7} \\
       \hline
-      5 & BTL{\_}PHASE{\_}SEG2 & RW & \texttt{0x00000028} & SLV & 16 & \texttt{0x0} \\
+      5 & BTL{\_}PHASE{\_}SEG2 & RW & \texttt{0x00000028} & SLV & 16 & \texttt{0x7} \\
       \hline
-      6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 2 & \texttt{0x0} \\
+      6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 2 & \texttt{0x1} \\
       \hline
-      7 & BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0x0} \\
+      7 & BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0xF} \\
       \hline
       8 & TRANSMIT{\_}ERROR{\_}COUNT & RO & \texttt{0x00000034} & SLV & 16 & \texttt{0x0} \\
       \hline
@@ -140,35 +140,35 @@ AXI-Lite slave for Canola CAN Controller
 \begin{register}{H}{BTL{\_}PROP{\_}SEG - RW}{0x00000020}  \par Propagation bit timing segment \regnewline
   \label{BTL_PROP_SEG}
   \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{16}{0}{{0x7}}
 \reglabel{Reset}\regnewline
 \end{register}
 
 \begin{register}{H}{BTL{\_}PHASE{\_}SEG1 - RW}{0x00000024}  \par Phase 1 bit timing segment \regnewline
   \label{BTL_PHASE_SEG1}
   \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{16}{0}{{0x7}}
 \reglabel{Reset}\regnewline
 \end{register}
 
 \begin{register}{H}{BTL{\_}PHASE{\_}SEG2 - RW}{0x00000028}  \par Phase segment 2 of bit timing \regnewline
   \label{BTL_PHASE_SEG2}
   \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{16}{0}{{0x7}}
 \reglabel{Reset}\regnewline
 \end{register}
 
 \begin{register}{H}{BTL{\_}SYNC{\_}JUMP{\_}WIDTH - RW}{0x0000002C}  \par Synchronization jump width \regnewline
   \label{BTL_SYNC_JUMP_WIDTH}
   \regfield{unused}{30}{2}{-}
-  \regfield{}{2}{0}{{0x0}}
+  \regfield{}{2}{0}{{0x1}}
 \reglabel{Reset}\regnewline
 \end{register}
 
 \begin{register}{H}{BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE - RW}{0x00000030}  \par Clock prescale ratio for time quanta generator \regnewline
   \label{BTL_TIME_QUANTA_CLOCK_SCALE}
   \regfield{unused}{24}{8}{-}
-  \regfield{}{8}{0}{{0x0}}
+  \regfield{}{8}{0}{{0xF}}
 \reglabel{Reset}\regnewline
 \end{register}
 

@@ -69,23 +69,23 @@ static const uint32_t CONFIG_BTL_TRIPLE_SAMPLING_EN_MASK = 0x2;
 
 /* Register: BTL_PROP_SEG */
 static const uint32_t BTL_PROP_SEG_OFFSET = 0x20;
-static const uint32_t BTL_PROP_SEG_RESET = 0x0;
+static const uint32_t BTL_PROP_SEG_RESET = 0x7;
 
 /* Register: BTL_PHASE_SEG1 */
 static const uint32_t BTL_PHASE_SEG1_OFFSET = 0x24;
-static const uint32_t BTL_PHASE_SEG1_RESET = 0x0;
+static const uint32_t BTL_PHASE_SEG1_RESET = 0x7;
 
 /* Register: BTL_PHASE_SEG2 */
 static const uint32_t BTL_PHASE_SEG2_OFFSET = 0x28;
-static const uint32_t BTL_PHASE_SEG2_RESET = 0x0;
+static const uint32_t BTL_PHASE_SEG2_RESET = 0x7;
 
 /* Register: BTL_SYNC_JUMP_WIDTH */
 static const uint32_t BTL_SYNC_JUMP_WIDTH_OFFSET = 0x2c;
-static const uint32_t BTL_SYNC_JUMP_WIDTH_RESET = 0x0;
+static const uint32_t BTL_SYNC_JUMP_WIDTH_RESET = 0x1;
 
 /* Register: BTL_TIME_QUANTA_CLOCK_SCALE */
 static const uint32_t BTL_TIME_QUANTA_CLOCK_SCALE_OFFSET = 0x30;
-static const uint32_t BTL_TIME_QUANTA_CLOCK_SCALE_RESET = 0x0;
+static const uint32_t BTL_TIME_QUANTA_CLOCK_SCALE_RESET = 0xF;
 
 /* Register: TRANSMIT_ERROR_COUNT */
 static const uint32_t TRANSMIT_ERROR_COUNT_OFFSET = 0x34;
