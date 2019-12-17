@@ -1,0 +1,342 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{register}
+\usepackage{enumitem}
+\setlist[description]{leftmargin=\parindent,labelindent=\parindent}
+\usepackage{calc}
+\usepackage{tabularx}
+
+\usepackage{listings}
+\lstdefinelanguage{VHDL}{
+   morekeywords=[1]{
+     library,use,all,entity,is,port,in,out,end,architecture,of,
+     begin,and,others
+   },
+   morecomment=[l]--
+}
+ 
+\lstdefinestyle{vhdl}{
+   language     = VHDL,
+   basicstyle   = \ttfamily,
+}
+
+\title{canola{\_}axi{\_}slave}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{description}[leftmargin=!,labelwidth=\widthof{\bfseries Address width: }]
+\item [Address width: ] 32
+\item [Data width: ] 32
+\item [Base address: ] 0x00000000
+\end{description}
+
+
+AXI-Lite slave for Canola CAN Controller
+
+\section{Register List}
+
+\begin{table}[h!]
+  \begin{center}
+    \label{tab:table1}
+    \begin{tabularx}{\linewidth}{|l|X|l|l|l|c|l|}
+      \hline
+      \textbf{\#} & \textbf{Name} & \textbf{Mode} & \textbf{Address} & \textbf{Type} & \textbf{Length} &
+      \textbf{Reset} \\
+      \hline
+      0 & STATUS & RO & \texttt{0x00000000} & FIELDS & 6 & \texttt{0x0} \\
+      \hline
+      1 & CONTROL & PULSE & \texttt{0x00000004} & FIELDS & 1 & \texttt{0x0} \\
+      \hline
+      2 & CONFIG & RW & \texttt{0x00000008} & FIELDS & 2 & \texttt{0x0} \\
+      \hline
+      3 & BTL{\_}PROP{\_}SEG & RW & \texttt{0x00000020} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      4 & BTL{\_}PHASE{\_}SEG1 & RW & \texttt{0x00000024} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      5 & BTL{\_}PHASE{\_}SEG2 & RW & \texttt{0x00000028} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 2 & \texttt{0x0} \\
+      \hline
+      7 & BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0x0} \\
+      \hline
+      8 & TRANSMIT{\_}ERROR{\_}COUNT & RO & \texttt{0x00000034} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      9 & RECEIVE{\_}ERROR{\_}COUNT & RO & \texttt{0x00000038} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      10 & TX{\_}MSG{\_}SENT{\_}COUNT & RO & \texttt{0x0000003C} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      11 & TX{\_}ACK{\_}RECV{\_}COUNT & RO & \texttt{0x00000040} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      12 & TX{\_}ARB{\_}LOST{\_}COUNT & RO & \texttt{0x00000044} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      13 & TX{\_}ERROR{\_}COUNT & RO & \texttt{0x00000048} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      14 & RX{\_}MSG{\_}RECV{\_}COUNT & RO & \texttt{0x0000004C} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      15 & RX{\_}CRC{\_}ERROR{\_}COUNT & RO & \texttt{0x00000050} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      16 & RX{\_}FORM{\_}ERROR{\_}COUNT & RO & \texttt{0x00000054} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      17 & RX{\_}STUFF{\_}ERROR{\_}COUNT & RO & \texttt{0x00000058} & SLV & 16 & \texttt{0x0} \\
+      \hline
+      18 & TX{\_}MSG{\_}ID & RW & \texttt{0x0000005C} & FIELDS & 31 & \texttt{0x0} \\
+      \hline
+      19 & TX{\_}PAYLOAD{\_}LENGTH & RW & \texttt{0x00000060} & SLV & 4 & \texttt{0x0} \\
+      \hline
+      20 & TX{\_}PAYLOAD{\_}0 & RW & \texttt{0x00000064} & FIELDS & 32 & \texttt{0x0} \\
+      \hline
+      21 & TX{\_}PAYLOAD{\_}1 & RW & \texttt{0x00000068} & FIELDS & 32 & \texttt{0x0} \\
+      \hline
+      22 & RX{\_}MSG{\_}ID & RO & \texttt{0x0000006C} & FIELDS & 31 & \texttt{0x0} \\
+      \hline
+      23 & RX{\_}PAYLOAD{\_}LENGTH & RO & \texttt{0x00000070} & SLV & 4 & \texttt{0x0} \\
+      \hline
+      24 & RX{\_}PAYLOAD{\_}0 & RO & \texttt{0x00000074} & FIELDS & 32 & \texttt{0x0} \\
+      \hline
+      25 & RX{\_}PAYLOAD{\_}1 & RO & \texttt{0x00000078} & FIELDS & 32 & \texttt{0x0} \\
+      \hline
+    \end{tabularx}
+  \end{center}
+\end{table}
+
+\section{Registers}
+
+\begin{register}{H}{STATUS - RO}{0x00000000}  \par Status register \regnewline
+  \label{STATUS}
+  \regfield{unused}{26}{6}{-}
+  \regfield{ERROR{\_}STATE}{2}{4}{{0x0}}
+  \regfield{TX{\_}FAILED}{1}{3}{0}
+  \regfield{TX{\_}DONE}{1}{2}{0}
+  \regfield{TX{\_}BUSY}{1}{1}{0}
+  \regfield{RX{\_}MSG{\_}VALID}{1}{0}{0}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[RX{\_}MSG{\_}VALID]
+    \item [RX{\_}MSG{\_}VALID] Received message is valid    \item [TX{\_}BUSY] Busy transmitting message    \item [TX{\_}DONE] Done transmitting message    \item [TX{\_}FAILED] Transmitting message failed    \item [ERROR{\_}STATE] Error state.\ b00 = ERROR{\_}ACTIVE,\ b01 = ERROR{\_}PASSIVE,\ b1X = BUS{\_}OFF  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{CONTROL - PULSE for 1 cycles - }{0x00000004}  \par Control register \regnewline
+  \label{CONTROL}
+  \regfield{unused}{31}{1}{-}
+  \regfield{TX{\_}START}{1}{0}{0}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[TX{\_}START]
+    \item [TX{\_}START] Start transmitting message  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{CONFIG - RW}{0x00000008}  \par Control register \regnewline
+  \label{CONFIG}
+  \regfield{unused}{30}{2}{-}
+  \regfield{BTL{\_}TRIPLE{\_}SAMPLING{\_}EN}{1}{1}{0}
+  \regfield{TX{\_}RETRANSMIT{\_}EN}{1}{0}{0}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[BTL{\_}TRIPLE{\_}SAMPLING{\_}EN]
+    \item [TX{\_}RETRANSMIT{\_}EN] Enable retransmission of messages that failed to send    \item [BTL{\_}TRIPLE{\_}SAMPLING{\_}EN] Enable triple sampling of bits  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{BTL{\_}PROP{\_}SEG - RW}{0x00000020}  \par Propagation bit timing segment \regnewline
+  \label{BTL_PROP_SEG}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{BTL{\_}PHASE{\_}SEG1 - RW}{0x00000024}  \par Phase 1 bit timing segment \regnewline
+  \label{BTL_PHASE_SEG1}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{BTL{\_}PHASE{\_}SEG2 - RW}{0x00000028}  \par Phase segment 2 of bit timing \regnewline
+  \label{BTL_PHASE_SEG2}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{BTL{\_}SYNC{\_}JUMP{\_}WIDTH - RW}{0x0000002C}  \par Synchronization jump width \regnewline
+  \label{BTL_SYNC_JUMP_WIDTH}
+  \regfield{unused}{30}{2}{-}
+  \regfield{}{2}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE - RW}{0x00000030}  \par Clock prescale ratio for time quanta generator \regnewline
+  \label{BTL_TIME_QUANTA_CLOCK_SCALE}
+  \regfield{unused}{24}{8}{-}
+  \regfield{}{8}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TRANSMIT{\_}ERROR{\_}COUNT - RO}{0x00000034}  \par Transmit Error Counter (TEC) of Error Management Logic (EML) \regnewline
+  \label{TRANSMIT_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RECEIVE{\_}ERROR{\_}COUNT - RO}{0x00000038}  \par Receive Error Counter (REC) of Error Management Logic (EML) \regnewline
+  \label{RECEIVE_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}MSG{\_}SENT{\_}COUNT - RO}{0x0000003C}  \par Number of successfully transmitted messages \regnewline
+  \label{TX_MSG_SENT_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}ACK{\_}RECV{\_}COUNT - RO}{0x00000040}  \par Number of transmitted messages where ACK was received \regnewline
+  \label{TX_ACK_RECV_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}ARB{\_}LOST{\_}COUNT - RO}{0x00000044}  \par Number of times arbitration was lost while attempting to send message \regnewline
+  \label{TX_ARB_LOST_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}ERROR{\_}COUNT - RO}{0x00000048}  \par Number of transmit errors \regnewline
+  \label{TX_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RX{\_}MSG{\_}RECV{\_}COUNT - RO}{0x0000004C}  \par Number of messages that were successfully received \regnewline
+  \label{RX_MSG_RECV_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RX{\_}CRC{\_}ERROR{\_}COUNT - RO}{0x00000050}  \par Number of received messages with CRC error \regnewline
+  \label{RX_CRC_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RX{\_}FORM{\_}ERROR{\_}COUNT - RO}{0x00000054}  \par Number of received messages with form error \regnewline
+  \label{RX_FORM_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RX{\_}STUFF{\_}ERROR{\_}COUNT - RO}{0x00000058}  \par Number of received messages with stuff error \regnewline
+  \label{RX_STUFF_ERROR_COUNT}
+  \regfield{unused}{16}{16}{-}
+  \regfield{}{16}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}MSG{\_}ID - RW}{0x0000005C}  \par Number of received messages with stuff error \regnewline
+  \label{TX_MSG_ID}
+  \regfield{unused}{1}{31}{-}
+  \regfield{ARB{\_}ID{\_}A}{11}{20}{{0x0}}
+  \regfield{ARB{\_}ID{\_}B}{18}{2}{{0x0}}
+  \regfield{RTR{\_}EN}{1}{1}{0}
+  \regfield{EXT{\_}ID{\_}EN}{1}{0}{0}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[EXT{\_}ID{\_}EN]
+    \item [EXT{\_}ID{\_}EN] Transmit message with extended ID    \item [RTR{\_}EN] Remote Transmission Request    \item [ARB{\_}ID{\_}B] Arbitration ID B (extended only)    \item [ARB{\_}ID{\_}A] Arbitration ID A  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{TX{\_}PAYLOAD{\_}LENGTH - RW}{0x00000060}  \par Transmit payload length \regnewline
+  \label{TX_PAYLOAD_LENGTH}
+  \regfield{unused}{28}{4}{-}
+  \regfield{}{4}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}PAYLOAD{\_}0 - RW}{0x00000064}  \par Tx payload bytes 0 to 3 \regnewline
+  \label{TX_PAYLOAD_0}
+  \regfield{PAYLOAD{\_}BYTE{\_}3}{8}{24}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}2}{8}{16}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}1}{8}{8}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}0}{8}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[PAYLOAD{\_}BYTE{\_}0]
+    \item [PAYLOAD{\_}BYTE{\_}0] Payload byte 0    \item [PAYLOAD{\_}BYTE{\_}1] Payload byte 1    \item [PAYLOAD{\_}BYTE{\_}2] Payload byte 2    \item [PAYLOAD{\_}BYTE{\_}3] Payload byte 3  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{TX{\_}PAYLOAD{\_}1 - RW}{0x00000068}  \par Tx payload bytes 4 to 7 \regnewline
+  \label{TX_PAYLOAD_1}
+  \regfield{PAYLOAD{\_}BYTE{\_}7}{8}{24}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}6}{8}{16}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}5}{8}{8}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}4}{8}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[PAYLOAD{\_}BYTE{\_}4]
+    \item [PAYLOAD{\_}BYTE{\_}4] Payload byte 4    \item [PAYLOAD{\_}BYTE{\_}5] Payload byte 5    \item [PAYLOAD{\_}BYTE{\_}6] Payload byte 6    \item [PAYLOAD{\_}BYTE{\_}7] Payload byte 7  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{RX{\_}MSG{\_}ID - RO}{0x0000006C}  \par Number of received messages with stuff error \regnewline
+  \label{RX_MSG_ID}
+  \regfield{unused}{1}{31}{-}
+  \regfield{ARB{\_}ID{\_}A}{11}{20}{{0x0}}
+  \regfield{ARB{\_}ID{\_}B}{18}{2}{{0x0}}
+  \regfield{RTR{\_}EN}{1}{1}{0}
+  \regfield{EXT{\_}ID{\_}EN}{1}{0}{0}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[EXT{\_}ID{\_}EN]
+    \item [EXT{\_}ID{\_}EN] Received message with extended ID    \item [RTR{\_}EN] Received Remote Transmission Request (RTR)    \item [ARB{\_}ID{\_}B] Received Arbitration ID B (extended only)    \item [ARB{\_}ID{\_}A] Received Arbitration ID A  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{RX{\_}PAYLOAD{\_}LENGTH - RO}{0x00000070}  \par Received payload length \regnewline
+  \label{RX_PAYLOAD_LENGTH}
+  \regfield{unused}{28}{4}{-}
+  \regfield{}{4}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{RX{\_}PAYLOAD{\_}0 - RO}{0x00000074}  \par Rx payload bytes 0 to 3 \regnewline
+  \label{RX_PAYLOAD_0}
+  \regfield{PAYLOAD{\_}BYTE{\_}3}{8}{24}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}2}{8}{16}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}1}{8}{8}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}0}{8}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[PAYLOAD{\_}BYTE{\_}0]
+    \item [PAYLOAD{\_}BYTE{\_}0] Payload byte 0    \item [PAYLOAD{\_}BYTE{\_}1] Payload byte 1    \item [PAYLOAD{\_}BYTE{\_}2] Payload byte 2    \item [PAYLOAD{\_}BYTE{\_}3] Payload byte 3  \end{reglist}\end{regdesc}
+\end{register}
+
+\begin{register}{H}{RX{\_}PAYLOAD{\_}1 - RO}{0x00000078}  \par Rx payload bytes 4 to 7 \regnewline
+  \label{RX_PAYLOAD_1}
+  \regfield{PAYLOAD{\_}BYTE{\_}7}{8}{24}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}6}{8}{16}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}5}{8}{8}{{0x0}}
+  \regfield{PAYLOAD{\_}BYTE{\_}4}{8}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+  \begin{regdesc}\begin{reglist}[PAYLOAD{\_}BYTE{\_}4]
+    \item [PAYLOAD{\_}BYTE{\_}4] Payload byte 4    \item [PAYLOAD{\_}BYTE{\_}5] Payload byte 5    \item [PAYLOAD{\_}BYTE{\_}6] Payload byte 6    \item [PAYLOAD{\_}BYTE{\_}7] Payload byte 7  \end{reglist}\end{regdesc}
+\end{register}
+
+\section{Example VHDL Register Access}
+
+\par
+All registers are bundled in records based on their mode. E.g. all RW registers are accessed through the record \textit{bustype\_rw\_regs}. Access is also dependent on the type of register. All register of type SL, SLV and DEFAULT are all directly accessed by just specifying the mode record signal. E.g. the RW register \textit{reg0} can be assigned a value like this (assuming AXI-bus):
+
+\begin{lstlisting}[style=vhdl]
+axi_rw_regs.reg0 <= (others => '0');
+\end{lstlisting}
+
+\par Registers of type FIELD cannot be directly accessed without specification of a certain field. This is because the registers are implemented as a record in VHDL (thus a record of records). E.g. if the RO register \textit{reg1} contains the field \textit{field3} it can be accessed like this (assuming AXI-bus):
+
+\begin{lstlisting}[style=vhdl]
+axi_ro_regs.reg1.field3 <= (others => '0');
+\end{lstlisting}
+
+\end{document}

@@ -1,0 +1,441 @@
+{
+    "name": "canola_axi_slave",
+    "description": "AXI-Lite slave for Canola CAN Controller",
+    "bus": {
+        "type": "axi",
+        "addr_width": 32,
+        "data_width": 32,
+        "reset": "async"
+    },
+    "baseaddr": "0x0",
+    "register": [
+        {
+            "name": "STATUS",
+            "mode": "ro",
+            "type": "fields",
+            "address": "0x0",
+            "fields": [
+                {
+                    "name": "RX_MSG_VALID",
+                    "type": "sl",
+                    "description": "Received message is valid"
+                },
+                {
+                    "name": "TX_BUSY",
+                    "type": "sl",
+                    "description": "Busy transmitting message"
+                },
+                {
+                    "name": "TX_DONE",
+                    "type": "sl",
+                    "description": "Done transmitting message"
+                },
+                {
+                    "name": "TX_FAILED",
+                    "type": "sl",
+                    "description": "Transmitting message failed"
+                },
+                {
+                    "name": "ERROR_STATE",
+                    "type": "slv",
+                    "length": 2,
+                    "description": "Error state.\\ b00 = ERROR_ACTIVE,\\ b01 = ERROR_PASSIVE,\\ b1X = BUS_OFF"
+                }
+            ],
+            "description": "Status register"
+        },
+        {
+            "name": "CONTROL",
+            "mode": "pulse",
+            "num_cycles": 1,
+            "type": "fields",
+            "address": "0x4",
+            "fields": [
+                {
+                    "name": "TX_START",
+                    "type": "sl",
+                    "description": "Start transmitting message"
+                }
+            ],
+            "description": "Control register"
+        },
+        {
+            "name": "CONFIG",
+            "mode": "rw",
+            "type": "fields",
+            "address": "0x8",
+            "fields": [
+                {
+                    "name": "TX_RETRANSMIT_EN",
+                    "type": "sl",
+                    "description": "Enable retransmission of messages that failed to send"
+                },
+                {
+                    "name": "BTL_TRIPLE_SAMPLING_EN",
+                    "type": "sl",
+                    "description": "Enable triple sampling of bits"
+                }
+            ],
+            "description": "Control register"
+        },
+        {
+            "name": "BTL_PROP_SEG",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x20",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Propagation bit timing segment"
+        },
+        {
+            "name": "BTL_PHASE_SEG1",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x24",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Phase 1 bit timing segment"
+        },
+        {
+            "name": "BTL_PHASE_SEG2",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x28",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Phase segment 2 of bit timing"
+        },
+        {
+            "name": "BTL_SYNC_JUMP_WIDTH",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x2c",
+            "length": 2,
+            "reset": "0x0",
+            "description": "Synchronization jump width"
+        },
+        {
+            "name": "BTL_TIME_QUANTA_CLOCK_SCALE",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x30",
+            "length": 8,
+            "reset": "0x0",
+            "description": "Clock prescale ratio for time quanta generator"
+        },
+        {
+            "name": "TRANSMIT_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x34",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Transmit Error Counter (TEC) of Error Management Logic (EML)"
+        },
+        {
+            "name": "RECEIVE_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x38",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Receive Error Counter (REC) of Error Management Logic (EML)"
+        },
+        {
+            "name": "TX_MSG_SENT_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x3c",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of successfully transmitted messages"
+        },
+        {
+            "name": "TX_ACK_RECV_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x40",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of transmitted messages where ACK was received"
+        },
+        {
+            "name": "TX_ARB_LOST_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x44",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of times arbitration was lost while attempting to send message"
+        },
+        {
+            "name": "TX_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x48",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of transmit errors"
+        },
+        {
+            "name": "RX_MSG_RECV_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x4c",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of messages that were successfully received"
+        },
+        {
+            "name": "RX_CRC_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x50",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of received messages with CRC error"
+        },
+        {
+            "name": "RX_FORM_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x54",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of received messages with form error"
+        },
+        {
+            "name": "RX_STUFF_ERROR_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x58",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number of received messages with stuff error"
+        },
+        {
+            "name": "TX_MSG_ID",
+            "mode": "rw",
+            "type": "fields",
+            "address": "0x5c",
+            "fields": [
+                {
+                    "name": "EXT_ID_EN",
+                    "type": "sl",
+                    "description": "Transmit message with extended ID"
+                },
+                {
+                    "name": "RTR_EN",
+                    "type": "sl",
+                    "description": "Remote Transmission Request"
+                },
+                {
+                    "name": "ARB_ID_B",
+                    "type": "slv",
+                    "length": 18,
+                    "description": "Arbitration ID B (extended only)"
+                },
+                {
+                    "name": "ARB_ID_A",
+                    "type": "slv",
+                    "length": 11,
+                    "description": "Arbitration ID A"
+                }
+            ],
+            "length": 31,
+            "reset": "0x0",
+            "description": "Number of received messages with stuff error"
+        },
+        {
+            "name": "TX_PAYLOAD_LENGTH",
+            "mode": "rw",
+            "type": "slv",
+            "address": "0x60",
+            "length": 4,
+            "reset": "0x0",
+            "description": "Transmit payload length"
+        },
+        {
+            "name": "TX_PAYLOAD_0",
+            "mode": "rw",
+            "type": "fields",
+            "address": "0x64",
+            "fields": [
+                {
+                    "name": "PAYLOAD_BYTE_0",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 0"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_1",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 1"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_2",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 2"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_3",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 3"
+                }
+            ],
+            "length": 32,
+            "reset": "0x0",
+            "description": "Tx payload bytes 0 to 3"
+        },
+        {
+            "name": "TX_PAYLOAD_1",
+            "mode": "rw",
+            "type": "fields",
+            "address": "0x68",
+            "fields": [
+                {
+                    "name": "PAYLOAD_BYTE_4",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 4"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_5",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 5"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_6",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 6"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_7",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 7"
+                }
+            ],
+            "length": 32,
+            "reset": "0x0",
+            "description": "Tx payload bytes 4 to 7"
+        },
+        {
+            "name": "RX_MSG_ID",
+            "mode": "ro",
+            "type": "fields",
+            "address": "0x6c",
+            "fields": [
+                {
+                    "name": "EXT_ID_EN",
+                    "type": "sl",
+                    "description": "Received message with extended ID"
+                },
+                {
+                    "name": "RTR_EN",
+                    "type": "sl",
+                    "description": "Received Remote Transmission Request (RTR)"
+                },
+                {
+                    "name": "ARB_ID_B",
+                    "type": "slv",
+                    "length": 18,
+                    "description": "Received Arbitration ID B (extended only)"
+                },
+                {
+                    "name": "ARB_ID_A",
+                    "type": "slv",
+                    "length": 11,
+                    "description": "Received Arbitration ID A"
+                }
+            ],
+            "length": 31,
+            "reset": "0x0",
+            "description": "Number of received messages with stuff error"
+        },
+        {
+            "name": "RX_PAYLOAD_LENGTH",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x70",
+            "length": 4,
+            "reset": "0x0",
+            "description": "Received payload length"
+        },
+        {
+            "name": "RX_PAYLOAD_0",
+            "mode": "ro",
+            "type": "fields",
+            "address": "0x74",
+            "fields": [
+                {
+                    "name": "PAYLOAD_BYTE_0",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 0"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_1",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 1"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_2",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 2"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_3",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 3"
+                }
+            ],
+            "length": 32,
+            "reset": "0x0",
+            "description": "Rx payload bytes 0 to 3"
+        },
+        {
+            "name": "RX_PAYLOAD_1",
+            "mode": "ro",
+            "type": "fields",
+            "address": "0x78",
+            "fields": [
+                {
+                    "name": "PAYLOAD_BYTE_4",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 4"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_5",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 5"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_6",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 6"
+                },
+                {
+                    "name": "PAYLOAD_BYTE_7",
+                    "type": "slv",
+                    "length": 8,
+                    "description": "Payload byte 7"
+                }
+            ],
+            "length": 32,
+            "reset": "0x0",
+            "description": "Rx payload bytes 4 to 7"
+        }
+    ]
+}

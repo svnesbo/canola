@@ -33,3 +33,7 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_rx_fsm.vh
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_tx_fsm.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_eml.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_top.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/axi_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_pif_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_axi_pif.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave.vhd
