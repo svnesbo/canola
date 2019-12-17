@@ -112,33 +112,12 @@ architecture tb of can_axi_slave_tb is
   -- Shared CAN bus signal
   signal s_can_bus_signal    : std_logic;
 
-  -- Used by p_can_ctrl_rx_msg which monitors
-  -- when the CAN controller receives a message
-  signal s_msg_received : std_logic := '0';
-  signal s_msg_reset    : std_logic := '0';
-  signal s_msg          : can_msg_t;
-
-
-  -- Signals for AXI bus
-  --signal axi_master_araddr  : std_logic_vector (31 downto 0);
-  --signal axi_master_arprot  : std_logic_vector (2 downto 0);
-  --signal axi_master_arready : std_logic_vector (0 to 0);
-  --signal axi_master_arvalid : std_logic_vector (0 to 0);
-  --signal axi_master_awaddr  : std_logic_vector (31 downto 0);
-  --signal axi_master_awprot  : std_logic_vector (2 downto 0);
-  --signal axi_master_awready : std_logic_vector (0 to 0);
-  --signal axi_master_awvalid : std_logic_vector (0 to 0);
-  --signal axi_master_bready  : std_logic_vector (0 to 0);
-  --signal axi_master_bresp   : std_logic_vector (1 downto 0);
-  --signal axi_master_bvalid  : std_logic_vector (0 to 0);
-  --signal axi_master_rdata   : std_logic_vector (31 downto 0);
-  --signal axi_master_rready  : std_logic_vector (0 to 0);
-  --signal axi_master_rresp   : std_logic_vector (1 downto 0);
-  --signal axi_master_rvalid  : std_logic_vector (0 to 0);
-  --signal axi_master_wdata   : std_logic_vector (31 downto 0);
-  --signal axi_master_wready  : std_logic_vector (0 to 0);
-  --signal axi_master_wstrb   : std_logic_vector (3 downto 0);
-  --signal axi_master_wvalid  : std_logic_vector (0 to 0);
+  -- Used by p_can_ctrl_irq which monitors interrupts
+  -- from the CAN controller and sets these persistent flags
+  signal s_got_rx_valid_irq  : std_logic := '0';
+  signal s_got_tx_done_irq   : std_logic := '0';
+  signal s_got_tx_failed_irq : std_logic := '0';
+  signal s_irq_reset         : std_logic := '0';
 
   constant C_AXI_BUS_ADDR_WIDTH : natural := 32;
   constant C_AXI_BUS_DATA_WIDTH : natural := 32;
@@ -224,9 +203,65 @@ begin
       axi_out           => s_can_axi_out);
 
 
+  -- Monitor CAN controller interrupts and set persistent flags
+  p_can_ctrl_irq : process (s_can_rx_valid_irq, s_can_tx_done_irq,
+                            s_can_tx_failed_irq, s_irq_reset) is
+  begin
+    if s_irq_reset = '1' then
+      s_got_rx_valid_irq  <= '0';
+      s_got_tx_done_irq   <= '0';
+      s_got_tx_failed_irq <= '0';
+    else
+
+      if s_can_rx_valid_irq = '1' then
+        s_got_rx_valid_irq <= '1';
+      end if;
+
+      if s_can_tx_done_irq = '1' then
+        s_got_tx_done_irq <= '1';
+      end if;
+
+      if s_can_tx_failed_irq = '1' then
+        s_got_tx_failed_irq <= '1';
+      end if;
+    end if;
+  end process p_can_ctrl_irq;
+
+
   p_main: process
     constant C_SCOPE          : string                := C_TB_SCOPE_DEFAULT;
     variable v_can_bfm_config : t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+    variable v_can_bfm_tx     : std_logic             := '1';
+    variable v_can_bfm_rx     : std_logic             := '1';
+
+    variable v_xmit_arb_id       : std_logic_vector(28 downto 0);
+    variable v_xmit_ext_id       : std_logic                      := '0';
+    variable v_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
+    variable v_xmit_data_length  : natural;
+    variable v_xmit_remote_frame : std_logic;
+    variable v_xmit_arb_lost     : std_logic     := '0';
+
+    variable v_recv_arb_id       : std_logic_vector(28 downto 0);
+    variable v_recv_data         : work.can_bfm_pkg.can_payload_t;
+    variable v_recv_ext_id       : std_logic     := '0';
+    variable v_recv_remote_frame : std_logic     := '0';
+    variable v_recv_data_length  : natural       := 0;
+    variable v_recv_timeout      : std_logic;
+
+    variable v_can_tx_status    : can_tx_status_t;
+    variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
+
+    variable v_arb_lost_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_recv_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_msg_count         : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+
+    variable v_rand_baud_delay : natural;
+    variable v_rand_real       : real;
 
     -- Pulse a signal for a number of clock cycles.
     -- Source: irqc_tb.vhd from Bitvis UVVM 1.4.0
@@ -338,6 +373,88 @@ begin
     end procedure axilite_check;
 
 
+    procedure axilite_check(
+      constant addr_value         : in  t_canola_axi_slave_addr;
+      constant data_exp           : in  natural;
+      constant msg                : in  string) is
+    begin
+      axilite_check(unsigned(addr_value),
+                    std_logic_vector(to_unsigned(data_exp, C_CANOLA_AXI_SLAVE_DATA_WIDTH)),
+                    msg,
+                    s_can_axi_clk,
+                    s_axi_bfm_if,
+                    error,
+                    C_SCOPE,
+                    shared_msg_id_panel,
+                    C_AXILITE_BFM_CONFIG);
+    end procedure axilite_check;
+
+
+    procedure read_msg_from_controller is
+      variable v_rx_msg_id_reg         : t_canola_axi_slave_data;
+      variable v_rx_payload_length_reg : t_canola_axi_slave_data;
+      variable v_rx_payload0_reg       : t_canola_axi_slave_data;
+      variable v_rx_payload1_reg       : t_canola_axi_slave_data;
+    begin
+      axilite_read(C_ADDR_RX_MSG_ID, v_rx_msg_id_reg, "Read RX_MSG_ID register");
+      axilite_read(C_ADDR_RX_PAYLOAD_LENGTH, v_rx_payload_length_reg, "Read RX_PAYLOAD_LENGTH register");
+      axilite_read(C_ADDR_RX_PAYLOAD_0, v_rx_payload0_reg, "Read RX_PAYLOAD_0 register");
+      axilite_read(C_ADDR_RX_PAYLOAD_1, v_rx_payload1_reg, "Read RX_PAYLOAD_1 register");
+
+      -- Ideally these ranges shouldn't be hardcoded, but the UART tool used to
+      -- generate the AXI slave does not generate range constants to be used
+      -- with the registers
+      v_recv_ext_id                                                     := v_rx_msg_id_reg(0);
+      v_recv_remote_frame                                               := v_rx_msg_id_reg(1);
+      v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := v_rx_msg_id_reg(30 downto 20);
+      v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := v_rx_msg_id_reg(19 downto 2);
+
+      v_recv_data_length := to_integer(unsigned(v_rx_payload_length_reg));
+
+      v_recv_data(0) := v_rx_payload0_reg(7 downto 0);
+      v_recv_data(1) := v_rx_payload0_reg(15 downto 8);
+      v_recv_data(2) := v_rx_payload0_reg(23 downto 16);
+      v_recv_data(3) := v_rx_payload0_reg(31 downto 24);
+      v_recv_data(4) := v_rx_payload1_reg(7 downto 0);
+      v_recv_data(5) := v_rx_payload1_reg(15 downto 8);
+      v_recv_data(6) := v_rx_payload1_reg(23 downto 16);
+      v_recv_data(7) := v_rx_payload1_reg(31 downto 24);
+    end procedure read_msg_from_controller;
+
+
+    procedure write_msg_to_controller is
+      variable v_tx_msg_id_reg         : t_canola_axi_slave_data;
+      variable v_tx_payload_length_reg : t_canola_axi_slave_data;
+      variable v_tx_payload0_reg       : t_canola_axi_slave_data;
+      variable v_tx_payload1_reg       : t_canola_axi_slave_data;
+    begin
+      -- Ideally these ranges shouldn't be hardcoded, but the UART tool used to
+      -- generate the AXI slave does not generate range constants to be used
+      -- with the registers
+      v_tx_msg_id_reg(0)            := v_xmit_ext_id;
+      v_tx_msg_id_reg(1)            := v_xmit_remote_frame;
+      v_tx_msg_id_reg(30 downto 20) := v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      v_tx_msg_id_reg(19 downto 2)  := v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      v_tx_payload_length_reg                          := (others => '0');
+      v_tx_payload_length_reg(C_DLC_LENGTH-1 downto 0) := std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+
+      v_tx_payload0_reg(7 downto 0)   := v_xmit_data(0);
+      v_tx_payload0_reg(15 downto 8)  := v_xmit_data(1);
+      v_tx_payload0_reg(23 downto 16) := v_xmit_data(2);
+      v_tx_payload0_reg(31 downto 24) := v_xmit_data(3);
+      v_tx_payload1_reg(7 downto 0)   := v_xmit_data(4);
+      v_tx_payload1_reg(15 downto 8)  := v_xmit_data(5);
+      v_tx_payload1_reg(23 downto 16) := v_xmit_data(6);
+      v_tx_payload1_reg(31 downto 24) := v_xmit_data(7);
+
+      axilite_write(C_ADDR_TX_MSG_ID, v_tx_msg_id_reg, "Write TX_MSG_ID register");
+      axilite_write(C_ADDR_TX_PAYLOAD_LENGTH, v_tx_payload_length_reg, "Write TX_PAYLOAD_LENGTH register");
+      axilite_write(C_ADDR_TX_PAYLOAD_0, v_tx_payload0_reg, "Write TX_PAYLOAD_0 register");
+      axilite_write(C_ADDR_TX_PAYLOAD_1, v_tx_payload1_reg, "Write TX_PAYLOAD_1 register");
+    end procedure write_msg_to_controller;
+
+
     -- Todo 1: Put this in a package file?
     -- Todo 2: Define one message type for use both with BFM and RTL code,
     --         and define can_payload_t in one place..
@@ -395,38 +512,6 @@ begin
       return std_logic_vector(resize(unsigned(slv_in), C_CANOLA_AXI_SLAVE_DATA_WIDTH));
     end function resize_data;
 
-
-
-    variable v_can_bfm_tx        : std_logic                      := '1';
-    variable v_can_bfm_rx        : std_logic                      := '1';
-    variable v_xmit_arb_id       : std_logic_vector(28 downto 0);
-    variable v_xmit_ext_id       : std_logic                      := '0';
-    variable v_xmit_data         : work.can_bfm_pkg.can_payload_t := (others => x"00");
-    variable v_xmit_data_length  : natural;
-    variable v_xmit_remote_frame : std_logic;
-    variable v_xmit_arb_lost     : std_logic     := '0';
-
-    variable v_recv_arb_id       : std_logic_vector(28 downto 0);
-    variable v_recv_data         : work.can_bfm_pkg.can_payload_t;
-    variable v_recv_ext_id       : std_logic     := '0';
-    variable v_recv_remote_frame : std_logic     := '0';
-    variable v_recv_data_length  : natural       := 0;
-    variable v_recv_timeout      : std_logic;
-
-    variable v_can_tx_status    : can_tx_status_t;
-    variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
-
-    variable v_arb_lost_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_recv_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_msg_count         : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-
-    variable v_rand_baud_delay : natural;
-    variable v_rand_real       : real;
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -439,6 +524,7 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Start simulation of CAN controller", C_SCOPE);
     -----------------------------------------------------------------------------------------------
+    v_can_bfm_config.can_config.clock_period := C_CLK_PERIOD;
 
     s_clock_ena <= true;                -- to start clock generator
     pulse(s_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
@@ -447,7 +533,7 @@ begin
     wait until rising_edge(s_clk);
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Check default/reset values of registers", C_SCOPE);
+    log(ID_LOG_HDR, "Test #1: Check default/reset values of registers", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     axilite_check(C_ADDR_STATUS,
                   resize_data(c_canola_axi_slave_ro_regs.STATUS.ERROR_STATE &
@@ -525,6 +611,222 @@ begin
     axilite_check(C_ADDR_RX_STUFF_ERROR_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.RX_STUFF_ERROR_COUNT),
                   "Check RX_STUFF_ERROR_COUNT register");
+
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #2: Basic ID msg from BFM to Canola CAN controller", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '0';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      pulse(s_irq_reset, s_clk, 1, "Reset IRQ flags");
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      wait until rising_edge(s_clk);
+
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send random message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN,
+                     v_can_bfm_config);
+
+      wait until s_got_rx_valid_irq = '1' for 10*C_CAN_BAUD_PERIOD;
+
+      check_value(s_got_rx_valid_irq, '1', error, "Check that CAN controller received msg.");
+      read_msg_from_controller;
+      check_value(v_recv_ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+      if v_xmit_ext_id = '1' then
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+      else
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    error,
+                    "Check received ID");
+      end if;
+
+      check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    axilite_check(C_ADDR_RX_MSG_RECV_COUNT, C_NUM_ITERATIONS, "Check number of received messages");
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #3: Basic ID msg from Canola CAN controller to BFM", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '0';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      pulse(s_irq_reset, s_clk, 1, "Reset IRQ flags");
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      write_msg_to_controller;
+
+      axilite_write(C_ADDR_CONTROL, x"00000001", "Start transmit");
+
+      can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     '0', -- Don't send remote request and expect response
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Receive and check message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     error,
+                     v_can_bfm_config);
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS, "Check number of messages sent");
+    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS, "Check number of ACKs received");
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #4: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      pulse(s_irq_reset, s_clk, 1, "Reset IRQ flags");
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      wait until rising_edge(s_clk);
+
+      can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Send random message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     v_can_tx_status,
+                     C_CAN_RX_NO_ERROR_GEN,
+                     v_can_bfm_config);
+
+      wait until s_got_rx_valid_irq = '1' for 10*C_CAN_BAUD_PERIOD;
+
+      check_value(s_got_rx_valid_irq, '1', error, "Check that CAN controller received msg.");
+      read_msg_from_controller;
+      check_value(v_recv_ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+      if v_xmit_ext_id = '1' then
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+      else
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    error,
+                    "Check received ID");
+      end if;
+
+      check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    axilite_check(C_ADDR_RX_MSG_RECV_COUNT, C_NUM_ITERATIONS*2, "Check number of received messages");
+
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #5: Extended ID msg from Canola CAN controller to BFM", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    v_test_num    := 0;
+    v_xmit_ext_id := '1';
+
+    while v_test_num < C_NUM_ITERATIONS loop
+      pulse(s_irq_reset, s_clk, 1, "Reset IRQ flags");
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      write_msg_to_controller;
+
+      axilite_write(C_ADDR_CONTROL, x"00000001", "Start transmit");
+
+      can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                     v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                     v_xmit_ext_id,
+                     v_xmit_remote_frame,
+                     '0', -- Don't send remote request and expect response
+                     v_xmit_data,
+                     v_xmit_data_length,
+                     "Receive and check message with CAN BFM",
+                     s_clk,
+                     s_can_bfm_tx,
+                     s_can_bfm_rx,
+                     error,
+                     v_can_bfm_config);
+
+      wait until rising_edge(s_can_baud_clk);
+      wait until rising_edge(s_can_baud_clk);
+
+      v_test_num := v_test_num + 1;
+    end loop;
+
+    axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS*2, "Check number of messages sent");
+    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS*2, "Check number of ACKs received");
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete
