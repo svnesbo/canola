@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2019-12-17
+-- Last update: 2019-12-18
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -102,8 +102,22 @@ architecture tb of can_axi_slave_tb is
   signal s_can_tx_failed_irq : std_logic;
   signal s_can_axi_clk       : std_logic;
   signal s_can_axi_areset_n  : std_logic;
-  signal s_can_axi_in        : t_axi_interconnect_to_slave;
-  signal s_can_axi_out       : t_axi_slave_to_interconnect;
+  signal s_can_axi_awaddr    : std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
+  signal s_can_axi_awvalid   : std_logic;
+  signal s_can_axi_awready   : std_logic;
+  signal s_can_axi_wdata     : std_logic_vector(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0);
+  signal s_can_axi_wvalid    : std_logic;
+  signal s_can_axi_wready    : std_logic;
+  signal s_can_axi_bresp     : std_logic_vector(1 downto 0);
+  signal s_can_axi_bvalid    : std_logic;
+  signal s_can_axi_bready    : std_logic;
+  signal s_can_axi_araddr    : std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
+  signal s_can_axi_arvalid   : std_logic;
+  signal s_can_axi_arready   : std_logic;
+  signal s_can_axi_rdata     : std_logic_vector(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0);
+  signal s_can_axi_rresp     : std_logic_vector(1 downto 0);
+  signal s_can_axi_rvalid    : std_logic;
+  signal s_can_axi_rready    : std_logic;
 
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
@@ -166,31 +180,30 @@ begin
   s_can_bfm_rx     <= '1' ?= s_can_bus_signal;
 
   -- Connect AXI BFM interface to AXI interfaces for Canola AXI slave
-  s_can_axi_in.awaddr  <= s_axi_bfm_if.write_address_channel.awaddr;
-  s_can_axi_in.awvalid <= s_axi_bfm_if.write_address_channel.awvalid;
-  s_can_axi_in.wdata   <= s_axi_bfm_if.write_data_channel.wdata;
-  s_can_axi_in.wvalid  <= s_axi_bfm_if.write_data_channel.wvalid;
-  s_can_axi_in.bready  <= s_axi_bfm_if.write_response_channel.bready;
-  s_can_axi_in.araddr  <= s_axi_bfm_if.read_address_channel.araddr;
-  s_can_axi_in.arvalid <= s_axi_bfm_if.read_address_channel.arvalid;
-  s_can_axi_in.rready  <= s_axi_bfm_if.read_data_channel.rready;
+  s_can_axi_awaddr  <= s_axi_bfm_if.write_address_channel.awaddr;
+  s_can_axi_awvalid <= s_axi_bfm_if.write_address_channel.awvalid;
+  s_can_axi_wdata   <= s_axi_bfm_if.write_data_channel.wdata;
+  s_can_axi_wvalid  <= s_axi_bfm_if.write_data_channel.wvalid;
+  s_can_axi_bready  <= s_axi_bfm_if.write_response_channel.bready;
+  s_can_axi_araddr  <= s_axi_bfm_if.read_address_channel.araddr;
+  s_can_axi_arvalid <= s_axi_bfm_if.read_address_channel.arvalid;
+  s_can_axi_rready  <= s_axi_bfm_if.read_data_channel.rready;
 
 
-  s_axi_bfm_if.write_address_channel.awready <= s_can_axi_out.awready;
-  s_axi_bfm_if.write_data_channel.wready     <= s_can_axi_out.wready;
-  s_axi_bfm_if.read_address_channel.arready  <= s_can_axi_out.arready;
-  s_axi_bfm_if.write_response_channel.bresp  <= s_can_axi_out.bresp;
-  s_axi_bfm_if.write_response_channel.bvalid <= s_can_axi_out.bvalid;
-  s_axi_bfm_if.read_data_channel.rdata       <= s_can_axi_out.rdata;
-  s_axi_bfm_if.read_data_channel.rresp       <= s_can_axi_out.rresp;
-  s_axi_bfm_if.read_data_channel.rvalid      <= s_can_axi_out.rvalid;
+  s_axi_bfm_if.write_address_channel.awready <= s_can_axi_awready;
+  s_axi_bfm_if.write_data_channel.wready     <= s_can_axi_wready;
+  s_axi_bfm_if.read_address_channel.arready  <= s_can_axi_arready;
+  s_axi_bfm_if.write_response_channel.bresp  <= s_can_axi_bresp;
+  s_axi_bfm_if.write_response_channel.bvalid <= s_can_axi_bvalid;
+  s_axi_bfm_if.read_data_channel.rdata       <= s_can_axi_rdata;
+  s_axi_bfm_if.read_data_channel.rresp       <= s_can_axi_rresp;
+  s_axi_bfm_if.read_data_channel.rvalid      <= s_can_axi_rvalid;
 
   s_axi_bfm_if.write_address_channel.awprot <= (others => '0');
   s_axi_bfm_if.write_data_channel.wstrb     <= (others => '0');
 
 
-
-  INST_canola_axi_slave: entity work.canola_axi_slave
+  INST_canola_axi_slave : entity work.canola_axi_slave
     port map (
       CAN_RX            => s_can_ctrl_rx,
       CAN_TX            => s_can_ctrl_tx,
@@ -199,8 +212,22 @@ begin
       CAN_TX_FAILED_IRQ => s_can_tx_failed_irq,
       axi_clk           => s_can_axi_clk,
       axi_areset_n      => s_can_axi_areset_n,
-      axi_in            => s_can_axi_in,
-      axi_out           => s_can_axi_out);
+      axi_awaddr        => s_can_axi_awaddr,
+      axi_awvalid       => s_can_axi_awvalid,
+      axi_awready       => s_can_axi_awready,
+      axi_wdata         => s_can_axi_wdata,
+      axi_wvalid        => s_can_axi_wvalid,
+      axi_wready        => s_can_axi_wready,
+      axi_bresp         => s_can_axi_bresp,
+      axi_bvalid        => s_can_axi_bvalid,
+      axi_bready        => s_can_axi_bready,
+      axi_araddr        => s_can_axi_araddr,
+      axi_arvalid       => s_can_axi_arvalid,
+      axi_arready       => s_can_axi_arready,
+      axi_rdata         => s_can_axi_rdata,
+      axi_rresp         => s_can_axi_rresp,
+      axi_rvalid        => s_can_axi_rvalid,
+      axi_rready        => s_can_axi_rready);
 
 
   -- Monitor CAN controller interrupts and set persistent flags

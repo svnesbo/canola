@@ -17,7 +17,7 @@ entity canola_axi_slave is
 
     -- User Generics End
     -- AXI Bus Interface Generics
-    g_axi_baseaddr        : std_logic_vector(31 downto 0) := 32X"0");
+    G_AXI_BASEADDR        : std_logic_vector(31 downto 0) := 32X"0");
   port (
     -- User Ports Start
     CAN_RX       : in  std_logic;
@@ -29,10 +29,24 @@ entity canola_axi_slave is
 
     -- User Ports End
     -- AXI Bus Interface Ports
-    axi_clk      : in  std_logic;
-    axi_areset_n : in  std_logic;
-    axi_in       : in  t_axi_interconnect_to_slave;
-    axi_out      : out t_axi_slave_to_interconnect
+    AXI_CLK      : in  std_logic;
+    AXI_ARESET_N : in  std_logic;
+    AXI_AWADDR   : in  std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
+    AXI_AWVALID  : in  std_logic;
+    AXI_AWREADY  : out std_logic;
+    AXI_WDATA    : in  std_logic_vector(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0);
+    AXI_WVALID   : in  std_logic;
+    AXI_WREADY   : out std_logic;
+    AXI_BRESP    : out std_logic_vector(1 downto 0);
+    AXI_BVALID   : out std_logic;
+    AXI_BREADY   : in  std_logic;
+    AXI_ARADDR   : in  std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
+    AXI_ARVALID  : in  std_logic;
+    AXI_ARREADY  : out std_logic;
+    AXI_RDATA    : out std_logic_vector(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0);
+    AXI_RRESP    : out std_logic_vector(1 downto 0);
+    AXI_RVALID   : out std_logic;
+    AXI_RREADY   : in  std_logic
     );
 
 end entity canola_axi_slave;
@@ -48,8 +62,6 @@ architecture behavior of canola_axi_slave is
   constant C_INTERNAL_REG_WIDTH : natural := 16;
   -- User Architecture End
 
-  -- AXI output signal for user readback
-  signal axi_out_i : t_axi_slave_to_interconnect;
   -- Register Signals
   signal axi_rw_regs    : t_canola_axi_slave_rw_regs    := c_canola_axi_slave_rw_regs;
   signal axi_ro_regs    : t_canola_axi_slave_ro_regs    := c_canola_axi_slave_ro_regs;
@@ -148,33 +160,31 @@ begin
 
   -- User Logic End
 
-  axi_out <= axi_out_i;
-
   i_canola_axi_slave_axi_pif : entity work.canola_axi_slave_axi_pif
     generic map (
-    g_axi_baseaddr        => g_axi_baseaddr)
+      G_AXI_BASEADDR        => g_axi_baseaddr)
     port map (
       axi_rw_regs         => axi_rw_regs,
       axi_ro_regs         => axi_ro_regs,
       axi_pulse_regs      => axi_pulse_regs,
-      clk                 => axi_clk,
-      areset_n            => axi_areset_n,
-      awaddr              => axi_in.awaddr(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0),
-      awvalid             => axi_in.awvalid,
-      awready             => axi_out_i.awready,
-      wdata               => axi_in.wdata(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0),
-      wvalid              => axi_in.wvalid,
-      wready              => axi_out_i.wready,
-      bresp               => axi_out_i.bresp,
-      bvalid              => axi_out_i.bvalid,
-      bready              => axi_in.bready,
-      araddr              => axi_in.araddr(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0),
-      arvalid             => axi_in.arvalid,
-      arready             => axi_out_i.arready,
-      rdata               => axi_out_i.rdata(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0),
-      rresp               => axi_out_i.rresp,
-      rvalid              => axi_out_i.rvalid,
-      rready              => axi_in.rready
+      clk                 => AXI_CLK,
+      areset_n            => AXI_ARESET_N,
+      awaddr              => AXI_AWADDR,
+      awvalid             => AXI_AWVALID,
+      awready             => AXI_AWREADY,
+      wdata               => AXI_WDATA(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0),
+      wvalid              => AXI_WVALID,
+      wready              => AXI_WREADY,
+      bresp               => AXI_BRESP,
+      bvalid              => AXI_BVALID,
+      bready              => AXI_BREADY,
+      araddr              => AXI_ARADDR(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0),
+      arvalid             => AXI_ARVALID,
+      arready             => AXI_ARREADY,
+      rdata               => AXI_RDATA(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0),
+      rresp               => AXI_RRESP,
+      rvalid              => AXI_RVALID,
+      rready              => AXI_RREADY
       );
 
 end architecture behavior;
