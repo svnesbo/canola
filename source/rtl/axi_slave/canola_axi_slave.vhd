@@ -17,7 +17,7 @@ entity canola_axi_slave is
 
     -- User Generics End
     -- AXI Bus Interface Generics
-    G_AXI_BASEADDR        : std_logic_vector(31 downto 0) := 32X"0");
+    G_AXI_BASEADDR        : std_logic_vector(31 downto 0) := X"00000000");
   port (
     -- User Ports Start
     CAN_RX       : in  std_logic;
@@ -30,7 +30,8 @@ entity canola_axi_slave is
     -- User Ports End
     -- AXI Bus Interface Ports
     AXI_CLK      : in  std_logic;
-    AXI_ARESET_N : in  std_logic;
+    AXI_RESET    : in  std_logic;
+    AXI_ARESETN  : in  std_logic;
     AXI_AWADDR   : in  std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
     AXI_AWVALID  : in  std_logic;
     AXI_AWREADY  : out std_logic;
@@ -57,7 +58,7 @@ architecture behavior of canola_axi_slave is
   signal s_can_rx_msg      : can_msg_t;
   signal s_can_tx_msg      : can_msg_t;
   signal s_can_error_state : can_error_state_t;
-  signal s_btl_sync_jump_width : natural range 1 to C_SYNC_JUMP_WIDTH_MAX-1;
+  signal s_btl_sync_jump_width : natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
 
   constant C_INTERNAL_REG_WIDTH : natural := 16;
   -- User Architecture End
@@ -116,8 +117,8 @@ begin
       G_BUS_REG_WIDTH => C_INTERNAL_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
     port map (
-      CLK   => axi_clk,
-      RESET => not axi_areset_n,
+      CLK   => AXI_CLK,
+      RESET => AXI_RESET,
 
       -- CAN bus interface signals
       CAN_TX => CAN_TX,
@@ -168,7 +169,7 @@ begin
       axi_ro_regs         => axi_ro_regs,
       axi_pulse_regs      => axi_pulse_regs,
       clk                 => AXI_CLK,
-      areset_n            => AXI_ARESET_N,
+      areset_n            => AXI_ARESETN,
       awaddr              => AXI_AWADDR,
       awvalid             => AXI_AWVALID,
       awready             => AXI_AWREADY,
