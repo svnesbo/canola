@@ -48,6 +48,11 @@ architecture tb of can_top_tb is
   constant C_CAN_BAUD_PERIOD  : time    := 1000 ns;  -- 1 MHz
   constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
 
+  constant C_CAN_CTRL1_TO_CTRL2_DELAY : time := 0.5*(C_CAN_BAUD_PERIOD/10);
+  constant C_CAN_CTRL1_TO_CTRL3_DELAY : time := 1.5*(C_CAN_BAUD_PERIOD/10);
+  constant C_CAN_CTRL2_TO_CTRL3_DELAY : time := 1.0*(C_CAN_BAUD_PERIOD/10);
+
+
   -- Indicates where in a bit the Rx sample point should be
   -- Real value from 0.0 to 1.0.
   constant C_CAN_SAMPLE_POINT : real    := 0.7;
@@ -82,13 +87,10 @@ architecture tb of can_top_tb is
     end loop;
   end;
 
-  signal s_clock_ena      : boolean   := false;
-  signal s_can_baud_clk   : std_logic := '0';
-
-  signal s_reset            : std_logic := '0';
-  signal s_clk              : std_logic := '0';
-
-  -- Signals for CAN controller
+  ------------------------------------------------------------------------------
+  -- Signals for CAN controller #1
+  ------------------------------------------------------------------------------
+  signal s_can_ctrl1_reset            : std_logic;
   signal s_can_ctrl1_tx               : std_logic;
   signal s_can_ctrl1_rx               : std_logic;
   signal s_can_ctrl1_rx_msg           : can_msg_t;
@@ -118,12 +120,87 @@ architecture tb of can_top_tb is
   signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
 
+  ------------------------------------------------------------------------------
+  -- Signals for CAN controller #2
+  ------------------------------------------------------------------------------
+  signal s_can_ctrl2_reset            : std_logic;
+  signal s_can_ctrl2_tx               : std_logic;
+  signal s_can_ctrl2_rx               : std_logic;
+  signal s_can_ctrl2_rx_msg           : can_msg_t;
+  signal s_can_ctrl2_tx_msg           : can_msg_t;
+  signal s_can_ctrl2_rx_msg_valid     : std_logic;
+  signal s_can_ctrl2_tx_start         : std_logic := '0';
+  signal s_can_ctrl2_tx_retransmit_en : std_logic := '0';
+  signal s_can_ctrl2_tx_busy          : std_logic;
+  signal s_can_ctrl2_tx_done          : std_logic;
+
+  signal s_can_ctrl2_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
+  signal s_can_ctrl2_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl2_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl2_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
+
+  signal s_can_ctrl2_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl2_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl2_error_state          : can_error_state_t;
+
+  -- Registers/counters
+  signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+
+  ------------------------------------------------------------------------------
+  -- Signals for CAN controller #3
+  ------------------------------------------------------------------------------
+  signal s_can_ctrl3_reset            : std_logic;
+  signal s_can_ctrl3_tx               : std_logic;
+  signal s_can_ctrl3_rx               : std_logic;
+  signal s_can_ctrl3_rx_msg           : can_msg_t;
+  signal s_can_ctrl3_tx_msg           : can_msg_t;
+  signal s_can_ctrl3_rx_msg_valid     : std_logic;
+  signal s_can_ctrl3_tx_start         : std_logic := '0';
+  signal s_can_ctrl3_tx_retransmit_en : std_logic := '0';
+  signal s_can_ctrl3_tx_busy          : std_logic;
+  signal s_can_ctrl3_tx_done          : std_logic;
+
+  signal s_can_ctrl3_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
+  signal s_can_ctrl3_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl3_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl3_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
+
+  signal s_can_ctrl3_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl3_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl3_error_state          : can_error_state_t;
+
+  -- Registers/counters
+  signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+
+  ------------------------------------------------------------------------------
+  -- Other signals
+  ------------------------------------------------------------------------------
+  signal s_clock_ena    : boolean   := false;
+  signal s_can_baud_clk : std_logic := '0';
+  signal s_clk          : std_logic := '0';
+
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
   signal s_can_bfm_rx        : std_logic                      := '1';
 
-  -- Shared CAN bus signal
-  signal s_can_bus_signal    : std_logic;
+  -- Shared CAN bus signals accounting for cable delays between controllers
+  signal s_can_bus_signal1    : std_logic; -- At controller #1 and BFM
+  signal s_can_bus_signal2    : std_logic; -- At controller #2
+  signal s_can_bus_signal3    : std_logic; -- At controller #3
 
   -- Used by p_can_ctrl_rx_msg which monitors
   -- when the CAN controller receives a message
@@ -138,21 +215,41 @@ begin
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
   clock_gen(s_can_baud_clk, s_clock_ena, C_CAN_BAUD_PERIOD);
 
-  s_can_bus_signal <= 'H';
-  s_can_bus_signal <= '0' when s_can_ctrl1_tx = '0' else 'Z';
-  s_can_bus_signal <= '0' when s_can_bfm_tx  = '0' else 'Z';
-  s_can_ctrl1_rx    <= '1' ?= s_can_bus_signal;
-  s_can_bfm_rx     <= '1' ?= s_can_bus_signal;
+  -- Bus signal at controller 1 and BFM
+  s_can_bus_signal1 <= 'H';
+  s_can_bus_signal1 <= '0' when s_can_ctrl1_tx = '0' else 'Z';
+  s_can_bus_signal1 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_can_ctrl2_tx  = '0' else 'Z';
+  s_can_bus_signal1 <= transport '0' after C_CAN_CTRL1_TO_CTRL3_DELAY when s_can_ctrl3_tx  = '0' else 'Z';
+  s_can_bus_signal1 <= '0' when s_can_bfm_tx  = '0' else 'Z';
+  s_can_ctrl1_rx    <= '1' ?= s_can_bus_signal1;
+  s_can_bfm_rx      <= '1' ?= s_can_bus_signal1;
+
+  -- Bus signal at controller 2
+  s_can_bus_signal2 <= 'H';
+  s_can_bus_signal2 <= '0' when s_can_ctrl2_tx  = '0' else 'Z';
+  s_can_bus_signal2 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_can_ctrl1_tx  = '0' else 'Z';
+  s_can_bus_signal2 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_can_bfm_tx    = '0' else 'Z';
+  s_can_bus_signal2 <= transport '0' after C_CAN_CTRL2_TO_CTRL3_DELAY when s_can_ctrl3_tx  = '0' else 'Z';
+  s_can_bus_signal2 <= '0' when s_can_ctrl2_tx  = '0' else 'Z';
+  s_can_ctrl2_rx    <= '1' ?= s_can_bus_signal2;
+
+  -- Bus signal at controller 3
+  s_can_bus_signal3 <= 'H';
+  s_can_bus_signal3 <= '0' when s_can_ctrl3_tx  = '0' else 'Z';
+  s_can_bus_signal3 <= transport '0' after C_CAN_CTRL1_TO_CTRL3_DELAY when s_can_ctrl1_tx  = '0' else 'Z';
+  s_can_bus_signal3 <= transport '0' after C_CAN_CTRL1_TO_CTRL3_DELAY when s_can_bfm_tx    = '0' else 'Z';
+  s_can_bus_signal3 <= transport '0' after C_CAN_CTRL2_TO_CTRL3_DELAY when s_can_ctrl2_tx  = '0' else 'Z';
+  s_can_bus_signal3 <= '0' when s_can_ctrl3_tx  = '0' else 'Z';
+  s_can_ctrl3_rx    <= '1' ?= s_can_bus_signal3;
 
 
-
-  INST_can_top : entity work.can_top
+  INST_can_top_1 : entity work.can_top
     generic map (
       G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
     port map (
       CLK   => s_clk,
-      RESET => s_reset,
+      RESET => s_can_ctrl1_reset,
 
       -- CAN bus interface signals
       CAN_TX => s_can_ctrl1_tx,
@@ -191,6 +288,100 @@ begin
       REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
       REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
       REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
+      );
+
+  INST_can_top_2 : entity work.can_top
+    generic map (
+      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID => true)
+    port map (
+      CLK   => s_clk,
+      RESET => s_can_ctrl2_reset,
+
+      -- CAN bus interface signals
+      CAN_TX => s_can_ctrl2_tx,
+      CAN_RX => s_can_ctrl2_rx,
+
+      -- Rx interface
+      RX_MSG       => s_can_ctrl2_rx_msg,
+      RX_MSG_VALID => s_can_ctrl2_rx_msg_valid,
+
+      -- Tx interface
+      TX_MSG           => s_can_ctrl2_tx_msg,
+      TX_START         => s_can_ctrl2_tx_start,
+      TX_RETRANSMIT_EN => s_can_ctrl2_tx_retransmit_en,
+      TX_BUSY          => s_can_ctrl2_tx_busy,
+      TX_DONE          => s_can_ctrl2_tx_done,
+
+      BTL_TRIPLE_SAMPLING         => '0',
+      BTL_PROP_SEG                => s_can_ctrl2_prop_seg,
+      BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
+      BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
+      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
+      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                 C_TIME_QUANTA_WIDTH),
+
+      -- Error state and counters
+      TRANSMIT_ERROR_COUNT => s_can_ctrl2_transmit_error_count,
+      RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
+      ERROR_STATE          => s_can_ctrl2_error_state,
+
+      -- Registers/counters
+      REG_TX_MSG_SENT_COUNT    => s_can_ctrl2_reg_tx_msg_sent_count,
+      REG_TX_ACK_RECV_COUNT    => s_can_ctrl2_reg_tx_ack_recv_count,
+      REG_TX_ARB_LOST_COUNT    => s_can_ctrl2_reg_tx_arb_lost_count,
+      REG_TX_ERROR_COUNT       => s_can_ctrl2_reg_tx_error_count,
+      REG_RX_MSG_RECV_COUNT    => s_can_ctrl2_reg_rx_msg_recv_count,
+      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl2_reg_rx_crc_error_count,
+      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl2_reg_rx_form_error_count,
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count
+      );
+
+  INST_can_top_3 : entity work.can_top
+    generic map (
+      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID => true)
+    port map (
+      CLK   => s_clk,
+      RESET => s_can_ctrl3_reset,
+
+      -- CAN bus interface signals
+      CAN_TX => s_can_ctrl3_tx,
+      CAN_RX => s_can_ctrl3_rx,
+
+      -- Rx interface
+      RX_MSG       => s_can_ctrl3_rx_msg,
+      RX_MSG_VALID => s_can_ctrl3_rx_msg_valid,
+
+      -- Tx interface
+      TX_MSG           => s_can_ctrl3_tx_msg,
+      TX_START         => s_can_ctrl3_tx_start,
+      TX_RETRANSMIT_EN => s_can_ctrl3_tx_retransmit_en,
+      TX_BUSY          => s_can_ctrl3_tx_busy,
+      TX_DONE          => s_can_ctrl3_tx_done,
+
+      BTL_TRIPLE_SAMPLING         => '0',
+      BTL_PROP_SEG                => s_can_ctrl3_prop_seg,
+      BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
+      BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
+      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
+      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                 C_TIME_QUANTA_WIDTH),
+
+      -- Error state and counters
+      TRANSMIT_ERROR_COUNT => s_can_ctrl3_transmit_error_count,
+      RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
+      ERROR_STATE          => s_can_ctrl3_error_state,
+
+      -- Registers/counters
+      REG_TX_MSG_SENT_COUNT    => s_can_ctrl3_reg_tx_msg_sent_count,
+      REG_TX_ACK_RECV_COUNT    => s_can_ctrl3_reg_tx_ack_recv_count,
+      REG_TX_ARB_LOST_COUNT    => s_can_ctrl3_reg_tx_arb_lost_count,
+      REG_TX_ERROR_COUNT       => s_can_ctrl3_reg_tx_error_count,
+      REG_RX_MSG_RECV_COUNT    => s_can_ctrl3_reg_rx_msg_recv_count,
+      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl3_reg_rx_crc_error_count,
+      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl3_reg_rx_form_error_count,
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count
       );
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
@@ -362,7 +553,11 @@ begin
     -----------------------------------------------------------------------------------------------
 
     s_clock_ena <= true;                -- to start clock generator
-    pulse(s_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+
+    -- Disable controller 2 and 3 by putting them in reset
+    s_can_ctrl2_reset <= '1';
+    s_can_ctrl3_reset <= '1';
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #1: Basic ID msg from BFM to Canola CAN controller", C_SCOPE);
@@ -661,7 +856,7 @@ begin
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
 
-      wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(<<signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -669,7 +864,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(<<signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from BFM
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -752,7 +947,7 @@ begin
 
     while v_test_num < C_NUM_ITERATIONS loop
       if s_can_ctrl1_error_state /= ERROR_ACTIVE then
-        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+        pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
       s_msg_reset <= '1';
@@ -790,7 +985,7 @@ begin
 
       v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) + 1);
 
-      wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge( << signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic >> );
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -798,7 +993,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge( << signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic >> );
 
       -- Start transmitting from BFM. It should lose the arbitration
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -857,7 +1052,7 @@ begin
     while v_test_num < C_NUM_ITERATIONS loop
 
       if s_can_ctrl1_error_state /= ERROR_ACTIVE then
-        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+        pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
       v_can_bfm_config.crc_error_severity := NOTE;
@@ -945,7 +1140,7 @@ begin
     while v_test_num < C_NUM_ITERATIONS loop
 
       if s_can_ctrl1_error_state /= ERROR_ACTIVE then
-        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+        pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
       v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
@@ -1045,7 +1240,7 @@ begin
     while v_test_num < C_NUM_ITERATIONS loop
 
       if s_can_ctrl1_error_state /= ERROR_ACTIVE then
-        pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+        pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
       v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
@@ -1128,7 +1323,7 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #10: Test ERROR ACTIVE->PASSIVE on missing ACKs, but not BUS OFF", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
 
     -- In this test the CAN controller sends messages, but receives no ACK.
     -- This should increase the transmit error counter to the error passive threshold,
@@ -1292,7 +1487,7 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #12: Test that BUS OFF state is reached after too many Tx errors", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
 
     -- In this test the CAN controller sends messages, but receives no ACK.
     -- This should increase the transmit error counter to the error passive threshold,
@@ -1333,7 +1528,7 @@ begin
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
-      wait until << signal INST_can_top.INST_can_frame_tx_fsm.s_fsm_state : work.can_pkg.can_frame_tx_fsm_t >>
+      wait until << signal INST_can_top_1.INST_can_frame_tx_fsm.s_fsm_state : work.can_pkg.can_frame_tx_fsm_t >>
         = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
 
       uniform(seed1, seed2, v_rand_real);
@@ -1426,7 +1621,7 @@ begin
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #13: Test ERROR PASSIVE/ACTIVE states when receiving", C_SCOPE);
     -----------------------------------------------------------------------------------------------
-    pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
     v_test_num := 0;
 
     -- Generate errors till receive error count saturates
@@ -1571,6 +1766,51 @@ begin
     -- Check that controller becomes error passive
     -- Check that controller sends passive error flags on errors now
     -- Check that controller returns to error active after succesfully receiving some messages
+
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test #14: Test with multiple CAN controllers", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
+
+    -- Bring controller #2 out of reset
+    wait for 10*C_CLK_PERIOD;
+    s_can_ctrl2_reset <= '0';
+
+    -- Bring controller #3 out of reset
+    wait for 10*C_CLK_PERIOD;
+    s_can_ctrl3_reset <= '0';
+
+    v_test_num := 0;
+
+
+    v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
+    v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+    v_tx_error_count := s_can_ctrl1_reg_tx_error_count;
+
+    generate_random_can_message (v_xmit_arb_id,
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 v_xmit_ext_id);
+
+    for i in 0 to 7 loop
+      s_can_ctrl1_tx_msg.data(i) <= v_xmit_data(i);
+    end loop;
+
+    s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+    s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+    s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+    s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+    s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+    log(ID_SEQUENCER, "Transmit from CAN controller", C_SCOPE);
+
+    -- Start transmitting from CAN controller
+    wait until falling_edge(s_clk);
+    s_can_ctrl1_tx_start <= '1';
+    wait for 0 ns;                      -- Delta cycle only
+    s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
 
     -----------------------------------------------------------------------------------------------
