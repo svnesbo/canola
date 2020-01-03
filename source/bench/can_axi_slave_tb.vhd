@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2019-12-18
+-- Last update: 2020-01-03
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -211,7 +211,8 @@ begin
       CAN_TX_DONE_IRQ   => s_can_tx_done_irq,
       CAN_TX_FAILED_IRQ => s_can_tx_failed_irq,
       axi_clk           => s_can_axi_clk,
-      axi_areset_n      => s_can_axi_areset_n,
+      axi_reset         => s_reset,
+      axi_aresetn       => s_can_axi_areset_n,
       axi_awaddr        => s_can_axi_awaddr,
       axi_awvalid       => s_can_axi_awvalid,
       axi_awready       => s_can_axi_awready,
