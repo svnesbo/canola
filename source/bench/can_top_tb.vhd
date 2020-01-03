@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2019-12-09
+-- Last update: 2020-01-03
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -89,34 +89,34 @@ architecture tb of can_top_tb is
   signal s_clk              : std_logic := '0';
 
   -- Signals for CAN controller
-  signal s_can_ctrl_tx               : std_logic;
-  signal s_can_ctrl_rx               : std_logic;
-  signal s_can_ctrl_rx_msg           : can_msg_t;
-  signal s_can_ctrl_tx_msg           : can_msg_t;
-  signal s_can_ctrl_rx_msg_valid     : std_logic;
-  signal s_can_ctrl_tx_start         : std_logic := '0';
-  signal s_can_ctrl_tx_retransmit_en : std_logic := '0';
-  signal s_can_ctrl_tx_busy          : std_logic;
-  signal s_can_ctrl_tx_done          : std_logic;
+  signal s_can_ctrl1_tx               : std_logic;
+  signal s_can_ctrl1_rx               : std_logic;
+  signal s_can_ctrl1_rx_msg           : can_msg_t;
+  signal s_can_ctrl1_tx_msg           : can_msg_t;
+  signal s_can_ctrl1_rx_msg_valid     : std_logic;
+  signal s_can_ctrl1_tx_start         : std_logic := '0';
+  signal s_can_ctrl1_tx_retransmit_en : std_logic := '0';
+  signal s_can_ctrl1_tx_busy          : std_logic;
+  signal s_can_ctrl1_tx_done          : std_logic;
 
-  signal s_can_ctrl_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
-  signal s_can_ctrl_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
-  signal s_can_ctrl_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
-  signal s_can_ctrl_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
+  signal s_can_ctrl1_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
+  signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl1_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
+  signal s_can_ctrl1_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
 
-  signal s_can_ctrl_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_can_ctrl_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_can_ctrl_error_state          : can_error_state_t;
+  signal s_can_ctrl1_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl1_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_can_ctrl1_error_state          : can_error_state_t;
 
   -- Registers/counters
-  signal s_can_ctrl_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
 
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
@@ -139,9 +139,9 @@ begin
   clock_gen(s_can_baud_clk, s_clock_ena, C_CAN_BAUD_PERIOD);
 
   s_can_bus_signal <= 'H';
-  s_can_bus_signal <= '0' when s_can_ctrl_tx = '0' else 'Z';
+  s_can_bus_signal <= '0' when s_can_ctrl1_tx = '0' else 'Z';
   s_can_bus_signal <= '0' when s_can_bfm_tx  = '0' else 'Z';
-  s_can_ctrl_rx    <= '1' ?= s_can_bus_signal;
+  s_can_ctrl1_rx    <= '1' ?= s_can_bus_signal;
   s_can_bfm_rx     <= '1' ?= s_can_bus_signal;
 
 
@@ -155,52 +155,52 @@ begin
       RESET => s_reset,
 
       -- CAN bus interface signals
-      CAN_TX => s_can_ctrl_tx,
-      CAN_RX => s_can_ctrl_rx,
+      CAN_TX => s_can_ctrl1_tx,
+      CAN_RX => s_can_ctrl1_rx,
 
       -- Rx interface
-      RX_MSG       => s_can_ctrl_rx_msg,
-      RX_MSG_VALID => s_can_ctrl_rx_msg_valid,
+      RX_MSG       => s_can_ctrl1_rx_msg,
+      RX_MSG_VALID => s_can_ctrl1_rx_msg_valid,
 
       -- Tx interface
-      TX_MSG           => s_can_ctrl_tx_msg,
-      TX_START         => s_can_ctrl_tx_start,
-      TX_RETRANSMIT_EN => s_can_ctrl_tx_retransmit_en,
-      TX_BUSY          => s_can_ctrl_tx_busy,
-      TX_DONE          => s_can_ctrl_tx_done,
+      TX_MSG           => s_can_ctrl1_tx_msg,
+      TX_START         => s_can_ctrl1_tx_start,
+      TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
+      TX_BUSY          => s_can_ctrl1_tx_busy,
+      TX_DONE          => s_can_ctrl1_tx_done,
 
       BTL_TRIPLE_SAMPLING         => '0',
-      BTL_PROP_SEG                => s_can_ctrl_prop_seg,
-      BTL_PHASE_SEG1              => s_can_ctrl_phase_seg1,
-      BTL_PHASE_SEG2              => s_can_ctrl_phase_seg2,
-      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl_sync_jump_width,
+      BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
+      BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
+      BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
+      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
       BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                  C_TIME_QUANTA_WIDTH),
 
       -- Error state and counters
-      TRANSMIT_ERROR_COUNT => s_can_ctrl_transmit_error_count,
-      RECEIVE_ERROR_COUNT  => s_can_ctrl_receive_error_count,
-      ERROR_STATE          => s_can_ctrl_error_state,
+      TRANSMIT_ERROR_COUNT => s_can_ctrl1_transmit_error_count,
+      RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
+      ERROR_STATE          => s_can_ctrl1_error_state,
 
       -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => s_can_ctrl_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl_reg_tx_ack_recv_count,
-      REG_TX_ARB_LOST_COUNT    => s_can_ctrl_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl_reg_tx_error_count,
-      REG_RX_MSG_RECV_COUNT    => s_can_ctrl_reg_rx_msg_recv_count,
-      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl_reg_rx_crc_error_count,
-      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl_reg_rx_stuff_error_count
+      REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
+      REG_TX_ACK_RECV_COUNT    => s_can_ctrl1_reg_tx_ack_recv_count,
+      REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
+      REG_TX_ERROR_COUNT       => s_can_ctrl1_reg_tx_error_count,
+      REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
+      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
+      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
       );
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
-  p_can_ctrl_rx_msg: process (s_can_ctrl_rx_msg_valid, s_msg_reset) is
+  p_can_ctrl_rx_msg: process (s_can_ctrl1_rx_msg_valid, s_msg_reset) is
   begin
     if s_msg_reset = '1' then
       s_msg_received <= '0';
-    elsif s_can_ctrl_rx_msg_valid = '1' then
+    elsif s_can_ctrl1_rx_msg_valid = '1' then
       s_msg_received <= '1';
-      s_msg          <= s_can_ctrl_rx_msg;
+      s_msg          <= s_can_ctrl1_rx_msg;
     end if;
   end process p_can_ctrl_rx_msg;
 
@@ -435,7 +435,7 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_rx_msg_recv_count)), C_NUM_ITERATIONS,
                 error, "Check number of received messages in CAN controller.");
 
 
@@ -452,20 +452,20 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                      v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
@@ -486,9 +486,9 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_msg_sent_count)), C_NUM_ITERATIONS,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_ack_recv_count)), C_NUM_ITERATIONS,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS,
                 error, "Check number of acknowledged messages in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
@@ -560,7 +560,7 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*2,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*2,
                 error, "Check number of received messages in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
@@ -576,20 +576,20 @@ begin
                                    v_xmit_remote_frame,
                                    v_xmit_ext_id);
 
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                      v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
@@ -610,9 +610,9 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_msg_sent_count)), C_NUM_ITERATIONS*2,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS*2,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_ack_recv_count)), C_NUM_ITERATIONS*2,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS*2,
                 error, "Check number of acknowledged messages in CAN controller.");
 
 
@@ -623,7 +623,7 @@ begin
     v_xmit_ext_id := '1';
 
     -- Make sure that retransmits are disabled for this test
-    s_can_ctrl_tx_retransmit_en <= '0';
+    s_can_ctrl1_tx_retransmit_en <= '0';
 
     while v_test_num < C_NUM_ITERATIONS loop
       s_msg_reset <= '1';
@@ -644,19 +644,19 @@ begin
                                    v_xmit_ext_id);
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
 
       -- Make arbitration ID for BFM lower than ID used by CAN controller,
       -- so that BFM will win the arbitration
       if unsigned(v_xmit_arb_id) = 0 then
-        s_can_ctrl_tx_msg.arb_id_a(0) <= '1';
+        s_can_ctrl1_tx_msg.arb_id_a(0) <= '1';
       else
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
@@ -665,9 +665,9 @@ begin
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       wait until rising_edge(<<signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic>>);
 
@@ -692,7 +692,7 @@ begin
       --wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
       --check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
 
-      check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), v_test_num+1,
+      check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_arb_lost_count)), v_test_num+1,
                   error, "Check arbitration loss count in CAN controller.");
 
       check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
@@ -736,9 +736,9 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_reg_tx_arb_lost_count)), v_test_num,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_arb_lost_count)), v_test_num,
                 error, "Check number of lost arbitrations in CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*3,
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_rx_msg_recv_count)), C_NUM_ITERATIONS*3,
                 error, "Check number of received messages in CAN controller.");
 
 
@@ -751,7 +751,7 @@ begin
     v_can_bfm_config.ack_missing_severity := NO_ALERT;
 
     while v_test_num < C_NUM_ITERATIONS loop
-      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+      if s_can_ctrl1_error_state /= ERROR_ACTIVE then
         pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
@@ -760,8 +760,8 @@ begin
       s_msg_reset <= '0';
       wait until rising_edge(s_clk);
 
-      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -770,12 +770,12 @@ begin
                                    v_xmit_ext_id);
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
 
       if unsigned(v_xmit_arb_id) = 0 then
         v_xmit_arb_id(0) := '1';
@@ -785,8 +785,8 @@ begin
       -- so that the CAN controller will win the arbitration
       v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
 
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
 
       v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) + 1);
 
@@ -794,9 +794,9 @@ begin
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       wait until rising_edge( << signal INST_can_top.INST_can_btl.s_sample_point_tx : std_logic >> );
 
@@ -819,19 +819,19 @@ begin
       -- so no ACK has been sent
       can_uvvm_recv_active_error_flag(200, "Receive error flag with CAN BFM", s_can_bfm_rx);
 
-      wait until s_can_ctrl_tx_busy = '0'
+      wait until s_can_ctrl1_tx_busy = '0'
         for 200*C_CAN_BAUD_PERIOD;
 
-      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
+      check_value(s_can_ctrl1_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
 
       -- Arbitration loss count should not have increased
-      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+      check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
       -- Ack received count should not have increased, because when
       -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
       -- was no way for the BFM to receive the message and acknowledge it
-      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
                   error, "Check ACK received count in CAN controller.");
 
       wait until rising_edge(s_can_baud_clk);
@@ -856,17 +856,17 @@ begin
 
     while v_test_num < C_NUM_ITERATIONS loop
 
-      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+      if s_can_ctrl1_error_state /= ERROR_ACTIVE then
         pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
       v_can_bfm_config.crc_error_severity := NOTE;
 
-      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-      v_receive_error_count  := s_can_ctrl_receive_error_count;
+      v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl1_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl1_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl1_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl1_receive_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -901,25 +901,25 @@ begin
 
       -- Received message count should not have increased, because receiving this
       -- message was supposed to fail..
-      check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+      check_value(s_can_ctrl1_reg_rx_msg_recv_count, v_rx_msg_count,
                   error, "Check received message count in CAN controller.");
 
       -- Expecting increase by one since we asked to generate a CRC error
-      check_value(unsigned(s_can_ctrl_reg_rx_crc_error_count),
+      check_value(unsigned(s_can_ctrl1_reg_rx_crc_error_count),
                   unsigned(v_rx_crc_error_count)+1,
                   error, "Check received CRC error count in CAN controller.");
 
       -- Not expecting increase, we did not generate a stuff error
-      check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
+      check_value(s_can_ctrl1_reg_rx_stuff_error_count, v_rx_stuff_error_count,
                   error, "Check received stuff error count in CAN controller.");
 
       -- Not expecting increase, we did not generate a form error
-      check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
+      check_value(s_can_ctrl1_reg_rx_form_error_count, v_rx_form_error_count,
                   error, "Check received form error count in CAN controller.");
 
       -- TODO: Add this test after EML is connected to Rx Frame FSM....
       -- Expecting increase by one in receive error count
-      --check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+      --check_value(s_can_ctrl1_receive_error_count, v_receive_error_count+1,
       --            error, "Check receive error count in CAN controller.");
 
       wait until rising_edge(s_can_baud_clk);
@@ -944,15 +944,15 @@ begin
 
     while v_test_num < C_NUM_ITERATIONS loop
 
-      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+      if s_can_ctrl1_error_state /= ERROR_ACTIVE then
         pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
-      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-      v_receive_error_count  := s_can_ctrl_receive_error_count;
+      v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl1_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl1_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl1_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl1_receive_error_count;
 
       -- Generate random data frame. To guarantee that stuff errors can be
       -- generated in the frame, we want a data frame where we can force a byte
@@ -1000,25 +1000,25 @@ begin
 
       -- Received message count should not have increased, because receiving this
       -- message was supposed to fail..
-      check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+      check_value(s_can_ctrl1_reg_rx_msg_recv_count, v_rx_msg_count,
                   error, "Check received message count in CAN controller.");
 
       -- Not expecting increase, we did not generate a CRC error
-      check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+      check_value(s_can_ctrl1_reg_rx_crc_error_count, v_rx_crc_error_count,
                   error, "Check received CRC error count in CAN controller.");
 
       -- Expecting increase by one since we asked to generate a stuff error
-      check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
+      check_value(unsigned(s_can_ctrl1_reg_rx_stuff_error_count),
                   unsigned(v_rx_stuff_error_count)+1,
                   error, "Check received stuff error count in CAN controller.");
 
       -- Not expecting increase, we did not generate a form error
-      check_value(s_can_ctrl_reg_rx_form_error_count, v_rx_form_error_count,
+      check_value(s_can_ctrl1_reg_rx_form_error_count, v_rx_form_error_count,
                   error, "Check received form error count in CAN controller.");
 
       -- TODO: Add this test after EML is connected to Rx Frame FSM....
       -- Expecting increase by one in receive error count
-      --check_value(unsigned(s_can_ctrl_receive_error_count),
+      --check_value(unsigned(s_can_ctrl1_receive_error_count),
       --            unsigned(v_receive_error_count)+1,
       --            error, "Check receive error count in CAN controller.");
 
@@ -1044,15 +1044,15 @@ begin
 
     while v_test_num < C_NUM_ITERATIONS loop
 
-      if s_can_ctrl_error_state /= ERROR_ACTIVE then
+      if s_can_ctrl1_error_state /= ERROR_ACTIVE then
         pulse(s_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
       end if;
 
-      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-      v_receive_error_count  := s_can_ctrl_receive_error_count;
+      v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl1_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl1_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl1_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl1_receive_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1091,25 +1091,25 @@ begin
 
       -- Received message count should not have increased, because receiving this
       -- message was supposed to fail..
-      check_value(s_can_ctrl_reg_rx_msg_recv_count, v_rx_msg_count,
+      check_value(s_can_ctrl1_reg_rx_msg_recv_count, v_rx_msg_count,
                   error, "Check received message count in CAN controller.");
 
       -- Not expecting increase, we did not generate a CRC error
-      check_value(s_can_ctrl_reg_rx_crc_error_count, v_rx_crc_error_count,
+      check_value(s_can_ctrl1_reg_rx_crc_error_count, v_rx_crc_error_count,
                   error, "Check received CRC error count in CAN controller.");
 
       -- Not expecting increase, we did not generate a stuff error
-      check_value(s_can_ctrl_reg_rx_stuff_error_count, v_rx_stuff_error_count,
+      check_value(s_can_ctrl1_reg_rx_stuff_error_count, v_rx_stuff_error_count,
                   error, "Check received stuff error count in CAN controller.");
 
       -- Expecting increase by one since we asked to generate a form error
-      check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
+      check_value(unsigned(s_can_ctrl1_reg_rx_form_error_count),
                   unsigned(v_rx_form_error_count)+1,
                   error, "Check received form error count in CAN controller.");
 
       -- TODO: Add this test after EML is connected to Rx Frame FSM....
       -- Expecting increase by one in receive error count
-      --check_value(s_can_ctrl_receive_error_count, v_receive_error_count+1,
+      --check_value(s_can_ctrl1_receive_error_count, v_receive_error_count+1,
       --            error, "Check receive error count in CAN controller.");
 
       wait until rising_edge(s_can_baud_clk);
@@ -1150,8 +1150,8 @@ begin
       s_msg_reset <= '0';
       wait until rising_edge(s_clk);
 
-      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1160,22 +1160,22 @@ begin
                                    v_xmit_ext_id);
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      if s_can_ctrl_error_state = ERROR_ACTIVE then
+      if s_can_ctrl1_error_state = ERROR_ACTIVE then
         -- Expect error flag from CAN controller due to missing ACK
         -- (but only when in ERROR ACTIVE state)
         can_uvvm_recv_active_error_flag(200,
@@ -1183,31 +1183,31 @@ begin
                                         s_can_bfm_rx);
       end if;
 
-      wait until s_can_ctrl_tx_busy = '0'
+      wait until s_can_ctrl1_tx_busy = '0'
         for 200*C_CAN_BAUD_PERIOD;
 
-      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
+      check_value(s_can_ctrl1_tx_busy, '0', error, "Check that CAN controller is not busy anymore.");
 
       -- Arbitration loss count should not have increased
-      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+      check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
                   error, "Check ACK received count in CAN controller.");
 
       -- Error count should only increase while ERROR ACTIVE
-      if s_can_ctrl_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
-        check_value(to_integer(s_can_ctrl_transmit_error_count), (v_test_num+1) * 8,
+      if s_can_ctrl1_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
+        check_value(to_integer(s_can_ctrl1_transmit_error_count), (v_test_num+1) * 8,
                     error, "Check that transmit error count increased by eight");
       else
-        check_value(to_integer(s_can_ctrl_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD,
+        check_value(to_integer(s_can_ctrl1_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD,
                     error, "Check no transmit error count increase on missing ACK in error passive");
       end if;
 
-      if s_can_ctrl_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
-        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check that controller is error active");
+      if s_can_ctrl1_transmit_error_count < C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check that controller is error active");
       else
-        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check that controller is error passive");
+        check_value(s_can_ctrl1_error_state, ERROR_PASSIVE, error, "Check that controller is error passive");
       end if;
 
       wait until rising_edge(s_can_baud_clk);
@@ -1230,8 +1230,8 @@ begin
     v_test_num := 0;
 
     while v_test_num < C_ERROR_PASSIVE_THRESHOLD loop
-      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
+      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1240,20 +1240,20 @@ begin
                                    v_xmit_ext_id);
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       can_uvvm_check(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                      v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
@@ -1272,17 +1272,17 @@ begin
       wait until rising_edge(s_can_baud_clk);
 
       -- Arbitration loss count should not have increased
-      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+      check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
       -- Ack received count should have increased now
-      check_value(unsigned(s_can_ctrl_reg_tx_ack_recv_count), unsigned(v_ack_recv_count)+1,
+      check_value(unsigned(s_can_ctrl1_reg_tx_ack_recv_count), unsigned(v_ack_recv_count)+1,
                   error, "Check ACK received count increased in CAN controller.");
 
-      check_value(to_integer(s_can_ctrl_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD-(v_test_num+1),
+      check_value(to_integer(s_can_ctrl1_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD-(v_test_num+1),
                   error, "Check that transmit error count decreased on successful transmit");
 
-      check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check that controller is now error active");
+      check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check that controller is now error active");
 
       v_test_num := v_test_num + 1;
 
@@ -1303,10 +1303,10 @@ begin
 
     v_can_bfm_config.ack_missing_severity := FAILURE;
 
-    while s_can_ctrl_error_state /= BUS_OFF loop
-      v_arb_lost_count := s_can_ctrl_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl_reg_tx_ack_recv_count;
-      v_tx_error_count := s_can_ctrl_reg_tx_error_count;
+    while s_can_ctrl1_error_state /= BUS_OFF loop
+      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_tx_error_count := s_can_ctrl1_reg_tx_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1315,22 +1315,22 @@ begin
                                    v_xmit_ext_id);
 
       for i in 0 to 7 loop
-        s_can_ctrl_tx_msg.data(i)      <= v_xmit_data(i);
+        s_can_ctrl1_tx_msg.data(i)      <= v_xmit_data(i);
       end loop;
 
-      s_can_ctrl_tx_msg.ext_id         <= v_xmit_ext_id;
-      s_can_ctrl_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-      s_can_ctrl_tx_msg.remote_request <= v_xmit_remote_frame;
-      s_can_ctrl_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
 
       log(ID_SEQUENCER, "Transmit from CAN controller", C_SCOPE);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
-      s_can_ctrl_tx_start <= '1';
+      s_can_ctrl1_tx_start <= '1';
       wait for 0 ns;  -- Delta cycle only
-      s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
       wait until << signal INST_can_top.INST_can_frame_tx_fsm.s_fsm_state : work.can_pkg.can_frame_tx_fsm_t >>
@@ -1357,11 +1357,11 @@ begin
       wait for C_CAN_BAUD_PERIOD;
 
       -- Controller should generate an error flag
-      if s_can_ctrl_error_state = ERROR_ACTIVE then
+      if s_can_ctrl1_error_state = ERROR_ACTIVE then
         can_uvvm_recv_active_error_flag(0, -- Expect error active flag immediately in ERROR ACTIVE
                                         "Expect active error flag when controller is error active",
                                         s_can_bfm_rx);
-      elsif s_can_ctrl_error_state = ERROR_PASSIVE then
+      elsif s_can_ctrl1_error_state = ERROR_PASSIVE then
 
         can_uvvm_recv_passive_error_flag(0, -- Expect error passive flag immediately in ERROR PASSIVE
                                         "Expect passive error flag when controller is error passive",
@@ -1369,31 +1369,31 @@ begin
       end if;
 
       -- Wait beyond IFS after error flag
-      wait until s_can_ctrl_tx_busy = '0' for (C_IFS_LENGTH+1)*C_CAN_BAUD_PERIOD;
+      wait until s_can_ctrl1_tx_busy = '0' for (C_IFS_LENGTH+1)*C_CAN_BAUD_PERIOD;
 
-      check_value(s_can_ctrl_tx_busy, '0', error, "Check that CAN controller is not busy");
+      check_value(s_can_ctrl1_tx_busy, '0', error, "Check that CAN controller is not busy");
 
       -- Arbitration loss count should not have increased
-      check_value(s_can_ctrl_reg_tx_arb_lost_count, v_arb_lost_count,
+      check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
       -- Ack received count should not have increased
-      check_value(s_can_ctrl_reg_tx_ack_recv_count, v_ack_recv_count,
+      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
                   error, "Check ACK received count in CAN controller.");
 
       -- Tx error should have increased
-      check_value(unsigned(s_can_ctrl_reg_tx_error_count), unsigned(v_tx_error_count)+1,
+      check_value(unsigned(s_can_ctrl1_reg_tx_error_count), unsigned(v_tx_error_count)+1,
                   error, "Check Tx error increase in CAN controller.");
 
-      check_value(to_integer(s_can_ctrl_transmit_error_count), (v_test_num+1)*8,
+      check_value(to_integer(s_can_ctrl1_transmit_error_count), (v_test_num+1)*8,
                   error, "Check that transmit error count increase by 8");
 
-      if unsigned(s_can_ctrl_transmit_error_count) >= C_BUS_OFF_THRESHOLD then
-        check_value(s_can_ctrl_error_state, BUS_OFF, error, "Check error state.");
-      elsif unsigned(s_can_ctrl_transmit_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
-        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check error state.");
+      if unsigned(s_can_ctrl1_transmit_error_count) >= C_BUS_OFF_THRESHOLD then
+        check_value(s_can_ctrl1_error_state, BUS_OFF, error, "Check error state.");
+      elsif unsigned(s_can_ctrl1_transmit_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl1_error_state, ERROR_PASSIVE, error, "Check error state.");
       else
-        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check error state.");
+        check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check error state.");
       end if;
 
       v_test_num := v_test_num + 1;
@@ -1403,7 +1403,7 @@ begin
     ----------------------------------------------------------------------------
     -- Controller should now be in BUS OFF state. Test that it will not transmit
     ----------------------------------------------------------------------------
-    check_value(s_can_ctrl_error_state, BUS_OFF, error, "Check error state.");
+    check_value(s_can_ctrl1_error_state, BUS_OFF, error, "Check error state.");
 
     wait for 6*C_CAN_BAUD_PERIOD;
 
@@ -1411,9 +1411,9 @@ begin
 
     -- Start transmitting from CAN controller
     wait until falling_edge(s_clk);
-    s_can_ctrl_tx_start <= '1';
+    s_can_ctrl1_tx_start <= '1';
     wait for 0 ns;  -- Delta cycle only
-    s_can_ctrl_tx_start <= transport '0' after C_CLK_PERIOD;
+    s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
     wait until s_can_bfm_rx = '0' for 200*C_CAN_BAUD_PERIOD;
     check_value(s_can_bfm_rx, '1', error, "Check that no dominant bits were transmitted");
@@ -1430,16 +1430,16 @@ begin
     v_test_num := 0;
 
     -- Generate errors till receive error count saturates
-    while unsigned(s_can_ctrl_receive_error_count) < C_BUS_OFF_THRESHOLD loop
+    while unsigned(s_can_ctrl1_receive_error_count) < C_BUS_OFF_THRESHOLD loop
       v_can_bfm_config.crc_error_severity   := NO_ALERT;
       v_can_bfm_config.form_error_severity  := NO_ALERT;
       v_can_bfm_config.ack_missing_severity := NO_ALERT;
 
-      v_rx_msg_count         := s_can_ctrl_reg_rx_msg_recv_count;
-      v_rx_crc_error_count   := s_can_ctrl_reg_rx_crc_error_count;
-      v_rx_form_error_count  := s_can_ctrl_reg_rx_form_error_count;
-      v_rx_stuff_error_count := s_can_ctrl_reg_rx_stuff_error_count;
-      v_receive_error_count  := s_can_ctrl_receive_error_count;
+      v_rx_msg_count         := s_can_ctrl1_reg_rx_msg_recv_count;
+      v_rx_crc_error_count   := s_can_ctrl1_reg_rx_crc_error_count;
+      v_rx_form_error_count  := s_can_ctrl1_reg_rx_form_error_count;
+      v_rx_stuff_error_count := s_can_ctrl1_reg_rx_stuff_error_count;
+      v_receive_error_count  := s_can_ctrl1_receive_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1513,34 +1513,34 @@ begin
                        v_can_bfm_config);
       end if;
 
-      wait until v_receive_error_count /= s_can_ctrl_receive_error_count
+      wait until v_receive_error_count /= s_can_ctrl1_receive_error_count
         for 20*C_CAN_BAUD_PERIOD;
 
       -- CRC, stuff and form errors increase receive error count by 1
-      check_value(unsigned(s_can_ctrl_receive_error_count),
+      check_value(unsigned(s_can_ctrl1_receive_error_count),
                   unsigned(v_receive_error_count)+1,
                   error, "Check receive error count increase.");
 
       -- Check that correct error types were detected
       if v_can_rx_error_gen.crc_error then
-        check_value(unsigned(s_can_ctrl_reg_rx_crc_error_count),
+        check_value(unsigned(s_can_ctrl1_reg_rx_crc_error_count),
                     unsigned(v_rx_crc_error_count)+1,
                     error, "Check received CRC error count in CAN controller.");
       elsif v_can_rx_error_gen.stuff_error then
-        check_value(unsigned(s_can_ctrl_reg_rx_stuff_error_count),
+        check_value(unsigned(s_can_ctrl1_reg_rx_stuff_error_count),
                     unsigned(v_rx_stuff_error_count)+1,
                     error, "Check received stuff error count in CAN controller.");
       else
-        check_value(unsigned(s_can_ctrl_reg_rx_form_error_count),
+        check_value(unsigned(s_can_ctrl1_reg_rx_form_error_count),
                     unsigned(v_rx_form_error_count)+1,
                     error, "Check received form error count in CAN controller.");
       end if;
 
       -- Check error state
-      if unsigned(s_can_ctrl_receive_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
-        check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Check error state.");
+      if unsigned(s_can_ctrl1_receive_error_count) >= C_ERROR_PASSIVE_THRESHOLD then
+        check_value(s_can_ctrl1_error_state, ERROR_PASSIVE, error, "Check error state.");
       else
-        check_value(s_can_ctrl_error_state, ERROR_ACTIVE, error, "Check error state.");
+        check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check error state.");
       end if;
 
 
@@ -1558,10 +1558,10 @@ begin
       v_test_num := v_test_num + 1;
     end loop;
 
-    check_value(to_integer(unsigned(s_can_ctrl_receive_error_count)), C_BUS_OFF_THRESHOLD,
+    check_value(to_integer(unsigned(s_can_ctrl1_receive_error_count)), C_BUS_OFF_THRESHOLD,
                 error, "Receive error count should be at BUS OFF threshold now.");
 
-    check_value(s_can_ctrl_error_state, ERROR_PASSIVE, error, "Receive errors should not cause BUS OFF");
+    check_value(s_can_ctrl1_error_state, ERROR_PASSIVE, error, "Receive errors should not cause BUS OFF");
 
     v_can_bfm_config.crc_error_severity   := FAILURE;
     v_can_bfm_config.form_error_severity  := FAILURE;
