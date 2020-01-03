@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-09-19
+-- Last update: 2020-01-03
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -72,6 +72,18 @@ package can_tb_pkg is
   procedure check_value(
     constant value       : can_error_state_t;
     constant exp         : can_error_state_t;
+    constant alert_level : t_alert_level;
+    constant msg         : string;
+    constant scope       : string          := C_TB_SCOPE_DEFAULT;
+    constant msg_id      : t_msg_id        := ID_POS_ACK;
+    constant msg_id_panel: t_msg_id_panel  := shared_msg_id_panel;
+    constant caller_name : string          := "check_value()"
+    );
+
+
+  procedure check_value(
+    constant value       : can_msg_t;
+    constant exp         : can_msg_t;
     constant alert_level : t_alert_level;
     constant msg         : string;
     constant scope       : string          := C_TB_SCOPE_DEFAULT;
@@ -235,6 +247,40 @@ package body can_tb_pkg is
     variable v_check_ok  : boolean;
   begin
     v_check_ok := check_value(value, exp, alert_level, msg, scope, msg_id, msg_id_panel, caller_name);
+  end;
+
+
+  procedure check_value(
+    constant value       : can_msg_t;
+    constant exp         : can_msg_t;
+    constant alert_level : t_alert_level;
+    constant msg         : string;
+    constant scope       : string          := C_TB_SCOPE_DEFAULT;
+    constant msg_id      : t_msg_id        := ID_POS_ACK;
+    constant msg_id_panel: t_msg_id_panel  := shared_msg_id_panel;
+    constant caller_name : string          := "check_value()"
+    ) is
+  begin
+    check_value(value.ext_id, exp.ext_id, error, msg & " - Extended ID bit");
+    check_value(value.arb_id_a, exp.arb_id_a, error, msg & " - Arb. ID A");
+
+    if exp.ext_id = '1' then
+      check_value(value.arb_id_b, exp.arb_id_b, error, msg & " - Arb. ID B");
+    end if;
+
+    check_value(value.remote_request, exp.remote_request, error, msg & " - RTR bit");
+
+    check_value(value.data_length, exp.data_length, error, msg & " - DLC");
+
+    -- Don't check data for remote frame requests
+    if exp.remote_request = '0' then
+      for idx in 0 to to_integer(unsigned(exp.data_length))-1 loop
+        check_value(value.data(idx),
+                    exp.data(idx),
+                    error,
+                    msg & " - Payload " & to_string(idx, 1));
+      end loop;
+    end if;
   end;
 
 end package body can_tb_pkg;

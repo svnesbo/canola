@@ -204,9 +204,13 @@ architecture tb of can_top_tb is
 
   -- Used by p_can_ctrl_rx_msg which monitors
   -- when the CAN controller receives a message
-  signal s_msg_received : std_logic := '0';
-  signal s_msg_reset    : std_logic := '0';
-  signal s_msg          : can_msg_t;
+  signal s_msg_ctrl1_received : std_logic := '0';
+  signal s_msg_ctrl2_received : std_logic := '0';
+  signal s_msg_ctrl3_received : std_logic := '0';
+  signal s_msg_reset          : std_logic := '0';
+  signal s_msg_ctrl1          : can_msg_t;
+  signal s_msg_ctrl2          : can_msg_t;
+  signal s_msg_ctrl3          : can_msg_t;
 
 
 begin
@@ -385,13 +389,28 @@ begin
       );
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
-  p_can_ctrl_rx_msg: process (s_can_ctrl1_rx_msg_valid, s_msg_reset) is
+  p_can_ctrl_rx_msg: process (s_can_ctrl1_rx_msg_valid, s_can_ctrl2_rx_msg_valid,
+                              s_can_ctrl3_rx_msg_valid, s_msg_reset) is
   begin
     if s_msg_reset = '1' then
-      s_msg_received <= '0';
-    elsif s_can_ctrl1_rx_msg_valid = '1' then
-      s_msg_received <= '1';
-      s_msg          <= s_can_ctrl1_rx_msg;
+      s_msg_ctrl1_received <= '0';
+      s_msg_ctrl2_received <= '0';
+      s_msg_ctrl3_received <= '0';
+    else
+      if s_can_ctrl1_rx_msg_valid = '1' then
+        s_msg_ctrl1_received <= '1';
+        s_msg_ctrl1          <= s_can_ctrl1_rx_msg;
+      end if;
+
+      if s_can_ctrl2_rx_msg_valid = '1' then
+        s_msg_ctrl2_received <= '1';
+        s_msg_ctrl2          <= s_can_ctrl2_rx_msg;
+      end if;
+
+      if s_can_ctrl3_rx_msg_valid = '1' then
+        s_msg_ctrl3_received <= '1';
+        s_msg_ctrl3          <= s_can_ctrl3_rx_msg;
+      end if;
     end if;
   end process p_can_ctrl_rx_msg;
 
@@ -594,33 +613,33 @@ begin
                      v_can_tx_status,
                      C_CAN_RX_NO_ERROR_GEN);
 
-      wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+      wait until s_msg_ctrl1_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
-      check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
-      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
+      check_value(s_msg_ctrl1.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       if v_xmit_ext_id = '1' then
-        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
-        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
         check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id_a,
+        check_value(s_msg_ctrl1.arb_id_a,
                     v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
 
-      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
 
-      check_value(s_msg.data_length,
+      check_value(s_msg_ctrl1.data_length,
                   std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
                   error, "Check data length");
 
       -- Don't check data for remote frame requests
       if v_xmit_remote_frame = '0' then
         for idx in 0 to v_xmit_data_length-1 loop
-          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
         end loop;
       end if;
 
@@ -719,33 +738,33 @@ begin
                      v_can_tx_status,
                      C_CAN_RX_NO_ERROR_GEN);
 
-      wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
+      wait until s_msg_ctrl1_received = '1' for 10*C_CAN_BAUD_PERIOD;
 
-      check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
-      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
+      check_value(s_msg_ctrl1.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       if v_xmit_ext_id = '1' then
-        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
-        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
         check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id_a,
+        check_value(s_msg_ctrl1.arb_id_a,
                     v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
 
-      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
 
-      check_value(s_msg.data_length,
+      check_value(s_msg_ctrl1.data_length,
                   std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
                   error, "Check data length");
 
       -- Don't check data for remote frame requests
       if v_xmit_remote_frame = '0' then
         for idx in 0 to v_xmit_data_length-1 loop
-          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
         end loop;
       end if;
 
@@ -884,36 +903,36 @@ begin
       --       while it is transmitting its own message but loses arbitration
       --       Add this check when the CAN controller has been improved to allow
       --       for this.
-      --wait until s_msg_received = '1' for 10*C_CAN_BAUD_PERIOD;
-      --check_value(s_msg_received, '1', error, "Check that CAN controller received msg.");
+      --wait until s_msg_ctrl1_received = '1' for 10*C_CAN_BAUD_PERIOD;
+      --check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
 
       check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_arb_lost_count)), v_test_num+1,
                   error, "Check arbitration loss count in CAN controller.");
 
-      check_value(s_msg.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+      check_value(s_msg_ctrl1.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
 
       if v_xmit_ext_id = '1' then
-        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg.arb_id_a;
-        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg.arb_id_b;
+        v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
+        v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
         check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
       else
         -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg.arb_id_a,
+        check_value(s_msg_ctrl1.arb_id_a,
                     v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
                     error,
                     "Check received ID");
       end if;
 
-      check_value(s_msg.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
 
-      check_value(s_msg.data_length,
+      check_value(s_msg_ctrl1.data_length,
                   std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
                   error, "Check data length");
 
       -- Don't check data for remote frame requests
       if v_xmit_remote_frame = '0' then
         for idx in 0 to v_xmit_data_length-1 loop
-          check_value(s_msg.data(idx), v_xmit_data(idx), error, "Check received data");
+          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
         end loop;
       end if;
 
@@ -1783,35 +1802,153 @@ begin
 
     v_test_num := 0;
 
+    while v_test_num < C_NUM_ITERATIONS loop
+      --------------------------------------------------------------------------
+      -- Transmit from CAN controller #1, receive with controller #2 and #3
+      --------------------------------------------------------------------------
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
 
-    v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-    v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
-    v_tx_error_count := s_can_ctrl1_reg_tx_error_count;
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
 
-    generate_random_can_message (v_xmit_arb_id,
-                                 v_xmit_data,
-                                 v_xmit_data_length,
-                                 v_xmit_remote_frame,
-                                 v_xmit_ext_id);
+      for i in 0 to 7 loop
+        s_can_ctrl1_tx_msg.data(i) <= v_xmit_data(i);
+      end loop;
 
-    for i in 0 to 7 loop
-      s_can_ctrl1_tx_msg.data(i) <= v_xmit_data(i);
+      s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      log(ID_SEQUENCER, "Transmit from CAN controller #1", C_SCOPE);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl1_tx_start <= '1';
+      wait for 0 ns;                    -- Delta cycle only
+      s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      wait until s_can_ctrl1_tx_busy = '0'
+        for 200*C_CAN_BAUD_PERIOD;
+
+      wait until s_msg_ctrl2_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+      wait until s_msg_ctrl3_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+
+      -- Check received messages
+      check_value(s_msg_ctrl2_received, '1', error, "Check that CAN controller #2 received msg.");
+      check_value(s_msg_ctrl3_received, '1', error, "Check that CAN controller #3 received msg.");
+
+      check_value(s_msg_ctrl2, s_can_ctrl1_tx_msg, error, "Check msg received by #2");
+      check_value(s_msg_ctrl3, s_can_ctrl1_tx_msg, error, "Check msg received by #3");
+
+
+      --------------------------------------------------------------------------
+      -- Transmit from CAN controller #2, receive with controller #1 and #3
+      --------------------------------------------------------------------------
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      for i in 0 to 7 loop
+        s_can_ctrl2_tx_msg.data(i) <= v_xmit_data(i);
+      end loop;
+
+      s_can_ctrl2_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl2_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl2_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl2_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl2_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      log(ID_SEQUENCER, "Transmit from CAN controller #2", C_SCOPE);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl2_tx_start <= '1';
+      wait for 0 ns;                    -- Delta cycle only
+      s_can_ctrl2_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      wait until s_can_ctrl2_tx_busy = '0'
+        for 200*C_CAN_BAUD_PERIOD;
+
+      wait until s_msg_ctrl1_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+      wait until s_msg_ctrl3_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+
+      -- Check received messages
+      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller #1 received msg.");
+      check_value(s_msg_ctrl3_received, '1', error, "Check that CAN controller #3 received msg.");
+
+      check_value(s_msg_ctrl1, s_can_ctrl2_tx_msg, error, "Check msg received by #1");
+      check_value(s_msg_ctrl3, s_can_ctrl2_tx_msg, error, "Check msg received by #3");
+
+
+      --------------------------------------------------------------------------
+      -- Transmit from CAN controller #3, receive with controller #1 and #2
+      --------------------------------------------------------------------------
+      s_msg_reset <= '1';
+      wait until rising_edge(s_clk);
+      s_msg_reset <= '0';
+      wait until rising_edge(s_clk);
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      for i in 0 to 7 loop
+        s_can_ctrl3_tx_msg.data(i) <= v_xmit_data(i);
+      end loop;
+
+      s_can_ctrl3_tx_msg.ext_id         <= v_xmit_ext_id;
+      s_can_ctrl3_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+      s_can_ctrl3_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl3_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl3_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+
+      log(ID_SEQUENCER, "Transmit from CAN controller #3", C_SCOPE);
+
+      -- Start transmitting from CAN controller
+      wait until falling_edge(s_clk);
+      s_can_ctrl3_tx_start <= '1';
+      wait for 0 ns;                    -- Delta cycle only
+      s_can_ctrl3_tx_start <= transport '0' after C_CLK_PERIOD;
+
+      wait until s_can_ctrl3_tx_busy = '0'
+        for 200*C_CAN_BAUD_PERIOD;
+
+      wait until s_msg_ctrl1_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+      wait until s_msg_ctrl2_received = '1'
+        for 10*C_CAN_BAUD_PERIOD;
+
+      -- Check received messages
+      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller #1 received msg.");
+      check_value(s_msg_ctrl2_received, '1', error, "Check that CAN controller #2 received msg.");
+
+      check_value(s_msg_ctrl1, s_can_ctrl3_tx_msg, error, "Check msg received by #1");
+      check_value(s_msg_ctrl2, s_can_ctrl3_tx_msg, error, "Check msg received by #2");
+
+
+      v_test_num := v_test_num + 1;
     end loop;
-
-    s_can_ctrl1_tx_msg.ext_id         <= v_xmit_ext_id;
-    s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-    s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
-    s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-    s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
-
-    log(ID_SEQUENCER, "Transmit from CAN controller", C_SCOPE);
-
-    -- Start transmitting from CAN controller
-    wait until falling_edge(s_clk);
-    s_can_ctrl1_tx_start <= '1';
-    wait for 0 ns;                      -- Delta cycle only
-    s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
-
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete
