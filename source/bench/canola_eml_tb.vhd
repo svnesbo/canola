@@ -2,11 +2,11 @@
 -- Title      : UVVM Testbench for Error Management Logic (EML)
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_eml_tb.vhd
+-- File       : canola_eml_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2019-09-19
+-- Last update: 2020-01-06
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -105,13 +105,13 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library work;
-use work.can_pkg.all;
-use work.can_tb_pkg.all;
+use work.canola_pkg.all;
+use work.canola_tb_pkg.all;
 
-entity can_eml_tb is
-end can_eml_tb;
+entity canola_eml_tb is
+end canola_eml_tb;
 
-architecture tb of can_eml_tb is
+architecture tb of canola_eml_tb is
 
   constant C_CLK_PERIOD : time       := 100 ns; -- 10 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
@@ -185,7 +185,7 @@ begin
   -- Set up clock generators
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
 
-  INST_can_eml: entity work.can_eml
+  INST_canola_eml: entity work.canola_eml
     port map (
       CLK                              => s_clk,
       RESET                            => s_reset,

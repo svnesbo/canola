@@ -2,11 +2,11 @@
 -- Title      : UVVM Testbench for Bit Timing Logic (BTL)
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_btl_tb.vhd
+-- File       : canola_btl_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2019-12-01
+-- Last update: 2020-01-06
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -32,13 +32,13 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library work;
-use work.can_pkg.all;
-use work.can_tb_pkg.all;
+use work.canola_pkg.all;
+use work.canola_tb_pkg.all;
 
-entity can_btl_tb is
-end can_btl_tb;
+entity canola_btl_tb is
+end canola_btl_tb;
 
-architecture tb of can_btl_tb is
+architecture tb of canola_btl_tb is
 
   constant C_CLK_PERIOD : time       := 100 ns; -- 10 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
@@ -152,7 +152,7 @@ begin
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
   clock_error_gen(s_can_baud_clk, s_clock_ena, C_CAN_BAUD_PERIOD, s_can_baud_error);
 
-  INST_can_btl : entity work.can_btl
+  INST_canola_btl : entity work.canola_btl
     port map (
       CLK                     => s_clk,
       RESET                   => s_reset,

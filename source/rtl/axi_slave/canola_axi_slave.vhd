@@ -8,7 +8,7 @@ use ieee.numeric_std.all;
 
 use work.axi_pkg.all;
 use work.canola_axi_slave_pif_pkg.all;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
 entity canola_axi_slave is
 
@@ -112,7 +112,7 @@ begin
     2 when "10",
     2 when others;
 
-  INST_can_top : entity work.can_top
+  INST_canola_top : entity work.canola_top
     generic map (
       G_BUS_REG_WIDTH => C_INTERNAL_REG_WIDTH,
       G_ENABLE_EXT_ID => true)

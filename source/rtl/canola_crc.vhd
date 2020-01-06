@@ -2,11 +2,11 @@
 -- Title      : Cyclic Redundancy Check (CRC) for CAN bus
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_crc.vhd
+-- File       : canola_crc.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-05
--- Last update: 2019-08-14
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -26,19 +26,19 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
 
-entity can_crc is
+entity canola_crc is
   port (
     CLK       : in  std_logic;
     RESET     : in  std_logic;
     BIT_IN    : in  std_logic;
     BIT_VALID : in  std_logic;
     CRC_OUT   : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0));
-end entity can_crc;
+end entity canola_crc;
 
-architecture rtl of can_crc is
+architecture rtl of canola_crc is
   signal s_crc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   constant c_polynomial : std_logic_vector(C_CAN_CRC_WIDTH downto 0) := x"4599";
 

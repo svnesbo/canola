@@ -2,11 +2,11 @@
 -- Title      : Bit Timing Logic (BTL) for CAN bus
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_btl.vhd
+-- File       : canola_btl.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-12-01
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -31,9 +31,9 @@ use ieee.math_real.ceil;
 use ieee.math_real.log2;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
-entity can_btl is
+entity canola_btl is
   port (
     CLK                     : in  std_logic;
     RESET                   : in  std_logic;
@@ -63,9 +63,9 @@ entity can_btl is
     TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0)
     );
 
-end entity can_btl;
+end entity canola_btl;
 
-architecture rtl of can_btl is
+architecture rtl of canola_btl is
 
   -- Used to extend s_segment during PHASE_SEG1 if we detect a positive
   -- phase error.
@@ -156,7 +156,7 @@ architecture rtl of can_btl is
 begin  -- architecture rtl
 
   -- Generates a 1 (system) clock cycle pulse for each baud
-  INST_can_time_quanta_gen : entity work.can_time_quanta_gen
+  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
     port map (
       CLK               => CLK,
       RESET             => RESET,

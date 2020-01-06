@@ -2,11 +2,11 @@
 -- Title      : UVVM Testbench for Bit Stream Processor (BSP)
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_bsp_tb.vhd
+-- File       : canola_bsp_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2019-12-02
+-- Last update: 2020-01-06
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -46,15 +46,15 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library work;
-use work.can_pkg.all;
-use work.can_tb_pkg.all;
+use work.canola_pkg.all;
+use work.canola_tb_pkg.all;
 use work.can_bfm_pkg.all;
 
 -- test bench entity
-entity can_bsp_tb is
-end can_bsp_tb;
+entity canola_bsp_tb is
+end canola_bsp_tb;
 
-architecture tb of can_bsp_tb is
+architecture tb of canola_bsp_tb is
 
   constant C_CLK_PERIOD : time       := 100 ns; -- 10 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
@@ -160,7 +160,7 @@ begin
   s_bsp_rx_bit_stuff_error <= s_bsp_rx_bit_destuff_en and
                              (s_bsp_rx_active_error_flag or s_bsp_rx_passive_error_flag);
 
-  INST_can_bsp : entity work.can_bsp
+  INST_canola_bsp : entity work.canola_bsp
     port map (
       CLK                       => s_clk,
       RESET                     => s_reset,
@@ -195,7 +195,7 @@ begin
       BTL_RX_SYNCED             => s_btl_rx_synced,
       BTL_RX_STOP               => s_btl_rx_stop);
 
-  INST_can_btl : entity work.can_btl
+  INST_canola_btl : entity work.canola_btl
     port map (
       CLK                     => s_clk,
       RESET                   => s_reset,
@@ -412,8 +412,8 @@ begin
       -- the 7 EOF bits at the end. We'll send the data before EOF first
       -- with stuffing enabled, and then we send the EOF bits with stuffing
       -- disabled.
-      s_bsp_tx_data(0 to v_data_length-(1+work.can_pkg.C_EOF_LENGTH)) <=
-        s_rand_bsp_data(0 to v_data_length-(1+work.can_pkg.C_EOF_LENGTH));
+      s_bsp_tx_data(0 to v_data_length-(1+work.canola_pkg.C_EOF_LENGTH)) <=
+        s_rand_bsp_data(0 to v_data_length-(1+work.canola_pkg.C_EOF_LENGTH));
 
       reset_rx_bsp_crc_and_data;
 
@@ -422,7 +422,7 @@ begin
       wait until rising_edge(s_clk);
       s_bsp_tx_active         <= '1';
       wait until rising_edge(s_clk);
-      s_bsp_tx_data_count     <= v_data_length-work.can_pkg.C_EOF_LENGTH;
+      s_bsp_tx_data_count     <= v_data_length-work.canola_pkg.C_EOF_LENGTH;
       s_bsp_tx_bit_stuff_en   <= '1';
       s_bsp_rx_bit_destuff_en <= '1';
       s_bsp_tx_write_en       <= '1';
@@ -444,9 +444,9 @@ begin
 
       wait until rising_edge(s_clk);
       -- Setup EOF bits, and send them without bit stuffing
-      s_bsp_tx_data(0 to work.can_pkg.C_EOF_LENGTH-1) <= (others => C_EOF_VALUE);
-      s_bsp_tx_data_count                             <= work.can_pkg.C_EOF_LENGTH;
-      s_bsp_tx_write_en                               <= '1';
+      s_bsp_tx_data(0 to work.canola_pkg.C_EOF_LENGTH-1) <= (others => C_EOF_VALUE);
+      s_bsp_tx_data_count                                <= work.canola_pkg.C_EOF_LENGTH;
+      s_bsp_tx_write_en                                  <= '1';
 
       -- Disable bit stuffing on EOF bits
       s_bsp_tx_bit_stuff_en   <= '0';

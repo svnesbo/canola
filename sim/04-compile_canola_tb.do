@@ -16,9 +16,13 @@ echo "\n\n\n=== Compiling $lib_name source\n"
 
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bfm/can_bfm_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bfm/can_uvvm_bfm_pkg.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_tb_pkg.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_btl_tb.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_bsp_tb.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_eml_tb.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_top_tb.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/can_axi_slave_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_tb_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_btl_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_bsp_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_eml_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_top_tb.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_axi_slave_tb.vhd
+
+if {[string is true -strict $opencore_can_present]} {
+    eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_vs_opencores_can_tb.vhd
+}

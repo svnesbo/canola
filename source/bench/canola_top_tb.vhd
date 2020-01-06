@@ -2,11 +2,11 @@
 -- Title      : Top-level UVVM Testbench for Canola CAN Controller
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_top_tb.vhd
+-- File       : canola_top_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-03
+-- Last update: 2020-01-06
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -31,16 +31,16 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library work;
-use work.can_pkg.all;
-use work.can_tb_pkg.all;
+use work.canola_pkg.all;
+use work.canola_tb_pkg.all;
 use work.can_bfm_pkg.all;
 use work.can_uvvm_bfm_pkg.all;
 
 -- test bench entity
-entity can_top_tb is
-end can_top_tb;
+entity canola_top_tb is
+end canola_top_tb;
 
-architecture tb of can_top_tb is
+architecture tb of canola_top_tb is
 
   constant C_CLK_PERIOD : time       := 25 ns; -- 40 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
@@ -247,7 +247,7 @@ begin
   s_can_ctrl3_rx    <= '1' ?= s_can_bus_signal3;
 
 
-  INST_can_top_1 : entity work.can_top
+  INST_canola_top_1 : entity work.canola_top
     generic map (
       G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
@@ -294,7 +294,7 @@ begin
       REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
       );
 
-  INST_can_top_2 : entity work.can_top
+  INST_canola_top_2 : entity work.canola_top
     generic map (
       G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
@@ -341,7 +341,7 @@ begin
       REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count
       );
 
-  INST_can_top_3 : entity work.can_top
+  INST_canola_top_3 : entity work.canola_top
     generic map (
       G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => true)
@@ -875,7 +875,7 @@ begin
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
 
-      wait until rising_edge(<<signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(<<signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -883,7 +883,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge(<<signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(<<signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic>>);
 
       -- Start transmitting from BFM
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -1004,7 +1004,7 @@ begin
 
       v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) + 1);
 
-      wait until rising_edge( << signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge( << signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic >> );
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -1012,7 +1012,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge( << signal INST_can_top_1.INST_can_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge( << signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic >> );
 
       -- Start transmitting from BFM. It should lose the arbitration
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -1547,7 +1547,7 @@ begin
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
-      wait until << signal INST_can_top_1.INST_can_frame_tx_fsm.s_fsm_state : work.can_pkg.can_frame_tx_fsm_t >>
+      wait until << signal INST_canola_top_1.INST_canola_frame_tx_fsm.s_fsm_state : work.canola_pkg.can_frame_tx_fsm_t >>
         = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
 
       uniform(seed1, seed2, v_rand_real);

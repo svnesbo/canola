@@ -2,11 +2,11 @@
 -- Title      : Error Management Logic (EML) for CAN bus
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_eml.vhd
+-- File       : canola_eml.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-12-09
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -24,9 +24,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
-entity can_eml is
+entity canola_eml is
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -52,9 +52,9 @@ entity can_eml is
     RECEIVE_ERROR_COUNT  : out unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)
     );
 
-end entity can_eml;
+end entity canola_eml;
 
-architecture rtl of can_eml is
+architecture rtl of canola_eml is
   signal s_transmit_error_count            : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_receive_11_recessive_bits_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);

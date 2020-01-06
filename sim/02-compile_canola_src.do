@@ -24,15 +24,15 @@ quietly set compdirectives_vlog "-mixedsvvh s -93 -suppress 1346,1236 -quiet -wo
 
 echo "\n\n\n=== Compiling $lib_name source\n"
 
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_pkg.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_time_quanta_gen.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_crc.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_btl.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_bsp.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_rx_fsm.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_frame_tx_fsm.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_eml.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/can_top.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_time_quanta_gen.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_crc.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_btl.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_bsp.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_rx_fsm.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_tx_fsm.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_eml.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_top.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/axi_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_pif_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_axi_pif.vhd

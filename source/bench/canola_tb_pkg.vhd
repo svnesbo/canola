@@ -2,11 +2,11 @@
 -- Title      : Package for Canola CAN controller testbenches
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_tb_pkg.vhd
+-- File       : canola_tb_pkg.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-03
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -31,9 +31,9 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
-package can_tb_pkg is
+package canola_tb_pkg is
 
   procedure generate_random_frame_size (
     variable rand_frame_size : out   natural;
@@ -92,10 +92,10 @@ package can_tb_pkg is
     constant caller_name : string          := "check_value()"
     );
 
-end can_tb_pkg;
+end canola_tb_pkg;
 
 
-package body can_tb_pkg is
+package body canola_tb_pkg is
 
   procedure generate_random_frame_size (
     variable rand_frame_size : out   natural;
@@ -283,4 +283,4 @@ package body can_tb_pkg is
     end if;
   end;
 
-end package body can_tb_pkg;
+end package body canola_tb_pkg;

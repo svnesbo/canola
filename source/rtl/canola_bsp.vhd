@@ -2,11 +2,11 @@
 -- Title      : Bit Stream Processor (BSP) for CAN bus
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_bsp.vhd
+-- File       : canola_bsp.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2019-12-09
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -23,7 +23,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
 -- TODO: Rename all ports that are pulses so they have _PULSE extension?
 --       .. do I want this?
@@ -73,7 +73,7 @@ use work.can_pkg.all;
 --    pulsed high for a clock cycle immediately after the bit before the ACK
 --    slot has been received
 
-entity can_bsp is
+entity canola_bsp is
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -128,9 +128,9 @@ entity can_bsp is
     BTL_RX_SYNCED              : in  std_logic;
     BTL_RX_STOP                : out std_logic);
 
-end entity can_bsp;
+end entity canola_bsp;
 
-architecture rtl of can_bsp is
+architecture rtl of canola_bsp is
   -----------------------------------------------------------------------------
   -- Rx FSM signals
   -----------------------------------------------------------------------------
@@ -536,7 +536,7 @@ begin  -- architecture rtl
   -- Use only one CRC calculator for both Tx and Rx
   -- Since Rx FSM trails the Tx FSM, in principle
   -- they should have the same CRC values?
-  INST_can_crc_rx: entity work.can_crc
+  INST_canola_crc_rx: entity work.canola_crc
     port map (
       CLK       => CLK,
       RESET     => RESET or s_rx_restart_crc_pulse,
@@ -544,7 +544,7 @@ begin  -- architecture rtl
       BIT_VALID => s_rx_update_crc_pulse,
       CRC_OUT   => BSP_RX_CRC_CALC);
 
-  INST_can_crc_tx: entity work.can_crc
+  INST_canola_crc_tx: entity work.canola_crc
     port map (
       CLK       => CLK,
       RESET     => RESET or s_tx_restart_crc_pulse,

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2019-12-09
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -39,9 +39,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
-entity can_frame_rx_fsm is
+entity canola_frame_rx_fsm is
   generic (
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
@@ -99,9 +99,9 @@ entity can_frame_rx_fsm is
     REG_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
-end entity can_frame_rx_fsm;
+end entity canola_frame_rx_fsm;
 
-architecture rtl of can_frame_rx_fsm is
+architecture rtl of canola_frame_rx_fsm is
 
   type can_frame_rx_fsm_t is (ST_IDLE,
                               ST_RECV_SOF,

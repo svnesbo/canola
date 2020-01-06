@@ -2,11 +2,11 @@
 -- Title      : Top level entity for Canola CAN controller
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_top.vhd
+-- File       : canola_top.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2019-12-09
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -30,9 +30,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
-entity can_top is
+entity canola_top is
   generic (
     G_BUS_REG_WIDTH : natural;
     G_ENABLE_EXT_ID : boolean);
@@ -83,9 +83,9 @@ entity can_top is
     REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
     );
 
-end entity can_top;
+end entity canola_top;
 
-architecture struct of can_top is
+architecture struct of canola_top is
 
   -- Signals for Tx Frame FSM
   signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
@@ -167,7 +167,7 @@ begin  -- architecture struct
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
   -- Transmit state machine
-  INST_can_frame_tx_fsm : entity work.can_frame_tx_fsm
+  INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
@@ -207,7 +207,7 @@ begin  -- architecture struct
       REG_ERROR_COUNT                    => REG_TX_ERROR_COUNT);
 
   -- Receive state machine
-  INST_can_frame_rx_fsm : entity work.can_frame_rx_fsm
+  INST_canola_frame_rx_fsm : entity work.canola_frame_rx_fsm
     generic map (
       G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
       G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
@@ -248,7 +248,7 @@ begin  -- architecture struct
   -- Responsible for bit stuffing/destuffing and
   -- CRC calculation of larger stream of bits.
   -- Acts as a layer between the BTL and Tx/Rx state machines
-  INST_can_bsp : entity work.can_bsp
+  INST_canola_bsp : entity work.canola_bsp
     port map (
       CLK                             => CLK,
       RESET                           => RESET,
@@ -291,7 +291,7 @@ begin  -- architecture struct
   -- Bit Timing Logic (BTL)
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
-  INST_can_btl : entity work.can_btl
+  INST_canola_btl : entity work.canola_btl
     port map (
       CLK                     => CLK,
       RESET                   => RESET,
@@ -318,7 +318,7 @@ begin  -- architecture struct
   -- and calculates an "error state" for the whole system,
   -- which determines to what degree the controller is allowed to interface
   -- with the BUS.
-  INST_can_eml: entity work.can_eml
+  INST_canola_eml: entity work.canola_eml
     port map (
       CLK                              => CLK,
       RESET                            => RESET,

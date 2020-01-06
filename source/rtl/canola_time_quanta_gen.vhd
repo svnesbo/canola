@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-03
--- Last update: 2019-08-14
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -25,12 +25,12 @@ use ieee.math_real.ceil;
 use ieee.math_real.log2;
 
 library work;
-use work.can_pkg.all;
+use work.canola_pkg.all;
 
 -- Generates a pulse (1 CLK cycle long) on the TIME_QUANTA_PULSE output every
 -- COUNT_VAL+1 clock cycles.
 -- Note: A pulse is outputted immediately following reset.
-entity can_time_quanta_gen is
+entity canola_time_quanta_gen is
   port (
     CLK               : in  std_logic;
     RESET             : in  std_logic;
@@ -38,9 +38,9 @@ entity can_time_quanta_gen is
     COUNT_VAL         : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
     TIME_QUANTA_PULSE : out std_logic
     );
-end entity can_time_quanta_gen;
+end entity canola_time_quanta_gen;
 
-architecture rtl of can_time_quanta_gen is
+architecture rtl of canola_time_quanta_gen is
   signal s_counter : unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
 begin  -- architecture rtl
 

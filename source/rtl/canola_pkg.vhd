@@ -2,11 +2,11 @@
 -- Title      : Package for Canola CAN Controller
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_pkg.vhd
+-- File       : canola_pkg.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2019-12-06
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package can_pkg is
+package canola_pkg is
   -----------------------------------------------------------------------------
   -- Definitions specific for CAN protocol
   -----------------------------------------------------------------------------
@@ -164,4 +164,4 @@ package can_pkg is
                               ST_RETRANSMIT,
                               ST_DONE);
 
-end can_pkg;
+end canola_pkg;

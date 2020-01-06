@@ -2,11 +2,11 @@
 -- Title      : UVVM Testbench for Canola CAN Controller AXI-lite slave
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_axi_slave_tb.vhd
+-- File       : canola_axi_slave_tb.vhd
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-01-03
+-- Last update: 2020-01-06
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -37,16 +37,16 @@ use bitvis_vip_axilite.axilite_bfm_pkg.all;
 library work;
 use work.axi_pkg.all;
 use work.canola_axi_slave_pif_pkg.all;
-use work.can_pkg.all;
-use work.can_tb_pkg.all;
+use work.canola_pkg.all;
+use work.canola_tb_pkg.all;
 use work.can_bfm_pkg.all;
 use work.can_uvvm_bfm_pkg.all;
 
 -- test bench entity
-entity can_axi_slave_tb is
-end can_axi_slave_tb;
+entity canola_axi_slave_tb is
+end canola_axi_slave_tb;
 
-architecture tb of can_axi_slave_tb is
+architecture tb of canola_axi_slave_tb is
 
   constant C_CLK_PERIOD : time       := 6.25 ns; -- 160 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
