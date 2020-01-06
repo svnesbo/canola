@@ -376,9 +376,11 @@ begin  -- architecture rtl
             end if;
 
           when ST_RECV_CRC_DELIM =>
-            -- No bit stuffing for CRC delimiter
-            BSP_RX_BIT_DESTUFF_EN <= '0';
-
+            -- Note:
+            -- CRC delimiter is not stuffed
+            -- But since BSP_TX_BIT_STUFF_EN enables stuffing based on the previous bit,
+            -- we leave it enabled also for the CRC delimiter, and disable it in the ACK
+            -- slot state, to make sure that the last bit of the CRC is stuffed.
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state <= ST_FORM_ERROR;

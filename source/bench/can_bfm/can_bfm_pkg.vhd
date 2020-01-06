@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2019-12-05
+-- Last update: 2020-01-06
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -539,9 +539,10 @@ package body can_bfm_pkg is
       -- Bit stuffing
       --------------------------------------------------------------------------
       if bit_stuffing_counter = 5 and
-         bit_counter < crc_start_index+C_CRC_DELIM_INDEX
+         bit_counter < crc_start_index+C_CRC_DELIM_INDEX+1
       -- Do bit stuffing if we sent 5 consecutive bits of same value
-      -- Bit stuffing should end after CRC code (before delimiter)
+      -- Bit stuffing should end after CRC code (before delimiter),
+      -- but the last bit of the CRC is also stuffed
       -- See page 45 here:
       -- https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
       then
@@ -703,6 +704,8 @@ package body can_bfm_pkg is
       sample_point_dbg := '1';
 
       -- After 5 consecutive bits of same value, a stuffing bit is sent
+      -- This occurs for the whole frame up till after the last CRC bit,
+      -- but not after the CRC delimiter.
       if bit_stuffing_counter = 5 then
         -- Discard stuff bits
         bit_stuffing_dbg     := '1';
@@ -739,7 +742,7 @@ package body can_bfm_pkg is
             data_length_bits := 8 * to_integer(unsigned(bit_buffer(C_STD_DLC_INDEX to C_STD_DLC_INDEX+3)));
           end if;
 
-          can_frame_bit_size := data_length_bits + C_STD_DATA_INDEX + C_CRC_SIZE;
+          can_frame_bit_size := data_length_bits + C_STD_DATA_INDEX + C_CRC_SIZE + 1;
 
         elsif bit_buffer(C_EXT_IDE_INDEX) = '1' and bit_counter = C_EXT_DLC_INDEX+4 then
           data_length := to_integer(unsigned(bit_buffer(C_EXT_DLC_INDEX to C_EXT_DLC_INDEX+3)));
@@ -751,7 +754,7 @@ package body can_bfm_pkg is
             data_length_bits := 8 * to_integer(unsigned(bit_buffer(C_EXT_DLC_INDEX to C_EXT_DLC_INDEX+3)));
           end if;
 
-          can_frame_bit_size := data_length_bits + C_EXT_DATA_INDEX + C_CRC_SIZE;
+          can_frame_bit_size := data_length_bits + C_EXT_DATA_INDEX + C_CRC_SIZE + 1;
         end if;
       end if;
 
@@ -769,30 +772,14 @@ package body can_bfm_pkg is
     end loop;
 
     -- -------------------------------------------------------------------------
-    -- Receive CRC delimiter
-    -- -------------------------------------------------------------------------
-
-    -- Wait for sampling point before sampling CAN RX
-    for cycle_count in 0 to sample_point_cycles-1 loop
-      wait until rising_edge(clk);
-    end loop;
-    sample_point_dbg := '1';
-
-    assert can_rx = '1'
-      report "can_read(): CRC delimiter was 0, expected 1" severity error;
-
-    -- Wait for the remaining time (phase 2) of this bit
-    for cycle_count in 0 to phase2_cycles-1 loop
-      wait until rising_edge(clk);
-      sample_point_dbg := '0';
-    end loop;  -- cycle_count
-
-    -- -------------------------------------------------------------------------
     -- Verify CRC and CRC delimiter value
     -- -------------------------------------------------------------------------
-    crc_start_index := can_frame_bit_size - C_CRC_SIZE;
+    crc_start_index := can_frame_bit_size - (C_CRC_SIZE + 1);
 
-    -- bit_buffer holds frame data up to and including CRC, but not CRC delim
+    assert bit_buffer(crc_start_index+C_CRC_SIZE) = '1'
+      report "can_read(): CRC delimiter was 0, expected 1" severity error;
+
+    -- bit_buffer holds frame data up to and including CRC+delim
     crc_calc     := calc_can_crc15(bit_buffer(0 to crc_start_index-1));
     crc_received := bit_buffer(crc_start_index to crc_start_index+C_CRC_SIZE-1);
 

@@ -407,8 +407,11 @@ begin  -- architecture rtl
             s_fsm_state           <= ST_SEND_CRC_DELIM;
 
           when ST_SEND_CRC_DELIM =>
-            BSP_TX_BIT_STUFF_EN   <= '0';
-
+            -- Note:
+            -- CRC delimiter is not stuffed
+            -- But since BSP_TX_BIT_STUFF_EN enables stuffing based on the previous bit,
+            -- we leave it enabled also for the CRC delimiter, and disable it in the ACK
+            -- slot state, to make sure that the last bit of the CRC is stuffed.
             if BSP_TX_RX_MISMATCH = '1' then
               BSP_TX_ACTIVE <= '0';
               s_fsm_state   <= ST_BIT_ERROR;
