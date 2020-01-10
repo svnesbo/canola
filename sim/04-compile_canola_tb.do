@@ -23,6 +23,6 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_eml_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_top_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_axi_slave_tb.vhd
 
-if {[string is true -strict $opencore_can_present]} {
+if {[string is true -strict $simulate_opencore_can]} {
     eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_vs_opencores_can_tb.vhd
 }

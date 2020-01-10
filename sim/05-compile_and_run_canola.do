@@ -6,6 +6,7 @@ do 02-compile_canola_src.do
 if {[file exists ../contrib/can_controller] &&
     [string is true -strict $simulate_opencore_can]} {
     echo "\n\nCompile OpenCores CAN sources..."
+    quietly set simulate_opencore_can "true"
     do 03-compile_opencores_can_ctrl_src.do
 } else {
     echo "\n\nOpenCores CAN sources missing..."
