@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-01-06
+-- Last update: 2020-01-21
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -276,6 +276,7 @@ begin  -- architecture struct
       BSP_SEND_ERROR_FLAG             => s_bsp_send_error_flag,
       BSP_ERROR_FLAG_DONE             => s_bsp_error_flag_done,
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR => s_bsp_active_error_flag_bit_error,
+      EML_RECV_11_RECESSIVE_BITS      => s_eml_recv_11_recessive_bits,
       EML_ERROR_STATE                 => s_eml_error_state,
       BTL_TX_BIT_VALUE                => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID                => s_btl_tx_bit_valid,

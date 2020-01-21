@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-06
+-- Last update: 2020-01-21
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -547,14 +547,16 @@ begin
     variable v_can_tx_status    : can_tx_status_t;
     variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
 
-    variable v_arb_lost_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_recv_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_msg_count         : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    variable v_arb_lost_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_recv_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_error_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_msg_count                    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_crc_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_form_error_count             : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_rx_stuff_error_count            : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    variable v_11_recessive_bits_count_prev    : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
+    variable v_11_recessive_bits_count_current : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
     variable v_rand_baud_delay : natural;
     variable v_rand_real       : real;
@@ -1632,9 +1634,52 @@ begin
     wait until s_can_bfm_rx = '0' for 200*C_CAN_BAUD_PERIOD;
     check_value(s_can_bfm_rx, '1', error, "Check that no dominant bits were transmitted");
 
-    -- Todo:
-    -- Test that CAN controller returns to ERROR_PASSIVE after receiving
-    -- 11 consecutive '1' bits X number of times
+    ----------------------------------------------------------------------------
+    -- Wait for 128 counts of 11 consecutive recessive bits,
+    -- which should bring the controller back into ERROR ACTIVE.
+    ----------------------------------------------------------------------------
+    v_11_recessive_bits_count_current :=
+      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
+      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+
+    v_11_recessive_bits_count_prev := v_11_recessive_bits_count_current;
+
+    while v_11_recessive_bits_count_current < C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD-1 loop
+      wait for 11*C_CAN_BAUD_PERIOD;
+
+      v_11_recessive_bits_count_current :=
+        <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
+        unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+
+      check_value(v_11_recessive_bits_count_prev+1,
+                  v_11_recessive_bits_count_current,
+                  error, "Check count of 11 consecutive recess. bits increase");
+
+      check_value_in_range(to_integer(s_can_ctrl1_transmit_error_count),
+                           C_BUS_OFF_THRESHOLD,
+                           2**s_can_ctrl1_transmit_error_count'length-1,
+                           error,
+                           "Check transmit error count >= BUS OFF threshold.");
+
+      check_value(s_can_ctrl1_error_state, BUS_OFF, error, "Check error state is BUS OFF.");
+
+      v_11_recessive_bits_count_prev := v_11_recessive_bits_count_current;
+    end loop;
+
+    -- Next increase in count of 11 recessive bits should bring us out of BUS OFF
+    wait for 11*C_CAN_BAUD_PERIOD;
+
+    -- Wait an additional baud to ensure that the 11 bits have been processed
+    wait for C_CAN_BAUD_PERIOD;
+
+    v_11_recessive_bits_count_current :=
+      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
+      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+
+    check_value(to_integer(v_11_recessive_bits_count_current), 0, error,
+                "Check count of 11 consecutive recess. bits now zero.");
+
+    check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check error state not bus off.");
 
 
     -----------------------------------------------------------------------------------------------

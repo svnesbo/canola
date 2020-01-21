@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-06
+-- Last update: 2020-01-21
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -114,9 +114,10 @@ entity canola_bsp is
                                                       -- transmitting active error flag
 
     -- Interface to EML
-    EML_ERROR_STATE           : in  can_error_state_t;  -- Indicates if the CAN controller
-                                                        -- is in active or passive error
-                                                        -- state,  or bus off state
+    EML_RECV_11_RECESSIVE_BITS : out std_logic;
+    EML_ERROR_STATE            : in  can_error_state_t;  -- Indicates if the CAN controller
+                                                         -- is in active or passive error
+                                                         -- state,   or bus off state
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;
@@ -179,6 +180,11 @@ architecture rtl of canola_bsp is
   signal s_tx_frame_started        : std_logic;
   signal s_tx_send_error_flag      : std_logic;
   signal s_send_ack                : std_logic;
+
+  -----------------------------------------------------------------------------
+  -- Other signals
+  -----------------------------------------------------------------------------
+  signal s_11_recessive_bit_shift_reg : std_logic_vector(10 downto 0);
 
 begin  -- architecture rtl
 
@@ -531,6 +537,36 @@ begin  -- architecture rtl
     end if; -- rising_edge(CLK)
   end process proc_bsp_tx_fsm;
 
+
+  -- Monitor bus for 11 consecutive recessive bits,
+  -- and pulse a signal for each occurance of the 11 bits
+  -- The EML uses this signal to decide when it can safely
+  -- return from BUS OFF state
+  proc_bsp_11_recessive_bits : process(CLK) is
+    variable v_11_recessive_bit_shift_reg : std_logic_vector(s_11_recessive_bit_shift_reg'range);
+    constant c_11_recessive_bits          : std_logic_vector(s_11_recessive_bit_shift_reg'range) := (others => '1');
+  begin  -- process proc_rx_fsm
+    if rising_edge(CLK) then
+      EML_RECV_11_RECESSIVE_BITS <= '0';
+
+      if RESET = '1' then
+        -- Don't have to reset all bits, first is sufficient
+        s_11_recessive_bit_shift_reg(0) <= '0';
+      else
+        if BTL_RX_BIT_VALID = '1' then
+          v_11_recessive_bit_shift_reg(0)           := BTL_RX_BIT_VALUE;
+          v_11_recessive_bit_shift_reg(10 downto 1) := s_11_recessive_bit_shift_reg(9 downto 0);
+          s_11_recessive_bit_shift_reg              <= v_11_recessive_bit_shift_reg;
+
+        elsif s_11_recessive_bit_shift_reg = c_11_recessive_bits then
+          EML_RECV_11_RECESSIVE_BITS   <= '1';
+
+          -- Restart count (don't have to reset all bits, first bit is sufficient)
+          s_11_recessive_bit_shift_reg(0) <= '0';
+        end if;
+      end if;  -- if/else RESET = '1'
+    end if;  -- if rising_edge(CLK)
+  end process proc_bsp_11_recessive_bits;
 
   -- Todo:
   -- Use only one CRC calculator for both Tx and Rx
