@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-10
+-- Last update: 2020-01-21
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -75,17 +75,24 @@ architecture rtl of canola_btl is
     constant shift_amount : integer range 0 to 4)
     return std_logic_vector
   is
-    alias a_vector_in    : std_logic_vector(0 to vector_in'length-1) is vector_in;
-    variable vector_out  : std_logic_vector(0 to vector_in'length-1);
-
-    -- Range evaluates to null if shift_amount is zero
-    variable fill_vector : std_logic_vector(0 to shift_amount-1) := (others => '1');
+    alias a_vector_in   : std_logic_vector(0 to vector_in'length-1) is vector_in;
+    variable vector_out : std_logic_vector(0 to vector_in'length-1);
   begin
-    if shift_amount > 0 then
-      vector_out := a_vector_in(shift_amount to a_vector_in'right) & fill_vector;
-    else
-      vector_out := a_vector_in;
-    end if;
+    case shift_amount is
+      when 0 =>
+        vector_out := a_vector_in;
+      when 1 =>
+        vector_out := a_vector_in(1 to a_vector_in'right) & "1";
+      when 2 =>
+        vector_out := a_vector_in(2 to a_vector_in'right) & "11";
+      when 3 =>
+        vector_out := a_vector_in(3 to a_vector_in'right) & "111";
+      when 4 =>
+        vector_out := a_vector_in(4 to a_vector_in'right) & "1111";
+      when others =>
+        report "Illegal shift amount" severity error;
+        vector_out := vector_in;
+    end case;
 
     return vector_out;
   end function shift_left_and_fill_with_one;
