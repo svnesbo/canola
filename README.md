@@ -65,12 +65,12 @@ Before the firmware can be compiled you will have to generate the projects for t
 
 ### Step 1 - Export hardware from Vivado
 
-From the Vivado GUI, choose File -> Export Hardware. Choose "Export to: <Local to Project>". If you want to be able to program the FPGA from the Xilinx SDK, check the "Include bitstream" box (can be left unchecked if you want to program the FPGA from Vivado).
+From the Vivado GUI, choose File -> Export Hardware. Choose "Export to: Local to Project". If you want to be able to program the FPGA from the Xilinx SDK, check the "Include bitstream" box (can be left unchecked if you want to program the FPGA from Vivado).
 
 
 ### Step 2 - Launch Xilinx SDK
 
-From the Vivado GUI, choose File -> Launch SDK. Leave both "Exported location" and "Workspace" to <Local to Project>.
+From the Vivado GUI, choose File -> Launch SDK. Leave both "Exported location" and "Workspace" to "Local to Project".
 
 
 ### Step 3 - Create BSP project in Xilinx SDK
