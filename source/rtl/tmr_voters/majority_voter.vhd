@@ -79,7 +79,7 @@ begin  -- architecture rtl
   end generate GEN_unregistered_mismatch;
 
 
-  GEN_unregistered_mismatch: if G_MISMATCH_OUTPUT_EN and G_MISMATCH_OUTPUT_REG generate
+  GEN_registered_mismatch: if G_MISMATCH_OUTPUT_EN and G_MISMATCH_OUTPUT_REG generate
     -- Mismatch output - registered
     proc_reg_mismatch: process (CLK) is
     begin
@@ -92,7 +92,7 @@ begin  -- architecture rtl
           MISMATCH <= '1';
         end if;
       end if;
-    end process proc_unreg_mismatch;
-  end generate GEN_unregistered_mismatch;
+    end process proc_reg_mismatch;
+  end generate GEN_registered_mismatch;
 
 end architecture rtl;

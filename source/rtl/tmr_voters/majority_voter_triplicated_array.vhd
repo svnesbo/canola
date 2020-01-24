@@ -87,21 +87,21 @@ begin  -- architecture rtl
 
   GEN_no_mismatch: if not G_MISMATCH_OUTPUT_EN generate
     MISMATCH <= '0';
-  end generate GEN_mismatch;
+  end generate GEN_no_mismatch;
 
   GEN_unreg_mismatch: if G_MISMATCH_OUTPUT_EN and not G_MISMATCH_OUTPUT_REG generate
     -- Mismatch output - not registered
     MISMATCH <= or_reduce(s_mismatch);
-  end generate GEN_mismatch;
+  end generate GEN_unreg_mismatch;
 
-  GEN_unreg_mismatch: if G_MISMATCH_OUTPUT_EN and G_MISMATCH_OUTPUT_REG generate
+  GEN_reg_mismatch: if G_MISMATCH_OUTPUT_EN and G_MISMATCH_OUTPUT_REG generate
     -- Mismatch output - registered
     proc_reg_mismatch: process (CLK) is
     begin
       if rising_edge(clk) then
         MISMATCH <= or_reduce(s_mismatch);
       end if;
-    end process proc_unreg_mismatch;
-  end generate GEN_mismatch;
+    end process proc_reg_mismatch;
+  end generate GEN_reg_mismatch;
 
 end architecture rtl;
