@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-01-21
+-- Last update: 2020-01-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -158,6 +158,13 @@ architecture struct of canola_top is
   signal s_eml_transmit_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_eml_receive_error_count              : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
+  -- State registers
+  signal s_btl_sync_fsm_state : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_bsp_rx_fsm_state   : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_bsp_tx_fsm_state   : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_frame_rx_fsm_state : std_logic_vector(C_FRAME_RX_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_frame_tx_fsm_state : std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0);
+
 begin  -- architecture struct
 
   TRANSMIT_ERROR_COUNT <= s_eml_transmit_error_count;
@@ -204,7 +211,9 @@ begin  -- architecture struct
       REG_MSG_SENT_COUNT                 => REG_TX_MSG_SENT_COUNT,
       REG_ACK_RECV_COUNT                 => REG_TX_ACK_RECV_COUNT,
       REG_ARB_LOST_COUNT                 => REG_TX_ARB_LOST_COUNT,
-      REG_ERROR_COUNT                    => REG_TX_ERROR_COUNT);
+      REG_ERROR_COUNT                    => REG_TX_ERROR_COUNT,
+      FSM_STATE_O                        => s_frame_tx_fsm_state,
+      FSM_STATE_VOTED_I                  => s_frame_tx_fsm_state);
 
   -- Receive state machine
   INST_canola_frame_rx_fsm : entity work.canola_frame_rx_fsm
@@ -242,7 +251,9 @@ begin  -- architecture struct
       REG_MSG_RECV_COUNT                 => REG_RX_MSG_RECV_COUNT,
       REG_CRC_ERROR_COUNT                => REG_RX_CRC_ERROR_COUNT,
       REG_FORM_ERROR_COUNT               => REG_RX_FORM_ERROR_COUNT,
-      REG_STUFF_ERROR_COUNT              => REG_RX_STUFF_ERROR_COUNT);
+      REG_STUFF_ERROR_COUNT              => REG_RX_STUFF_ERROR_COUNT,
+      FSM_STATE_O                        => s_frame_rx_fsm_state,
+      FSM_STATE_VOTED_I                  => s_frame_rx_fsm_state);
 
   -- Bit Stream Processor (BSP)
   -- Responsible for bit stuffing/destuffing and
@@ -285,7 +296,11 @@ begin  -- architecture struct
       BTL_RX_BIT_VALUE                => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID                => s_btl_rx_bit_valid,
       BTL_RX_SYNCED                   => s_btl_rx_synced,
-      BTL_RX_STOP                     => s_btl_rx_stop);
+      BTL_RX_STOP                     => s_btl_rx_stop,
+      RX_FSM_STATE_O                  => s_bsp_rx_fsm_state,
+      RX_FSM_STATE_VOTED_I            => s_bsp_rx_fsm_state,
+      TX_FSM_STATE_O                  => s_bsp_tx_fsm_state,
+      TX_FSM_STATE_VOTED_I            => s_bsp_tx_fsm_state);
 
   s_btl_tx_active <= s_bsp_tx_active;
 
@@ -312,7 +327,9 @@ begin  -- architecture struct
       PHASE_SEG1              => BTL_PHASE_SEG1,
       PHASE_SEG2              => BTL_PHASE_SEG2,
       SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
-      TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE);
+      TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE,
+      SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
+      SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
 
   -- Error Management Logic (EML)
   -- Keeps track of errors occuring in other modules,

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2020-01-21
+-- Last update: 2020-01-29
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -134,6 +134,9 @@ architecture tb of canola_bsp_tb is
   signal s_btl_rx_bit_valid           : std_logic         := '0';
   signal s_btl_rx_synced              : std_logic         := '0';
   signal s_btl_rx_stop                : std_logic         := '0';
+  signal s_bsp_rx_fsm_state           : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_bsp_tx_fsm_state           : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
+  signal s_btl_sync_fsm_state         : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
 
   signal s_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -195,7 +198,11 @@ begin
       BTL_RX_BIT_VALUE           => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID           => s_btl_rx_bit_valid,
       BTL_RX_SYNCED              => s_btl_rx_synced,
-      BTL_RX_STOP                => s_btl_rx_stop);
+      BTL_RX_STOP                => s_btl_rx_stop,
+      RX_FSM_STATE_O             => s_bsp_rx_fsm_state,
+      RX_FSM_STATE_VOTED_I       => s_bsp_rx_fsm_state,
+      TX_FSM_STATE_O             => s_bsp_tx_fsm_state,
+      TX_FSM_STATE_VOTED_I       => s_bsp_tx_fsm_state);
 
   INST_canola_btl : entity work.canola_btl
     port map (
@@ -218,7 +225,9 @@ begin
       PHASE_SEG2              => s_phase_seg2,
       SYNC_JUMP_WIDTH         => s_sync_jump_width,
       TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                             C_TIME_QUANTA_WIDTH));
+                                             C_TIME_QUANTA_WIDTH),
+      SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
+      SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
 
   -- Detect if BSP_TX_RX_MISMATCH or BSP_TX_RX_STUFF_MISMATCH goes high
   p_rx_tx_mismatch_detect: process (s_clk) is

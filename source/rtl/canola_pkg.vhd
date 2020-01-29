@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-06
+-- Last update: 2020-01-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -21,6 +21,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 package canola_pkg is
   -----------------------------------------------------------------------------
@@ -124,7 +125,61 @@ package canola_pkg is
   -- Acceptance filter type
   type can_acf_t is array (integer range <>) of std_logic_vector(C_EXT_ARB_ID_LENGTH-1 downto 0);
 
-  type can_frame_tx_fsm_t is (ST_IDLE,
+
+  -----------------------------------------------------------------------------
+  -- Definitions for FSM state registers
+  -----------------------------------------------------------------------------
+
+  -- Type definition for BTL FSM state register
+  type btl_sync_fsm_state_t is (ST_SYNC_SEG,
+                          ST_PROP_SEG,
+                          ST_PHASE_SEG1,
+                          ST_PHASE_SEG2);
+
+  -- Type definition for BSP Rx FSM state register
+  type bsp_rx_fsm_state_t is (ST_IDLE,
+                        ST_WAIT_BTL_RX_RDY,
+                        ST_PROCESS_BIT,
+                        ST_DATA_BIT,
+                        ST_BIT_DESTUFF,
+                        ST_WAIT_BUS_IDLE,
+                        ST_CHECK_BUS_IDLE);
+
+  -- Type definition for BSP Tx FSM state register
+  type bsp_tx_fsm_state_t is (ST_IDLE,
+                        ST_WAIT_TX_DATA,
+                        ST_PROCESS_NEXT_TX_BIT,
+                        ST_WAIT_BTL_TX_RDY,
+                        ST_WAIT_BTL_TX_DONE,
+                        ST_WAIT_BTL_RX_VALID,
+                        ST_SEND_ERROR_FLAG);
+
+  -- Type definition for Rx Frame FSM state register
+  type can_frame_rx_fsm_state_t is (ST_IDLE,
+                              ST_RECV_SOF,
+                              ST_RECV_ID_A,
+                              ST_RECV_SRR_RTR,
+                              ST_RECV_IDE,
+                              ST_RECV_ID_B,
+                              ST_RECV_EXT_FRAME_RTR,
+                              ST_RECV_R1,
+                              ST_RECV_R0,
+                              ST_RECV_DLC,
+                              ST_RECV_DATA,
+                              ST_RECV_CRC,
+                              ST_RECV_CRC_DELIM,
+                              ST_SEND_RECV_ACK,
+                              ST_RECV_ACK_DELIM,
+                              ST_RECV_EOF,
+                              ST_CRC_ERROR,
+                              ST_STUFF_ERROR,
+                              ST_FORM_ERROR,
+                              ST_WAIT_ERROR_FLAG,
+                              ST_DONE,
+                              ST_WAIT_BUS_IDLE);
+
+  -- Type definition for Tx Frame FSM state register
+  type can_frame_tx_fsm_state_t is (ST_IDLE,
                               ST_WAIT_FOR_BUS_IDLE,
                               ST_SETUP_SOF,
                               ST_SETUP_ID_A,
@@ -163,5 +218,25 @@ package canola_pkg is
                               ST_ACK_ERROR,
                               ST_RETRANSMIT,
                               ST_DONE);
+
+  -- Calculate number of bits needed to represent states in BTL sync FSM state register
+  constant C_BTL_SYNC_FSM_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(btl_sync_fsm_state_t'pos(btl_sync_fsm_state_t'high)))));
+
+  -- Calculate number of bits needed to represent states in BSP Rx FSM state register
+  constant C_BSP_RX_FSM_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(bsp_rx_fsm_state_t'pos(bsp_rx_fsm_state_t'high)))));
+
+  -- Calculate number of bits needed to represent states in BSP Tx FSM state register
+  constant C_BSP_TX_FSM_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(bsp_tx_fsm_state_t'pos(bsp_tx_fsm_state_t'high)))));
+
+  -- Calculate number of bits needed to represent states in Rx Frame FSM state register
+  constant C_FRAME_RX_FSM_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(can_frame_rx_fsm_state_t'pos(can_frame_rx_fsm_state_t'high)))));
+
+  -- Calculate number of bits needed to represent states in Tx Frame FSM state register
+  constant C_FRAME_TX_FSM_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(can_frame_tx_fsm_state_t'pos(can_frame_tx_fsm_state_t'high)))));
 
 end canola_pkg;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-21
+-- Last update: 2020-01-29
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -1549,7 +1549,8 @@ begin
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
-      wait until << signal INST_canola_top_1.INST_canola_frame_tx_fsm.s_fsm_state : work.canola_pkg.can_frame_tx_fsm_t >>
+      wait until << signal INST_canola_top_1.INST_canola_frame_tx_fsm.s_fsm_state_voted
+        : work.canola_pkg.can_frame_tx_fsm_state_t >>
         = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
 
       uniform(seed1, seed2, v_rand_real);

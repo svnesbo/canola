@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-21
+-- Last update: 2020-01-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -127,7 +127,16 @@ entity canola_bsp is
     BTL_RX_BIT_VALUE           : in  std_logic;
     BTL_RX_BIT_VALID           : in  std_logic;
     BTL_RX_SYNCED              : in  std_logic;
-    BTL_RX_STOP                : out std_logic);
+    BTL_RX_STOP                : out std_logic;
+
+    -- Tx and Rx FSM state register output/input - for triplication and voting of state
+    RX_FSM_STATE_O       : out std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
+    RX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
+    TX_FSM_STATE_O       : out std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
+    TX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0)
+
+    -- Todo: Output and vote CRC register as well?
+    );
 
 end entity canola_bsp;
 
@@ -135,15 +144,13 @@ architecture rtl of canola_bsp is
   -----------------------------------------------------------------------------
   -- Rx FSM signals
   -----------------------------------------------------------------------------
-  type bsp_rx_fsm_t is (ST_IDLE,
-                        ST_WAIT_BTL_RX_RDY,
-                        ST_PROCESS_BIT,
-                        ST_DATA_BIT,
-                        ST_BIT_DESTUFF,
-                        ST_WAIT_BUS_IDLE,
-                        ST_CHECK_BUS_IDLE);
+  signal s_rx_fsm_state_out   : bsp_rx_fsm_state_t := ST_IDLE;
+  signal s_rx_fsm_state_voted : bsp_rx_fsm_state_t := ST_IDLE;
 
-  signal s_rx_fsm_state         : bsp_rx_fsm_t := ST_IDLE;
+  attribute fsm_encoding                         : string;
+  attribute fsm_encoding of s_rx_fsm_state_out   : signal is "sequential";
+  attribute fsm_encoding of s_rx_fsm_state_voted : signal is "sequential";
+
   signal s_rx_bit               : std_logic;
   signal s_rx_bit_stream_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
   signal s_rx_update_crc_pulse  : std_logic;
@@ -155,23 +162,20 @@ architecture rtl of canola_bsp is
   -- Rx FSM state assertions
   -----------------------------------------------------------------------------
   -- psl default clock is rising_edge(CLK);
-  -- psl assert (always {(s_rx_fsm_state = ST_IDLE) and
+  -- psl assert (always {(s_rx_fsm_state_voted = ST_IDLE) and
   --                      BTL_RX_SYNCED = '1' and BTL_RX_STOP = '0'} |=>
-  --                    {(s_rx_fsm_state = ST_WAIT_BTL_RX_RDY)} abort RESET);
+  --                    {(s_rx_fsm_state_voted = ST_WAIT_BTL_RX_RDY)} abort RESET);
   -- Todo: Add the rest of them...
 
   -----------------------------------------------------------------------------
   -- Tx FSM signals
   -----------------------------------------------------------------------------
-  type bsp_tx_fsm_t is (ST_IDLE,
-                        ST_WAIT_TX_DATA,
-                        ST_PROCESS_NEXT_TX_BIT,
-                        ST_WAIT_BTL_TX_RDY,
-                        ST_WAIT_BTL_TX_DONE,
-                        ST_WAIT_BTL_RX_VALID,
-                        ST_SEND_ERROR_FLAG);
+  signal s_tx_fsm_state_out   : bsp_tx_fsm_state_t := ST_IDLE;
+  signal s_tx_fsm_state_voted : bsp_tx_fsm_state_t := ST_IDLE;
 
-  signal s_tx_fsm_state            : bsp_tx_fsm_t := ST_IDLE;
+  attribute fsm_encoding of s_tx_fsm_state_out   : signal is "sequential";
+  attribute fsm_encoding of s_tx_fsm_state_voted : signal is "sequential";
+
   signal s_tx_restart_crc_pulse    : std_logic;
   signal s_tx_stuff_bit            : std_logic;
   signal s_tx_write_counter        : natural range 0 to C_BSP_DATA_LENGTH;
@@ -187,6 +191,14 @@ architecture rtl of canola_bsp is
   signal s_11_recessive_bit_shift_reg : std_logic_vector(10 downto 0);
 
 begin  -- architecture rtl
+
+  -- Convert Rx FSM state register output to std_logic_vector
+  RX_FSM_STATE_O <= std_logic_vector(to_unsigned(bsp_rx_fsm_state_t'pos(s_rx_fsm_state_out),
+                                                 C_BSP_RX_FSM_STATE_BITSIZE));
+
+  -- Convert voted Rx FSM state register input from std_logic_vector to bsp_rx_fsm_state_t
+  s_rx_fsm_state_voted <= bsp_rx_fsm_state_t'val(to_integer(unsigned(RX_FSM_STATE_VOTED_I)));
+
 
   proc_bsp_rx_fsm : process(CLK) is
     variable v_rx_stuff_counter  : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
@@ -231,7 +243,7 @@ begin  -- architecture rtl
           s_rx_stop_reg <= '1';
         end if;
 
-        case s_rx_fsm_state is
+        case s_rx_fsm_state_voted is
           when ST_IDLE =>
             BSP_RX_ACTIVE       <= '0';
             s_rx_stop_reg       <= '0';
@@ -246,38 +258,38 @@ begin  -- architecture rtl
             if BTL_RX_SYNCED = '1' and BTL_RX_STOP = '0' then
               s_rx_start_of_frame <= '1';
               BSP_RX_ACTIVE       <= '1';
-              s_rx_fsm_state      <= ST_WAIT_BTL_RX_RDY;
+              s_rx_fsm_state_out  <= ST_WAIT_BTL_RX_RDY;
             end if;
 
           when ST_WAIT_BTL_RX_RDY =>
             if BTL_RX_BIT_VALID = '1' then
               s_rx_bit_stream_window <= s_rx_bit_stream_window(C_ERROR_FLAG_LENGTH-2 downto 0) & BTL_RX_BIT_VALUE;
               s_rx_bit               <= BTL_RX_BIT_VALUE;
-              s_rx_fsm_state         <= ST_PROCESS_BIT;
+              s_rx_fsm_state_out     <= ST_PROCESS_BIT;
             end if;
 
           when ST_PROCESS_BIT =>
             if s_rx_bit_stream_window = C_ACTIVE_ERROR_FLAG_DATA then
               -- Always indicate active error flags and go to idle
               BSP_RX_ACTIVE_ERROR_FLAG <= '1';
-              s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
+              s_rx_fsm_state_out           <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_stop_reg = '1' then
               -- Rx Frame FSM has told us to stop receiving
-              s_rx_fsm_state           <= ST_WAIT_BUS_IDLE;
+              s_rx_fsm_state_out           <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_bit_stream_window = C_PASSIVE_ERROR_FLAG_DATA and BSP_RX_BIT_DESTUFF_EN = '1' then
               -- A passive error flag is just 6 recessive bits, which can
               -- occur during a normal frame. Only an error if we are
               -- expecting bit stuffed data
               BSP_RX_PASSIVE_ERROR_FLAG <= '1';
-              s_rx_fsm_state            <= ST_WAIT_BUS_IDLE;
+              s_rx_fsm_state_out            <= ST_WAIT_BUS_IDLE;
 
             elsif BSP_RX_BIT_DESTUFF_EN = '1' then
-              s_rx_fsm_state            <= ST_BIT_DESTUFF;
+              s_rx_fsm_state_out            <= ST_BIT_DESTUFF;
 
             else
-              s_rx_fsm_state            <= ST_DATA_BIT;
+              s_rx_fsm_state_out            <= ST_DATA_BIT;
             end if;
 
           when ST_BIT_DESTUFF =>
@@ -285,13 +297,13 @@ begin  -- architecture rtl
             if s_rx_bit_stream_window(5 downto 1) = "11111" and s_rx_start_of_frame = '0' then
               -- Previous 5 bits were all high (recessive), discard current bit as a stuff bit
               -- Note: a sequence of 6 bits (error) would be detected in ST_PROCESS_BIT
-              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+              s_rx_fsm_state_out <= ST_WAIT_BTL_RX_RDY;
             elsif s_rx_bit_stream_window(5 downto 1) = "00000" then
               -- Previous 5 bits were all high (recessive), discard current bit as a stuff bit
               -- Note: a sequence of 6 bits (error) would be detected in ST_PROCESS_BIT
-              s_rx_fsm_state <= ST_WAIT_BTL_RX_RDY;
+              s_rx_fsm_state_out <= ST_WAIT_BTL_RX_RDY;
             else
-              s_rx_fsm_state <= ST_DATA_BIT;
+              s_rx_fsm_state_out <= ST_DATA_BIT;
             end if;
 
           when ST_DATA_BIT =>
@@ -305,36 +317,44 @@ begin  -- architecture rtl
             end if;
 
             s_rx_update_crc_pulse <= '1';
-            s_rx_fsm_state        <= ST_WAIT_BTL_RX_RDY;
+            s_rx_fsm_state_out    <= ST_WAIT_BTL_RX_RDY;
 
           when ST_WAIT_BUS_IDLE =>
             BSP_RX_IFS <= '1';
 
             if BTL_RX_BIT_VALID = '1' then
               s_rx_bit_stream_window <= s_rx_bit_stream_window(C_ERROR_FLAG_LENGTH-2 downto 0) & BTL_RX_BIT_VALUE;
-              s_rx_fsm_state         <= ST_CHECK_BUS_IDLE;
+              s_rx_fsm_state_out     <= ST_CHECK_BUS_IDLE;
             end if;
 
           when ST_CHECK_BUS_IDLE =>
             BSP_RX_IFS <= '1';
 
             if s_rx_bit_stream_window(C_IFS_LENGTH-1 downto 0) = C_IFS then
-              BTL_RX_STOP    <= '1';
-              s_rx_fsm_state <= ST_IDLE;
+              BTL_RX_STOP        <= '1';
+              s_rx_fsm_state_out <= ST_IDLE;
 
             -- Todo: Check for OVERLOAD flag here
             else
-              s_rx_fsm_state <= ST_WAIT_BUS_IDLE;
+              s_rx_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
           when others =>
-            BTL_RX_STOP    <= '1';
-            s_rx_fsm_state <= ST_IDLE;
+            BTL_RX_STOP        <= '1';
+            s_rx_fsm_state_out <= ST_IDLE;
         end case;
       end if;  -- if/else RESET = '1'
     end if;  -- if rising_edge(CLK)
   end process proc_bsp_rx_fsm;
 
+
+
+  -- Convert Tx FSM state register output to std_logic_vector
+  TX_FSM_STATE_O <= std_logic_vector(to_unsigned(bsp_tx_fsm_state_t'pos(s_tx_fsm_state_out),
+                                                 C_BSP_TX_FSM_STATE_BITSIZE));
+
+  -- Convert voted Tx FSM state register input from std_logic_vector to bsp_tx_fsm_state_t
+  s_tx_fsm_state_voted <= bsp_tx_fsm_state_t'val(to_integer(unsigned(TX_FSM_STATE_VOTED_I)));
 
   proc_bsp_tx_fsm : process(CLK) is
   begin  -- process proc_tx_fsm
@@ -363,7 +383,7 @@ begin  -- architecture rtl
         BSP_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
         BSP_ERROR_FLAG_DONE             <= '0';
 
-        case s_tx_fsm_state is
+        case s_tx_fsm_state_voted is
           when ST_IDLE =>
             s_send_ack             <= '0';
             s_tx_frame_started     <= '0';
@@ -375,19 +395,19 @@ begin  -- architecture rtl
             s_tx_bit_stream_window <= (others => '1');
 
             if BSP_RX_SEND_ACK = '1' then
-              BTL_TX_BIT_VALUE <= C_ACK_VALUE;
-              s_send_ack       <= '1';
-              s_tx_fsm_state   <= ST_WAIT_BTL_TX_RDY;
+              BTL_TX_BIT_VALUE   <= C_ACK_VALUE;
+              s_send_ack         <= '1';
+              s_tx_fsm_state_out <= ST_WAIT_BTL_TX_RDY;
             elsif BSP_TX_ACTIVE = '1' then
-              s_tx_fsm_state   <= ST_WAIT_TX_DATA;
+              s_tx_fsm_state_out <= ST_WAIT_TX_DATA;
             end if;
 
           when ST_WAIT_TX_DATA =>
             if BSP_TX_ACTIVE = '0' then
-              s_tx_fsm_state     <= ST_IDLE;
+              s_tx_fsm_state_out <= ST_IDLE;
             elsif BSP_TX_WRITE_EN = '1' then
               s_tx_write_counter <= 0;
-              s_tx_fsm_state     <= ST_PROCESS_NEXT_TX_BIT;
+              s_tx_fsm_state_out <= ST_PROCESS_NEXT_TX_BIT;
             end if;
 
           when ST_PROCESS_NEXT_TX_BIT =>
@@ -395,18 +415,18 @@ begin  -- architecture rtl
             s_tx_frame_started <= '1';
 
             if BSP_TX_ACTIVE = '0' then
-              s_tx_fsm_state <= ST_IDLE;
+              s_tx_fsm_state_out <= ST_IDLE;
 
             elsif s_tx_write_counter = BSP_TX_DATA_COUNT then
               BSP_TX_DONE <= '1';
 
               -- Wait for more data
-              s_tx_fsm_state <= ST_WAIT_TX_DATA;
+              s_tx_fsm_state_out <= ST_WAIT_TX_DATA;
             else
               if BSP_TX_BIT_STUFF_EN = '1' and s_tx_frame_started = '1' then
                 if s_tx_bit_stream_window = "11111" then
                   -- Send low stuff bit after sequence of 5 ones
-                  BTL_TX_BIT_VALUE       <= '0';
+                  BTL_TX_BIT_VALUE   <= '0';
                   -- Stuff bit - don't calculate CRC for it
                   s_tx_stuff_bit     <= '1';
                 elsif s_tx_bit_stream_window = "00000" then
@@ -429,12 +449,12 @@ begin  -- architecture rtl
                 s_tx_stuff_bit     <= '0';
               end if;
 
-              s_tx_fsm_state <= ST_WAIT_BTL_TX_RDY;
+              s_tx_fsm_state_out <= ST_WAIT_BTL_TX_RDY;
             end if;
 
           when ST_WAIT_BTL_TX_RDY =>
             if BSP_TX_ACTIVE = '0' and s_send_ack = '0' and s_tx_send_error_flag = '0' then
-              s_tx_fsm_state <= ST_IDLE;
+              s_tx_fsm_state_out <= ST_IDLE;
 
             elsif BTL_TX_RDY = '1' then
               -- Tell BTL to send bit when it is ready
@@ -444,15 +464,15 @@ begin  -- architecture rtl
               s_tx_bit_stream_window <= s_tx_bit_stream_window(C_STUFF_BIT_THRESHOLD-2 downto 0) &
                                         BTL_TX_BIT_VALUE;
 
-              s_tx_fsm_state         <= ST_WAIT_BTL_TX_DONE;
+              s_tx_fsm_state_out     <= ST_WAIT_BTL_TX_DONE;
             end if;
 
           when ST_WAIT_BTL_TX_DONE =>
             if BTL_TX_DONE = '1' then
-              s_tx_stuff_bit <= '0';
+              s_tx_stuff_bit     <= '0';
               -- Wait for bit to be processed by BTL, then verify
               -- if the same bit value is read back from BTL
-              s_tx_fsm_state <= ST_WAIT_BTL_RX_VALID;
+              s_tx_fsm_state_out <= ST_WAIT_BTL_RX_VALID;
             end if;
 
           -- Read back bit that was transmitted
@@ -483,21 +503,21 @@ begin  -- architecture rtl
 
 
               if s_tx_send_error_flag = '1' then
-                s_tx_fsm_state <= ST_SEND_ERROR_FLAG;
+                s_tx_fsm_state_out <= ST_SEND_ERROR_FLAG;
               elsif s_send_ack = '1' then
                 -- Return to idle if we were just sending ACK
-                s_tx_fsm_state <= ST_IDLE;
+                s_tx_fsm_state_out <= ST_IDLE;
               elsif BSP_TX_ACTIVE = '1' then
                 if s_tx_write_counter = BSP_TX_DATA_COUNT then
                   BSP_TX_DONE <= '1';
 
                   -- Wait for more data
-                  s_tx_fsm_state <= ST_WAIT_TX_DATA;
+                  s_tx_fsm_state_out <= ST_WAIT_TX_DATA;
                 else
-                  s_tx_fsm_state <= ST_PROCESS_NEXT_TX_BIT;
+                  s_tx_fsm_state_out <= ST_PROCESS_NEXT_TX_BIT;
                 end if;
               else
-                s_tx_fsm_state <= ST_IDLE;
+                s_tx_fsm_state_out <= ST_IDLE;
               end if;
             end if;
 
@@ -506,14 +526,14 @@ begin  -- architecture rtl
 
             if unsigned(s_tx_error_flag_shift_reg) = 0 then
               BSP_ERROR_FLAG_DONE <= '1';
-              s_tx_fsm_state      <= ST_IDLE;
+              s_tx_fsm_state_out  <= ST_IDLE;
             else
               s_tx_error_flag_shift_reg <= s_tx_error_flag_shift_reg(C_ERROR_FLAG_LENGTH-2 downto 0) & '0';
-              s_tx_fsm_state            <= ST_WAIT_BTL_TX_RDY;
+              s_tx_fsm_state_out        <= ST_WAIT_BTL_TX_RDY;
             end if;
 
           when others =>
-            s_tx_fsm_state <= ST_IDLE;
+            s_tx_fsm_state_out <= ST_IDLE;
         end case;
 
         -- If case the BSP is requested to send an error flag,
@@ -530,7 +550,7 @@ begin  -- architecture rtl
           -- When the bit is shifted out of the register the error flag is done
           s_tx_error_flag_shift_reg(0) <= '1';
 
-          s_tx_fsm_state <= ST_SEND_ERROR_FLAG;
+          s_tx_fsm_state_out           <= ST_SEND_ERROR_FLAG;
         end if;
 
       end if; -- if/else RESET = '0'

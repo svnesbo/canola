@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-06
+-- Last update: 2020-01-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -89,13 +89,23 @@ entity canola_frame_tx_fsm is
     REG_ACK_RECV_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_ARB_LOST_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_ERROR_COUNT      : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_RETRANSMIT_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
+    REG_RETRANSMIT_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+
+    -- FSM state register output/input - for triplication and voting of state
+    FSM_STATE_O       : out std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0);
+    FSM_STATE_VOTED_I : in  std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0)
     );
 
 end entity canola_frame_tx_fsm;
 
 architecture rtl of canola_frame_tx_fsm is
-  signal s_fsm_state           : can_frame_tx_fsm_t;
+  signal s_fsm_state_out   : can_frame_tx_fsm_state_t;
+  signal s_fsm_state_voted : can_frame_tx_fsm_state_t;
+
+  attribute fsm_encoding                      : string;
+  attribute fsm_encoding of s_fsm_state_out   : signal is "sequential";
+  attribute fsm_encoding of s_fsm_state_voted : signal is "sequential";
+
   signal s_reg_tx_msg          : can_msg_t;
   signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
@@ -130,11 +140,19 @@ begin  -- architecture rtl
   -- kind of had to be this way..
   BSP_TX_WRITE_EN <= s_bsp_tx_write_en and not BSP_TX_DONE;
 
+  -- Convert FSM state register output to std_logic_vector
+  FSM_STATE_O <= std_logic_vector(to_unsigned(can_frame_tx_fsm_state_t'pos(s_fsm_state_out),
+                                              C_FRAME_TX_FSM_STATE_BITSIZE));
+
+  -- Convert voted FSM state register input from std_logic_vector to frame_tx_fsm_state_t
+  s_fsm_state_voted <= can_frame_tx_fsm_state_t'val(to_integer(unsigned(FSM_STATE_VOTED_I)));
+
+
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_fsm_state                        <= ST_IDLE;
+        s_fsm_state_out                    <= ST_IDLE;
         TX_BUSY                            <= '0';
         BSP_TX_DATA                        <= (others => '0');
         BSP_TX_ACTIVE                      <= '0';
@@ -162,7 +180,7 @@ begin  -- architecture rtl
         EML_TX_ARB_STUFF_ERROR             <= '0';
         EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
 
-        case s_fsm_state is
+        case s_fsm_state_voted is
           when ST_IDLE =>
             BSP_TX_ACTIVE                    <= '0';
             TX_BUSY                          <= '0';
@@ -172,14 +190,14 @@ begin  -- architecture rtl
 
             -- EML_ERROR_STATE may change after transmission of error flag has started.
             -- Keep a registered version since we need to know its value while transmitting error flag
-            s_eml_error_state     <= EML_ERROR_STATE;
+            s_eml_error_state <= EML_ERROR_STATE;
 
             if TX_START = '1' and s_eml_error_state /= BUS_OFF then
-              TX_BUSY       <= '1';
-              TX_ACK_RECV   <= '0';
-              TX_ARB_LOST   <= '0';
-              s_reg_tx_msg  <= TX_MSG_IN;
-              s_fsm_state   <= ST_WAIT_FOR_BUS_IDLE;
+              TX_BUSY         <= '1';
+              TX_ACK_RECV     <= '0';
+              TX_ARB_LOST     <= '0';
+              s_reg_tx_msg    <= TX_MSG_IN;
+              s_fsm_state_out <= ST_WAIT_FOR_BUS_IDLE;
             end if;
 
           when ST_WAIT_FOR_BUS_IDLE =>
@@ -187,21 +205,21 @@ begin  -- architecture rtl
             -- Should there be a timeout here?
             -- Can we wait forever?
             if BSP_RX_ACTIVE = '0' then
-              BSP_TX_ACTIVE <= '1';
-              s_fsm_state   <= ST_SETUP_SOF;
+              BSP_TX_ACTIVE   <= '1';
+              s_fsm_state_out <= ST_SETUP_SOF;
             end if;
 
           when ST_SETUP_SOF =>
             BSP_TX_DATA(0)    <= C_SOF_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state       <= ST_SEND_SOF;
+            s_fsm_state_out   <= ST_SEND_SOF;
 
           when ST_SEND_SOF =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_ID_A;
+              s_fsm_state_out <= ST_SETUP_ID_A;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -209,20 +227,20 @@ begin  -- architecture rtl
           when ST_SETUP_ID_A =>
             BSP_TX_DATA(0 to C_ID_A_LENGTH-1) <= a_tx_msg_id_a_reversed;
             BSP_TX_DATA_COUNT                 <= C_ID_A_LENGTH;
-            s_fsm_state                       <= ST_SEND_ID_A;
+            s_fsm_state_out                   <= ST_SEND_ID_A;
 
           when ST_SEND_ID_A =>
             if BSP_TX_RX_STUFF_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_SEND_ERROR_FLAG;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_SEND_ERROR_FLAG;
             elsif BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_ARB_LOST;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state <= ST_SETUP_SRR;
+                s_fsm_state_out <= ST_SETUP_SRR;
               else
-                s_fsm_state <= ST_SETUP_RTR;
+                s_fsm_state_out <= ST_SETUP_RTR;
               end if;
             else
               s_bsp_tx_write_en <= '1';
@@ -231,14 +249,14 @@ begin  -- architecture rtl
           when ST_SETUP_SRR =>
             BSP_TX_DATA(0)    <= C_SRR_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state       <= ST_SEND_SRR;
+            s_fsm_state_out   <= ST_SEND_SRR;
 
           when ST_SEND_SRR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_IDE;
+              s_fsm_state_out <= ST_SETUP_IDE;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -252,22 +270,22 @@ begin  -- architecture rtl
               BSP_TX_DATA_COUNT <= 1;
             end if;
 
-            s_fsm_state     <= ST_SEND_IDE;
+            s_fsm_state_out <= ST_SEND_IDE;
 
           when ST_SEND_IDE =>
             if BSP_TX_RX_MISMATCH = '1' then
               if s_reg_tx_msg.ext_id = '1' then
-                BSP_TX_ACTIVE <= '0';
-                s_fsm_state   <= ST_ARB_LOST;
+                BSP_TX_ACTIVE   <= '0';
+                s_fsm_state_out <= ST_ARB_LOST;
               else
-                BSP_TX_ACTIVE <= '0';
-                s_fsm_state   <= ST_BIT_ERROR;
+                BSP_TX_ACTIVE   <= '0';
+                s_fsm_state_out <= ST_BIT_ERROR;
               end if;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state <= ST_SETUP_ID_B;
+                s_fsm_state_out <= ST_SETUP_ID_B;
               else
-                s_fsm_state <= ST_SETUP_R0;
+                s_fsm_state_out <= ST_SETUP_R0;
               end if;
             else
               s_bsp_tx_write_en <= '1';
@@ -276,14 +294,14 @@ begin  -- architecture rtl
           when ST_SETUP_ID_B =>
             BSP_TX_DATA(0 to C_ID_B_LENGTH-1) <= a_tx_msg_id_b_reversed;
             BSP_TX_DATA_COUNT                 <= C_ID_B_LENGTH;
-            s_fsm_state                       <= ST_SEND_ID_B;
+            s_fsm_state_out                   <= ST_SEND_ID_B;
 
           when ST_SEND_ID_B =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_ARB_LOST;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_RTR;
+              s_fsm_state_out <= ST_SETUP_RTR;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -294,17 +312,17 @@ begin  -- architecture rtl
             TX_ARB_WON        <= '1';
             BSP_TX_DATA(0)    <= s_reg_tx_msg.remote_request;
             BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state       <= ST_SEND_RTR;
+            s_fsm_state_out   <= ST_SEND_RTR;
 
           when ST_SEND_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state <= ST_SETUP_R1;
+                s_fsm_state_out <= ST_SETUP_R1;
               else
-                s_fsm_state <= ST_SETUP_IDE;
+                s_fsm_state_out <= ST_SETUP_IDE;
               end if;
             else
               s_bsp_tx_write_en <= '1';
@@ -313,14 +331,14 @@ begin  -- architecture rtl
           when ST_SETUP_R1 =>
             BSP_TX_DATA(0)    <= C_R1_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state       <= ST_SEND_R1;
+            s_fsm_state_out   <= ST_SEND_R1;
 
           when ST_SEND_R1 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_R0;
+              s_fsm_state_out <= ST_SETUP_R0;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -328,14 +346,14 @@ begin  -- architecture rtl
           when ST_SETUP_R0 =>
             BSP_TX_DATA(0)    <= C_R0_VALUE;
             BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state       <= ST_SEND_R0;
+            s_fsm_state_out   <= ST_SEND_R0;
 
           when ST_SEND_R0 =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_DLC;
+              s_fsm_state_out <= ST_SETUP_DLC;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -343,19 +361,19 @@ begin  -- architecture rtl
           when ST_SETUP_DLC =>
             BSP_TX_DATA(0 to C_DLC_LENGTH-1) <= s_reg_tx_msg.data_length;
             BSP_TX_DATA_COUNT                <= C_DLC_LENGTH;
-            s_fsm_state                      <= ST_SEND_DLC;
+            s_fsm_state_out                  <= ST_SEND_DLC;
 
           when ST_SEND_DLC =>
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
               if s_reg_tx_msg.remote_request = '1' then
-                s_fsm_state <= ST_SETUP_CRC;
+                s_fsm_state_out <= ST_SETUP_CRC;
               elsif unsigned(s_reg_tx_msg.data_length) = 0 then
-                s_fsm_state <= ST_SETUP_CRC;
+                s_fsm_state_out <= ST_SETUP_CRC;
               else
-                s_fsm_state <= ST_SETUP_DATA;
+                s_fsm_state_out <= ST_SETUP_DATA;
               end if;
             else
               s_bsp_tx_write_en <= '1';
@@ -371,14 +389,14 @@ begin  -- architecture rtl
             BSP_TX_DATA(48 to 55) <= s_reg_tx_msg.data(6);
             BSP_TX_DATA(56 to 63) <= s_reg_tx_msg.data(7);
             BSP_TX_DATA_COUNT     <= to_integer(unsigned(s_reg_tx_msg.data_length))*8;
-            s_fsm_state           <= ST_SEND_DATA;
+            s_fsm_state_out       <= ST_SEND_DATA;
 
           when ST_SEND_DATA =>
             if BSP_TX_RX_MISMATCH = '1' then
               BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              s_fsm_state_out   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state   <= ST_SETUP_CRC;
+              s_fsm_state_out   <= ST_SETUP_CRC;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -387,24 +405,24 @@ begin  -- architecture rtl
             -- CRC and CRC delimiter
             BSP_TX_DATA(0 to C_CAN_CRC_WIDTH-1) <= BSP_TX_CRC_CALC;
             BSP_TX_DATA_COUNT                   <= C_CAN_CRC_WIDTH;
-            s_fsm_state                         <= ST_SEND_CRC;
+            s_fsm_state_out                     <= ST_SEND_CRC;
 
           when ST_SEND_CRC =>
             if BSP_TX_RX_MISMATCH = '1' then
               BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              s_fsm_state_out   <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_CRC_DELIM;
+              s_fsm_state_out   <= ST_SETUP_CRC_DELIM;
             else
               s_bsp_tx_write_en <= '1';
             end if;
 
           when ST_SETUP_CRC_DELIM =>
             -- CRC and CRC delimiter
-            BSP_TX_BIT_STUFF_EN   <= '0';
-            BSP_TX_DATA(0)        <= C_CRC_DELIM_VALUE;
-            BSP_TX_DATA_COUNT     <= 1;
-            s_fsm_state           <= ST_SEND_CRC_DELIM;
+            BSP_TX_BIT_STUFF_EN <= '0';
+            BSP_TX_DATA(0)      <= C_CRC_DELIM_VALUE;
+            BSP_TX_DATA_COUNT   <= 1;
+            s_fsm_state_out     <= ST_SEND_CRC_DELIM;
 
           when ST_SEND_CRC_DELIM =>
             -- Note:
@@ -413,10 +431,10 @@ begin  -- architecture rtl
             -- we leave it enabled also for the CRC delimiter, and disable it in the ACK
             -- slot state, to make sure that the last bit of the CRC is stuffed.
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state     <= ST_SETUP_ACK_SLOT;
+              s_fsm_state_out <= ST_SETUP_ACK_SLOT;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -425,7 +443,7 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_TRANSMIT_VALUE;
             BSP_TX_DATA_COUNT   <= 1;
-            s_fsm_state         <= ST_SEND_RECV_ACK_SLOT;
+            s_fsm_state_out     <= ST_SEND_RECV_ACK_SLOT;
 
           when ST_SEND_RECV_ACK_SLOT =>
             BSP_TX_BIT_STUFF_EN <= '0';
@@ -438,7 +456,7 @@ begin  -- architecture rtl
 
             if BSP_TX_DONE = '1' then
               if s_tx_ack_recv = '1' or BSP_TX_RX_MISMATCH = '1' then
-                s_fsm_state     <= ST_SETUP_ACK_DELIM;
+                s_fsm_state_out <= ST_SETUP_ACK_DELIM;
               else
                 -- I believe the error flag for ACK should be sent immediately,
                 -- and not after the ACK delimiter.
@@ -446,7 +464,7 @@ begin  -- architecture rtl
                 -- "Whenever a BIT ERROR, a STUFF ERROR, a FORM ERROR or an
                 --  ACKNOWLEDGMENT ERROR is detected by any station, transmission
                 --  of an ERROR FLAG is started at the respective station at the next bit."
-                s_fsm_state     <= ST_ACK_ERROR;
+                s_fsm_state_out <= ST_ACK_ERROR;
               end if;
             else
               s_bsp_tx_write_en <= '1';
@@ -456,16 +474,16 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_DELIM_VALUE;
             BSP_TX_DATA_COUNT   <= 1;
-            s_fsm_state         <= ST_SEND_ACK_DELIM;
+            s_fsm_state_out     <= ST_SEND_ACK_DELIM;
 
           when ST_SEND_ACK_DELIM =>
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_SETUP_EOF;
+              s_fsm_state_out <= ST_SETUP_EOF;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -474,16 +492,16 @@ begin  -- architecture rtl
             BSP_TX_BIT_STUFF_EN              <= '0';
             BSP_TX_DATA(0 to C_EOF_LENGTH-1) <= C_EOF;
             BSP_TX_DATA_COUNT                <= C_EOF_LENGTH;
-            s_fsm_state                      <= ST_SEND_EOF;
+            s_fsm_state_out                  <= ST_SEND_EOF;
 
           when ST_SEND_EOF =>
             BSP_TX_BIT_STUFF_EN <= '0';
 
             if BSP_TX_RX_MISMATCH = '1' then
-              BSP_TX_ACTIVE <= '0';
-              s_fsm_state   <= ST_BIT_ERROR;
+              BSP_TX_ACTIVE   <= '0';
+              s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state <= ST_DONE;
+              s_fsm_state_out <= ST_DONE;
             else
               s_bsp_tx_write_en <= '1';
             end if;
@@ -492,7 +510,7 @@ begin  -- architecture rtl
             -- Pulse send error flag output to BSP here
             -- UNLESS we are in BUS_OFF state
             BSP_SEND_ERROR_FLAG <= '1';
-            s_fsm_state         <= ST_SEND_ERROR_FLAG;
+            s_fsm_state_out     <= ST_SEND_ERROR_FLAG;
 
           when ST_SEND_ERROR_FLAG =>
             if s_eml_error_state = ERROR_ACTIVE and BSP_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
@@ -505,25 +523,25 @@ begin  -- architecture rtl
               -- error flag, even if there are more than 1 bit errors
               s_tx_active_error_flag_bit_error   <= '1';
             elsif BSP_ERROR_FLAG_DONE = '1' then
-              s_fsm_state <= ST_RETRANSMIT;
+              s_fsm_state_out <= ST_RETRANSMIT;
             end if;
 
           when ST_ARB_LOST =>
             TX_ARB_LOST            <= '1';
             s_reg_arb_lost_counter <= s_reg_arb_lost_counter + 1;
-            s_fsm_state            <= ST_RETRANSMIT;
+            s_fsm_state_out        <= ST_RETRANSMIT;
 
           when ST_BIT_ERROR =>
             BSP_SEND_ERROR_FLAG <= '1';
             EML_TX_BIT_ERROR    <= '1';
             s_reg_error_counter <= s_reg_error_counter + 1;
-            s_fsm_state         <= ST_RETRANSMIT;
+            s_fsm_state_out     <= ST_RETRANSMIT;
 
           when ST_ACK_ERROR =>
             BSP_SEND_ERROR_FLAG       <= '1';
             EML_TX_ACK_ERROR          <= '1';
             s_reg_ack_missing_counter <= s_reg_ack_missing_counter + 1;
-            s_fsm_state               <= ST_RETRANSMIT;
+            s_fsm_state_out           <= ST_RETRANSMIT;
 
           when ST_RETRANSMIT =>
             -- TODO:
@@ -533,12 +551,12 @@ begin  -- architecture rtl
             -- Retry transmission until retransmit count is reached
             -- TODO: Need to respect IFS etc. before retransmitting....
             if TX_RETRANSMIT_EN = '0' or s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then
-              TX_FAILED   <= '1';
-              s_fsm_state <= ST_IDLE;
+              TX_FAILED       <= '1';
+              s_fsm_state_out <= ST_IDLE;
             else
-              s_reg_retransmit_counter  <= s_reg_retransmit_counter + 1;
-              s_retransmit_attempts     <= s_retransmit_attempts + 1;
-              s_fsm_state               <= ST_WAIT_FOR_BUS_IDLE;
+              s_reg_retransmit_counter <= s_reg_retransmit_counter + 1;
+              s_retransmit_attempts    <= s_retransmit_attempts + 1;
+              s_fsm_state_out          <= ST_WAIT_FOR_BUS_IDLE;
             end if;
 
           when ST_DONE =>
@@ -552,12 +570,12 @@ begin  -- architecture rtl
               s_reg_ack_recv_counter <= s_reg_ack_recv_counter + 1;
               TX_ACK_RECV            <= '1';
               TX_DONE                <= '1';
-              s_fsm_state            <= ST_IDLE;
+              s_fsm_state_out        <= ST_IDLE;
             else
               -- Did not receive ACK..
               -- Pulsing TX_ACTIVE allows BSP to reset CRC etc.,
               -- and prevents BTL from syncing
-              s_fsm_state   <= ST_RETRANSMIT;
+              s_fsm_state_out <= ST_RETRANSMIT;
             end if;
 
         end case;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-21
+-- Last update: 2020-01-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -60,7 +60,11 @@ entity canola_btl is
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
 
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0)
+    TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+
+    -- Sync FSM state register output/input - for triplication and voting of state
+    SYNC_FSM_STATE_O       : out std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
+    SYNC_FSM_STATE_VOTED_I : in  std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0)
     );
 
 end entity canola_btl;
@@ -97,13 +101,12 @@ architecture rtl of canola_btl is
     return vector_out;
   end function shift_left_and_fill_with_one;
 
+  signal s_sync_fsm_state_out   : btl_sync_fsm_state_t := ST_SYNC_SEG;
+  signal s_sync_fsm_state_voted : btl_sync_fsm_state_t := ST_SYNC_SEG;
 
-  type sync_fsm_t is (ST_SYNC_SEG,
-                      ST_PROP_SEG,
-                      ST_PHASE_SEG1,
-                      ST_PHASE_SEG2);
-
-  signal s_sync_state : sync_fsm_t := ST_SYNC_SEG;
+  attribute fsm_encoding                           : string;
+  attribute fsm_encoding of s_sync_fsm_state_out   : signal is "sequential";
+  attribute fsm_encoding of s_sync_fsm_state_voted : signal is "sequential";
 
   -- Essentially a shift register that holds a sequence of 1s,
   -- where each 1 corresponds to a time quanta.
@@ -155,6 +158,13 @@ architecture rtl of canola_btl is
   signal s_btl_tx_bit : std_logic;
 
 begin  -- architecture rtl
+
+  -- Convert sync FSM state register output to std_logic_vector
+  SYNC_FSM_STATE_O <= std_logic_vector(to_unsigned(btl_sync_fsm_state_t'pos(s_sync_fsm_state_out),
+                                                   C_BTL_SYNC_FSM_STATE_BITSIZE));
+
+  -- Convert voted sync FSM state register input from std_logic_vector to btl_sync_fsm_state_t
+  s_sync_fsm_state_voted <= btl_sync_fsm_state_t'val(to_integer(unsigned(SYNC_FSM_STATE_VOTED_I)));
 
   -- Generates a 1 (system) clock cycle pulse for each baud
   INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
@@ -213,7 +223,7 @@ begin  -- architecture rtl
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
             s_frame_hard_sync <= '1';
-            s_sync_state      <= ST_SYNC_SEG;
+            s_sync_fsm_state_out  <= ST_SYNC_SEG;
 
           -- Hard sync is not allowed when we are transmitting,
           -- however because of the fixed phase between rx and tx sample point,
@@ -224,7 +234,7 @@ begin  -- architecture rtl
         -- Note: FSM is processed only on baud pulses
         -----------------------------------------------------------------------
         elsif s_time_quanta_pulse = '1' then
-          case s_sync_state is
+          case s_sync_fsm_state_voted is
             when ST_SYNC_SEG =>
 
               if BTL_RX_SYNCED = '1' and s_got_rx_bit_falling_edge = '0' then
@@ -237,7 +247,7 @@ begin  -- architecture rtl
               s_phase_error             <= 0;
               s_segment                 <= (others => '0');
               s_segment(PROP_SEG'range) <= PROP_SEG;
-              s_sync_state              <= ST_PROP_SEG;
+              s_sync_fsm_state_out          <= ST_PROP_SEG;
 
             when ST_PROP_SEG =>
               v_phase_error := s_phase_error;
@@ -260,7 +270,7 @@ begin  -- architecture rtl
                 -- Setup segment for PHASE1_SEG
                 v_segment                   := (others => '0');
                 v_segment(PHASE_SEG1'range) := PHASE_SEG1;
-                s_sync_state                <= ST_PHASE_SEG1;
+                s_sync_fsm_state_out            <= ST_PHASE_SEG1;
               end if;
 
               s_phase_error <= v_phase_error;
@@ -302,7 +312,7 @@ begin  -- architecture rtl
                 v_phase_error               := C_SYNC_JUMP_WIDTH_MAX;
 
                 s_resync_done               <= '0';
-                s_sync_state                <= ST_PHASE_SEG2;
+                s_sync_fsm_state_out            <= ST_PHASE_SEG2;
               end if;
 
               s_segment                 <= v_segment;
@@ -328,17 +338,17 @@ begin  -- architecture rtl
               -- assuming that the user has setup the segment inputs correctly.
               if v_segment(0) = '0' then
                 -- Last time quanta in PHASE2_SEG
-                v_segment                   := (others => '0');
-                v_phase_error               := 0;
-                s_got_rx_bit_falling_edge   <= '0';
-                s_sync_state                <= ST_SYNC_SEG;
+                v_segment                 := (others => '0');
+                v_phase_error             := 0;
+                s_got_rx_bit_falling_edge <= '0';
+                s_sync_fsm_state_out          <= ST_SYNC_SEG;
               end if;
 
               s_segment                 <= v_segment;
               s_phase_error             <= v_phase_error;
 
             when others =>
-              s_sync_state      <= ST_SYNC_SEG;
+              s_sync_fsm_state_out      <= ST_SYNC_SEG;
 
           end case;
 
@@ -392,7 +402,7 @@ begin  -- architecture rtl
       s_sample_point_rx      <= '0';
       s_sample_point_rx_done <= '0';
 
-      if s_sync_state = ST_SYNC_SEG then
+      if s_sync_fsm_state_voted = ST_SYNC_SEG then
         if s_sample_point_tx_done = '0' then
           s_sample_point_tx <= '1';
         else
@@ -401,7 +411,7 @@ begin  -- architecture rtl
         s_sample_point_tx_done <= '1';
       end if;
 
-      if s_sync_state = ST_PHASE_SEG2 then
+      if s_sync_fsm_state_voted = ST_PHASE_SEG2 then
         if s_sample_point_rx_done = '0' then
           s_sample_point_rx <= '1';
         else

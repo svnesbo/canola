@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2020-01-06
+-- Last update: 2020-01-29
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -114,14 +114,15 @@ architecture tb of canola_btl_tb is
   signal s_clk              : std_logic := '0';
   signal s_can_tx, s_can_rx : std_logic;
 
-  signal s_btl_tx_bit_value : std_logic := '0';
-  signal s_btl_tx_bit_valid : std_logic := '0';
-  signal s_btl_tx_rdy       : std_logic;
-  signal s_btl_tx_active    : std_logic := '0';
-  signal s_btl_rx_bit_value : std_logic;
-  signal s_btl_rx_bit_valid : std_logic;
-  signal s_btl_rx_synced    : std_logic;
-  signal s_btl_rx_stop      : std_logic := '0';
+  signal s_btl_tx_bit_value   : std_logic := '0';
+  signal s_btl_tx_bit_valid   : std_logic := '0';
+  signal s_btl_tx_rdy         : std_logic;
+  signal s_btl_tx_active      : std_logic := '0';
+  signal s_btl_rx_bit_value   : std_logic;
+  signal s_btl_rx_bit_valid   : std_logic;
+  signal s_btl_rx_synced      : std_logic;
+  signal s_btl_rx_stop        : std_logic := '0';
+  signal s_btl_sync_fsm_state : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
 
   signal s_data_transmit     : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
   signal s_btl_data_received : std_logic_vector(0 to C_DATA_LENGTH_MAX-1) := (others => '0');
@@ -172,7 +173,9 @@ begin
       PHASE_SEG2              => s_phase_seg2,
       SYNC_JUMP_WIDTH         => s_sync_jump_width,
       TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                             C_TIME_QUANTA_WIDTH));
+                                             C_TIME_QUANTA_WIDTH),
+      SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
+      SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
 
   -- Process for collecting bits received with BTL.
   -- Puts the received bits in a vector. Vector and count is reset on start of frame.
