@@ -140,7 +140,7 @@ begin  -- architecture structural
           FSM_STATE_VOTED_I                  => s_fsm_state_no_tmr);
 
     end block no_tmr_block;
-  end generate if_NONMITIGATION_generate;
+  end generate if_NOMITIGATION_generate;
 
 
     -- -----------------------------------------------------------------------

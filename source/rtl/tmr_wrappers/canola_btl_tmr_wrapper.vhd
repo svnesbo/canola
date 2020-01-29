@@ -106,7 +106,7 @@ begin  -- architecture structural
           SYNC_FSM_STATE_O        => s_sync_fsm_state_no_tmr,
           SYNC_FSM_STATE_VOTED_I  => s_sync_fsm_state_no_tmr);
     end block no_tmr_block;
-  end generate if_NONMITIGATION_generate;
+  end generate if_NOMITIGATION_generate;
 
 
   -- -----------------------------------------------------------------------
