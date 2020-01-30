@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-01-24
+-- Last update: 2020-01-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -15,7 +15,7 @@
 --              Inspired by code for majority voters written in SystemVerilog
 --              for the ALICE ITS upgrade by Matteo Lupi
 -------------------------------------------------------------------------------
--- Copyright (c) 2019
+-- Copyright (c) 2020
 -------------------------------------------------------------------------------
 -- Revisions  :
 -- Date        Version  Author  Description
