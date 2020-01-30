@@ -98,7 +98,6 @@ begin  -- architecture arch
         i_counter <= f_update_counter(IS_SATURATING, VERBOSE, i_counter_voted);
       end if;
     end if;
-  end if;
-end process p_counter_update;
+  end process p_counter_update;
 
 end architecture arch;

@@ -50,12 +50,12 @@ entity counter_saturating_tmr_wrapper_triplicated is
     MISMATCH    : out std_logic);
   attribute DONT_TOUCH                                   : string;
   attribute DONT_TOUCH of counter_saturating_tmr_wrapper : entity is "true";
-end entity counter_saturating_tmr_wrapper;
+end entity counter_saturating_tmr_wrapper_triplicated;
 
 -------------------------------------------------------------------------------
 -- Architecture
 -------------------------------------------------------------------------------
-architecture structural of upcounter_tmr_wrapper is
+architecture structural of counter_saturating_tmr_wrapper_triplicated is
 begin
 
   if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
