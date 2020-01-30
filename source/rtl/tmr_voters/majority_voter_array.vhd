@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-01-24
+-- Last update: 2020-01-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ begin  -- architecture rtl
         INPUT_A   => INPUT_A(i),
         INPUT_B   => INPUT_B(i),
         INPUT_C   => INPUT_C(i),
-        VOTER_OUT => VOTER_OUT,
+        VOTER_OUT => VOTER_OUT(i),
         MISMATCH  => s_mismatch(i));
   end generate GEN_tmr_voters;
 

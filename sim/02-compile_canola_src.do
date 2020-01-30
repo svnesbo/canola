@@ -24,6 +24,11 @@ quietly set compdirectives_vlog "-mixedsvvh s -93 -suppress 1346,1236 -quiet -wo
 
 echo "\n\n\n=== Compiling $lib_name source\n"
 
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/tmr_pkg.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_triplicated.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_array.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_triplicated_array.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_time_quanta_gen.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_crc.vhd

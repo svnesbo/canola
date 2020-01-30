@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-01-24
+-- Last update: 2020-01-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,13 +42,13 @@ entity majority_voter_triplicated_array is
     MISMATCH    : out std_logic
     );
 
-  attribute DONT_TOUCH             : string;
-  attribute DONT_TOUCH of INPUT_A  : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_B  : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_C  : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_A : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_B : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_C : signal is "TRUE";
+  attribute DONT_TOUCH                : string;
+  attribute DONT_TOUCH of INPUT_A     : signal is "TRUE";
+  attribute DONT_TOUCH of INPUT_B     : signal is "TRUE";
+  attribute DONT_TOUCH of INPUT_C     : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_A : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_B : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_C : signal is "TRUE";
 end entity majority_voter_triplicated_array;
 
 
@@ -64,8 +64,16 @@ begin  -- architecture rtl
     report "Lengths of input vectors A and C do not match"
     severity failure;
 
-  assert INPUT_A'length = VOTER_OUT'length
-    report "Lengths of input vectors A and output vector VOTER_OUT do not match"
+  assert VOTER_OUT_A'length = VOTER_OUT_B'length
+    report "Lengths of output vectors A and B do not match"
+    severity failure;
+
+  assert VOTER_OUT_A'length = VOTER_OUT_C'length
+    report "Lengths of output vectors A and C do not match"
+    severity failure;
+
+  assert INPUT_A'length = VOTER_OUT_A'length
+    report "Lengths of input vectors and output vectors do not match"
     severity failure;
 
   GEN_tmr_voters: for i in INPUT_A'range generate
@@ -78,9 +86,9 @@ begin  -- architecture rtl
         INPUT_A     => INPUT_A(i),
         INPUT_B     => INPUT_B(i),
         INPUT_C     => INPUT_C(i),
-        VOTER_OUT_A => VOTER_OUT(i),
-        VOTER_OUT_B => VOTER_OUT(i),
-        VOTER_OUT_C => VOTER_OUT(i),
+        VOTER_OUT_A => VOTER_OUT_A(i),
+        VOTER_OUT_B => VOTER_OUT_B(i),
+        VOTER_OUT_C => VOTER_OUT_C(i),
         MISMATCH    => s_mismatch(i));
   end generate GEN_tmr_voters;
 
