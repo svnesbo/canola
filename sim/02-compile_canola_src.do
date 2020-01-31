@@ -29,6 +29,8 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_triplicated.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_array.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/majority_voter_triplicated_array.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/counters/counter_saturating.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/counters/upcounter.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_time_quanta_gen.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_crc.vhd
@@ -38,6 +40,8 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_rx_fsm
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_tx_fsm.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_eml.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_top.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/counter_saturating_tmr_wrapper_triplicated.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/upcounter_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/axi_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_pif_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_axi_pif.vhd

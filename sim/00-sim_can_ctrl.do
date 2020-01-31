@@ -1,4 +1,8 @@
-vsim -gui -t ps -novopt work.tmr_voters_tb
+#vsim -gui -t ps -novopt work.tmr_voters_tb
+#do 00-wave_can_ctrl.do
+#run -all
+
+vsim -gui -t ps -novopt work.tmr_counters_tb
 do 00-wave_can_ctrl.do
 run -all
 

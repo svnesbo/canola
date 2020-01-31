@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ architecture arch of counter_saturating is
     variable i_next_value : natural;
   begin  -- function f_update_counter
     if count_up = '1' then
-      i_next_value := i_count_value + i_increment;
+      i_next_value := i_count_current + i_increment;
 
       if i_next_value >= (2**C_bit_width) then
         i_next_value := (2**C_bit_width - 1);
@@ -84,7 +84,7 @@ architecture arch of counter_saturating is
       end if;
 
     elsif count_down = '1' then
-      if i_increment > i_count_value then
+      if i_increment > i_count_current then
         i_next_value := 0;
         -- synthesis translate_off
         if verbose then
@@ -92,11 +92,11 @@ architecture arch of counter_saturating is
         end if;
       -- synthesis translate_on
       else
-        i_next_value := i_count_value - i_increment;
+        i_next_value := i_count_current - i_increment;
       end if;
 
     else
-      i_next_value := i_count_value;
+      i_next_value := i_count_current;
     end if;
 
 
@@ -105,7 +105,7 @@ architecture arch of counter_saturating is
 
 begin  -- architecture arch
 
-  assert BIT_WIDTH > INCR_WIDTH report "Increment width larger than counter width" severity failure;
+  assert BIT_WIDTH >= INCR_WIDTH report "Increment width larger than counter width" severity failure;
 
   -- purpose: Updates the counter
   p_counter_update : process (CLK) is
