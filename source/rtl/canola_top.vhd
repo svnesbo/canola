@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-01-29
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -154,9 +154,24 @@ architecture struct of canola_top is
   signal s_eml_transmit_success                 : std_logic;
   signal s_eml_receive_success                  : std_logic;
   signal s_eml_recv_11_recessive_bits           : std_logic;
+  signal s_eml_tec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_tec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
+  signal s_eml_tec_count_up                     : std_logic;
+  signal s_eml_tec_count_down                   : std_logic;
+  signal s_eml_tec_clear                        : std_logic;
+  signal s_eml_tec_set                          : std_logic;
+  signal s_eml_tec_set_value                    : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_rec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_rec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
+  signal s_eml_rec_count_up                     : std_logic;
+  signal s_eml_rec_count_down                   : std_logic;
+  signal s_eml_rec_clear                        : std_logic;
+  signal s_eml_rec_set                          : std_logic;
+  signal s_eml_rec_set_value                    : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_recessive_bit_count_value        : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_recessive_bit_count_up           : std_logic;
+  signal s_eml_recessive_bit_count_clear        : std_logic;
   signal s_eml_error_state                      : can_error_state_t;
-  signal s_eml_transmit_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_eml_receive_error_count              : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
   -- State registers
   signal s_btl_sync_fsm_state : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
@@ -167,8 +182,8 @@ architecture struct of canola_top is
 
 begin  -- architecture struct
 
-  TRANSMIT_ERROR_COUNT <= s_eml_transmit_error_count;
-  RECEIVE_ERROR_COUNT  <= s_eml_receive_error_count;
+  TRANSMIT_ERROR_COUNT <= unsigned(s_eml_tec_count_value);
+  RECEIVE_ERROR_COUNT  <= unsigned(s_eml_rec_count_value);
   ERROR_STATE          <= s_eml_error_state;
 
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
@@ -353,8 +368,74 @@ begin  -- architecture struct
       TRANSMIT_SUCCESS                 => TX_DONE,
       RECEIVE_SUCCESS                  => RX_MSG_VALID,
       RECV_11_RECESSIVE_BITS           => s_eml_recv_11_recessive_bits,
-      ERROR_STATE                      => s_eml_error_state,
-      TRANSMIT_ERROR_COUNT             => s_eml_transmit_error_count,
-      RECEIVE_ERROR_COUNT              => s_eml_receive_error_count);
+      TEC_COUNT_VALUE                  => s_eml_tec_count_value,
+      TEC_COUNT_INCR                   => s_eml_tec_count_incr,
+      TEC_COUNT_UP                     => s_eml_tec_count_up,
+      TEC_COUNT_DOWN                   => s_eml_tec_count_down,
+      TEC_CLEAR                        => s_eml_tec_clear,
+      TEC_SET                          => s_eml_tec_set,
+      TEC_SET_VALUE                    => s_eml_tec_set_value,
+      REC_COUNT_VALUE                  => s_eml_rec_count_value,
+      REC_COUNT_INCR                   => s_eml_rec_count_incr,
+      REC_COUNT_UP                     => s_eml_rec_count_up,
+      REC_COUNT_DOWN                   => s_eml_rec_count_down,
+      REC_CLEAR                        => s_eml_rec_clear,
+      REC_SET                          => s_eml_rec_set,
+      REC_SET_VALUE                    => s_eml_rec_set_value,
+      RECESSIVE_BIT_COUNT_VALUE        => s_eml_recessive_bit_count_value,
+      RECESSIVE_BIT_COUNT_UP           => s_eml_recessive_bit_count_up,
+      RECESSIVE_BIT_COUNT_CLEAR        => s_eml_recessive_bit_count_clear,
+      ERROR_STATE                      => s_eml_error_state);
+
+
+  -- Receive Error Counter (REC) used by EML
+  INST_receive_error_counter: entity work.counter_saturating
+    generic map (
+      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE    => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => s_eml_rec_clear,
+      SET            => s_eml_rec_set,
+      SET_VALUE      => s_eml_rec_set_value,
+      COUNT_UP       => s_eml_rec_count_up,
+      COUNT_DOWN     => s_eml_rec_count_down,
+      COUNT_INCR     => s_eml_rec_count_incr,
+      COUNT_OUT      => s_eml_rec_count_value,
+      COUNT_VOTED_IN => s_eml_rec_count_value);
+
+  -- Transmit Error Counter (TEC) used by EML
+  INST_transmit_error_counter: entity work.counter_saturating
+    generic map (
+      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE    => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => s_eml_tec_clear,
+      SET            => s_eml_tec_set,
+      SET_VALUE      => s_eml_tec_set_value,
+      COUNT_UP       => s_eml_tec_count_up,
+      COUNT_DOWN     => s_eml_tec_count_down,
+      COUNT_INCR     => s_eml_tec_count_incr,
+      COUNT_OUT      => s_eml_tec_count_value,
+      COUNT_VOTED_IN => s_eml_tec_count_value);
+
+  -- Counter for sequences of 11 recessive bits used by EML
+  INST_recessive_bit_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => C_ERROR_COUNT_LENGTH,
+      IS_SATURATING => true,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => s_eml_recessive_bit_count_clear,
+      COUNT_UP       => s_eml_recessive_bit_count_up,
+      COUNT_OUT      => s_eml_recessive_bit_count_value,
+      COUNT_VOTED_IN => s_eml_recessive_bit_count_value);
 
 end architecture struct;

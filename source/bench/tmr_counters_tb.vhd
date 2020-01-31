@@ -29,7 +29,7 @@ use std.textio.all;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
---use ieee.math_real.all;
+use ieee.math_real.all;
 
 library uvvm_util;
 context uvvm_util.uvvm_util_context;
@@ -41,16 +41,19 @@ entity tmr_counters_tb is
 end tmr_counters_tb;
 
 architecture tb of tmr_counters_tb is
-  constant C_CLK_PERIOD : time       := 100 ns; -- 10 Mhz
-  constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
+  constant C_CLK_PERIOD : time := 100 ns;  -- 10 Mhz
+  constant C_CLK_FREQ : integer := 1e9 ns / C_CLK_PERIOD;
+
+  shared variable seed1     : positive := 32564482;
+  shared variable seed2     : positive := 89536898;
 
   signal s_clk : std_logic := '0';
 
   -- Generate a clock with a given period,
   -- based on clock_gen from Bitvis IRQC testbench
   procedure clock_gen(
-    signal clock_signal          : inout std_logic;
-    constant clock_period        : in    time
+    signal clock_signal : inout std_logic;
+    constant clock_period : in time
     ) is
     variable v_first_half_clk_period : time;
   begin
@@ -64,35 +67,37 @@ architecture tb of tmr_counters_tb is
     end loop;
   end;
 
-  constant C_BIT_WIDTH    : natural                              := 6;
-  constant C_INCR_WIDTH   : natural                              := 6;
+  constant C_BIT_WIDTH : natural := 6;
+  constant C_INCR_WIDTH : natural := 6;
   constant C_COUNTER_ZERO : std_logic_vector(0 to C_BIT_WIDTH-1) := (others => '0');
-  constant C_COUNTER_MAX  : std_logic_vector(0 to C_BIT_WIDTH-1) := (others => '1');
+  constant C_COUNTER_MAX : std_logic_vector(0 to C_BIT_WIDTH-1) := (others => '1');
 
   signal s_clear      : std_logic;
   signal s_reset      : std_logic;
   signal s_count_up   : std_logic;
   signal s_count_down : std_logic;
+  signal s_set        : std_logic;
+  signal s_set_value  : std_logic_vector(C_BIT_WIDTH-1 downto 0);
 
   signal s_upcounter_non_saturating_no_tmr_out : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_upcounter_non_saturating_tmr_out    : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_upcounter_saturating_no_tmr_out     : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_upcounter_saturating_tmr_out        : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_upcounter_non_saturating_tmr_out : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_upcounter_saturating_no_tmr_out : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_upcounter_saturating_tmr_out : std_logic_vector(C_BIT_WIDTH-1 downto 0);
 
   signal s_counter_saturating_no_tmr_out_a : std_logic_vector(C_BIT_WIDTH-1 downto 0);
   signal s_counter_saturating_no_tmr_out_b : std_logic_vector(C_BIT_WIDTH-1 downto 0);
   signal s_counter_saturating_no_tmr_out_c : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_counter_saturating_tmr_out_a    : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_counter_saturating_tmr_out_b    : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_counter_saturating_tmr_out_c    : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-  signal s_counter_incr                    : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_counter_saturating_tmr_out_a : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_counter_saturating_tmr_out_b : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_counter_saturating_tmr_out_c : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+  signal s_counter_incr : std_logic_vector(C_BIT_WIDTH-1 downto 0);
 
 begin
 
   clock_gen(s_clk, C_CLK_PERIOD);
 
 
-  INST_upcounter_non_saturating_no_tmr: entity work.upcounter_tmr_wrapper
+  INST_upcounter_non_saturating_no_tmr : entity work.upcounter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => false,
@@ -108,7 +113,7 @@ begin
       COUNT_OUT => s_upcounter_non_saturating_no_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_non_saturating_tmr: entity work.upcounter_tmr_wrapper
+  INST_upcounter_non_saturating_tmr : entity work.upcounter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => false,
@@ -124,7 +129,7 @@ begin
       COUNT_OUT => s_upcounter_non_saturating_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_saturating_no_tmr: entity work.upcounter_tmr_wrapper
+  INST_upcounter_saturating_no_tmr : entity work.upcounter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => true,
@@ -140,7 +145,7 @@ begin
       COUNT_OUT => s_upcounter_saturating_no_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_saturating_tmr: entity work.upcounter_tmr_wrapper
+  INST_upcounter_saturating_tmr : entity work.upcounter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => true,
@@ -156,7 +161,7 @@ begin
       COUNT_OUT => s_upcounter_saturating_tmr_out,
       MISMATCH  => open);
 
-  INST_counter_saturating_no_tmr: entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_counter_saturating_no_tmr : entity work.counter_saturating_tmr_wrapper_triplicated
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       INCR_WIDTH            => C_INCR_WIDTH,
@@ -168,6 +173,8 @@ begin
       CLK         => s_clk,
       RESET       => s_reset,
       CLEAR       => s_clear,
+      SET         => s_set,
+      SET_VALUE   => s_set_value,
       COUNT_UP    => s_count_up,
       COUNT_DOWN  => s_count_down,
       COUNT_INCR  => s_counter_incr,
@@ -176,7 +183,7 @@ begin
       COUNT_OUT_C => s_counter_saturating_no_tmr_out_c,
       MISMATCH    => open);
 
-  INST_counter_saturating_tmr: entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_counter_saturating_tmr : entity work.counter_saturating_tmr_wrapper_triplicated
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       INCR_WIDTH            => C_INCR_WIDTH,
@@ -188,6 +195,8 @@ begin
       CLK         => s_clk,
       RESET       => s_reset,
       CLEAR       => s_clear,
+      SET         => s_set,
+      SET_VALUE   => s_set_value,
       COUNT_UP    => s_count_up,
       COUNT_DOWN  => s_count_down,
       COUNT_INCR  => s_counter_incr,
@@ -198,12 +207,15 @@ begin
 
 
 
-  p_main: process
-    constant C_SCOPE         : string  := C_TB_SCOPE_DEFAULT;
-    variable v_count_value   : std_logic_vector(C_BIT_WIDTH-1 downto 0);
-    variable v_iteration_num : natural := 0;
+  p_main : process
+    constant C_SCOPE               : string  := C_TB_SCOPE_DEFAULT;
+    constant C_INCR_TEST_VALUE     : natural := 5;
+    constant C_NUM_SET_VALUE_TESTS : natural := 64;
 
-    constant C_INCR_TEST_VALUE : natural := 5;
+    variable v_count_value            : std_logic_vector(C_BIT_WIDTH-1 downto 0);
+    variable v_iteration_num          : natural := 0;
+    variable v_rand_real              : real;
+    variable v_rand_counter_value     : natural;
 
   begin
     -- Print the configuration to the log
@@ -215,9 +227,11 @@ begin
     --enable_log_msg(ID_LOG_HDR);
 
     s_counter_incr <= (others => '0');
+    s_set_value    <= (others => '0');
     s_count_up     <= '0';
     s_count_down   <= '0';
     s_clear        <= '0';
+    s_set          <= '0';
 
 
     -----------------------------------------------------------------------------------------------
@@ -229,9 +243,9 @@ begin
     wait until rising_edge(s_clk);
 
     check_value(s_upcounter_non_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_upcounter_non_saturating_tmr_out,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_upcounter_saturating_no_tmr_out,     C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_upcounter_saturating_tmr_out,        C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_upcounter_non_saturating_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_upcounter_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_upcounter_saturating_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after reset");
 
     s_count_up <= '1';
     wait until rising_edge(s_clk);
@@ -242,18 +256,18 @@ begin
       v_count_value := std_logic_vector(to_unsigned(i, C_BIT_WIDTH));
 
       check_value(s_upcounter_non_saturating_no_tmr_out, v_count_value, error, "Check count value");
-      check_value(s_upcounter_non_saturating_tmr_out,    v_count_value, error, "Check count value");
-      check_value(s_upcounter_saturating_no_tmr_out,     v_count_value, error, "Check count value");
-      check_value(s_upcounter_saturating_tmr_out,        v_count_value, error, "Check count value");
+      check_value(s_upcounter_non_saturating_tmr_out, v_count_value, error, "Check count value");
+      check_value(s_upcounter_saturating_no_tmr_out, v_count_value, error, "Check count value");
+      check_value(s_upcounter_saturating_tmr_out, v_count_value, error, "Check count value");
 
     end loop;  -- i
 
     wait until rising_edge(s_clk);
 
     check_value(s_upcounter_non_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check non-saturating wrap around");
-    check_value(s_upcounter_non_saturating_tmr_out,    C_COUNTER_ZERO, error, "Check non-saturating wrap around");
-    check_value(s_upcounter_saturating_no_tmr_out,     C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_upcounter_saturating_tmr_out,        C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_upcounter_non_saturating_tmr_out, C_COUNTER_ZERO, error, "Check non-saturating wrap around");
+    check_value(s_upcounter_saturating_no_tmr_out, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_upcounter_saturating_tmr_out, C_COUNTER_MAX, error, "Check saturating at max");
 
     s_count_up <= '0';
 
@@ -266,9 +280,9 @@ begin
     wait until rising_edge(s_clk);
 
     check_value(s_upcounter_non_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_upcounter_non_saturating_tmr_out,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_upcounter_saturating_no_tmr_out,     C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_upcounter_saturating_tmr_out,        C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_upcounter_non_saturating_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_upcounter_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_upcounter_saturating_tmr_out, C_COUNTER_ZERO, error, "Check counter is zero after clear");
 
     for i in 1 to (2**C_BIT_WIDTH)-1 loop
       s_count_up <= '1';
@@ -279,9 +293,9 @@ begin
       v_count_value := std_logic_vector(to_unsigned(i, C_BIT_WIDTH));
 
       check_value(s_upcounter_non_saturating_no_tmr_out, v_count_value, error, "Check count value");
-      check_value(s_upcounter_non_saturating_tmr_out,    v_count_value, error, "Check count value");
-      check_value(s_upcounter_saturating_no_tmr_out,     v_count_value, error, "Check count value");
-      check_value(s_upcounter_saturating_tmr_out,        v_count_value, error, "Check count value");
+      check_value(s_upcounter_non_saturating_tmr_out, v_count_value, error, "Check count value");
+      check_value(s_upcounter_saturating_no_tmr_out, v_count_value, error, "Check count value");
+      check_value(s_upcounter_saturating_tmr_out, v_count_value, error, "Check count value");
 
       wait until rising_edge(s_clk);
       wait until rising_edge(s_clk);
@@ -295,9 +309,9 @@ begin
     wait until rising_edge(s_clk);
 
     check_value(s_upcounter_non_saturating_no_tmr_out, C_COUNTER_ZERO, error, "Check non-saturating wrap around");
-    check_value(s_upcounter_non_saturating_tmr_out,    C_COUNTER_ZERO, error, "Check non-saturating wrap around");
-    check_value(s_upcounter_saturating_no_tmr_out,     C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_upcounter_saturating_tmr_out,        C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_upcounter_non_saturating_tmr_out, C_COUNTER_ZERO, error, "Check non-saturating wrap around");
+    check_value(s_upcounter_saturating_no_tmr_out, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_upcounter_saturating_tmr_out, C_COUNTER_MAX, error, "Check saturating at max");
 
 
     -----------------------------------------------------------------------------------------------
@@ -311,12 +325,12 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after reset");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after reset");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after reset");
 
     s_counter_incr <= std_logic_vector(to_unsigned(1, C_BIT_WIDTH));
-    s_count_up     <= '1';
+    s_count_up <= '1';
     wait until rising_edge(s_clk);
 
     for i in 1 to (2**C_BIT_WIDTH)-1 loop
@@ -327,9 +341,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
     end loop;  -- i
 
@@ -338,9 +352,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
 
     s_count_up <= '0';
 
@@ -361,9 +375,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
     end loop;  -- i
 
@@ -372,9 +386,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
 
     s_count_down <= '0';
 
@@ -397,9 +411,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
 
     for i in 1 to (2**C_BIT_WIDTH)-1 loop
       s_count_up <= '1';
@@ -412,9 +426,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       wait until rising_edge(s_clk);
       wait until rising_edge(s_clk);
@@ -429,9 +443,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
 
     s_count_up <= '0';
 
@@ -449,9 +463,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       wait until rising_edge(s_clk);
       wait until rising_edge(s_clk);
@@ -466,9 +480,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
 
 
     -----------------------------------------------------------------------------------------------
@@ -482,13 +496,13 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after reset");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after reset");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after reset");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after reset");
 
     v_iteration_num := 1;
-    s_counter_incr  <= std_logic_vector(to_unsigned(C_INCR_TEST_VALUE, C_BIT_WIDTH));
-    s_count_up      <= '1';
+    s_counter_incr <= std_logic_vector(to_unsigned(C_INCR_TEST_VALUE, C_BIT_WIDTH));
+    s_count_up <= '1';
     wait until rising_edge(s_clk);
 
     while v_iteration_num*C_INCR_TEST_VALUE < (2**C_BIT_WIDTH)-1 loop
@@ -499,9 +513,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       v_iteration_num := v_iteration_num + 1;
     end loop;
@@ -511,9 +525,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
 
     s_count_up <= '0';
 
@@ -524,7 +538,7 @@ begin
     wait until rising_edge(s_clk);
 
     v_iteration_num := 1;
-    s_count_down    <= '1';
+    s_count_down <= '1';
     wait until rising_edge(s_clk);
 
     while v_iteration_num*C_INCR_TEST_VALUE < (2**C_BIT_WIDTH)-1 loop
@@ -536,9 +550,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       v_iteration_num := v_iteration_num + 1;
     end loop;
@@ -548,9 +562,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
 
     s_count_down <= '0';
 
@@ -573,9 +587,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
 
     v_iteration_num := 1;
 
@@ -590,9 +604,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       wait until rising_edge(s_clk);
       wait until rising_edge(s_clk);
@@ -608,9 +622,9 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_MAX, error, "Check saturating at max");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_MAX, error, "Check saturating at max");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_MAX, error, "Check saturating at max");
 
     s_count_up <= '0';
 
@@ -631,9 +645,9 @@ begin
       check_value(s_counter_saturating_no_tmr_out_a, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_b, v_count_value, error, "Check count value");
       check_value(s_counter_saturating_no_tmr_out_c, v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_a,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_b,    v_count_value, error, "Check count value");
-      check_value(s_counter_saturating_tmr_out_c,    v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_a, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_b, v_count_value, error, "Check count value");
+      check_value(s_counter_saturating_tmr_out_c, v_count_value, error, "Check count value");
 
       wait until rising_edge(s_clk);
       wait until rising_edge(s_clk);
@@ -649,13 +663,54 @@ begin
     check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
     check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_a,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_b,    C_COUNTER_ZERO, error, "Check saturating at zero");
-    check_value(s_counter_saturating_tmr_out_c,    C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check saturating at zero");
+    check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check saturating at zero");
 
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Test counter - SET_VALUE", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    s_count_up <= '0';
+    s_count_down <= '0';
 
-    wait for 100 ns;            -- to allow some time for completion
-    report_alert_counters(FINAL); -- Report final counters and print conclusion for simulation (Success/Fail)
+    s_clear <= '1';
+    wait until rising_edge(s_clk);
+    s_clear <= '0';
+    wait until rising_edge(s_clk);
+
+    for i in 0 to C_NUM_SET_VALUE_TESTS-1 loop
+      -- Generate random value to set counter to
+      uniform(seed1, seed2, v_rand_real);
+      v_rand_counter_value := integer(round(v_rand_real * real((2**C_BIT_WIDTH)-1)));
+
+      s_set_value <= std_logic_vector(to_unsigned(v_rand_counter_value, C_BIT_WIDTH));
+      s_set       <= '1';
+      wait until rising_edge(s_clk);
+      s_set       <= '0';
+      wait until rising_edge(s_clk);
+
+      check_value(s_counter_saturating_no_tmr_out_a, s_set_value, error, "Check count set to set value");
+      check_value(s_counter_saturating_no_tmr_out_b, s_set_value, error, "Check count set to set value");
+      check_value(s_counter_saturating_no_tmr_out_c, s_set_value, error, "Check count set to set value");
+      check_value(s_counter_saturating_tmr_out_a, s_set_value, error, "Check count set to set value");
+      check_value(s_counter_saturating_tmr_out_b, s_set_value, error, "Check count set to set value");
+      check_value(s_counter_saturating_tmr_out_c, s_set_value, error, "Check count set to set value");
+
+      s_clear <= '1';
+      wait until rising_edge(s_clk);
+      s_clear <= '0';
+      wait until rising_edge(s_clk);
+
+      check_value(s_counter_saturating_no_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+      check_value(s_counter_saturating_no_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+      check_value(s_counter_saturating_no_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+      check_value(s_counter_saturating_tmr_out_a, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+      check_value(s_counter_saturating_tmr_out_b, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+      check_value(s_counter_saturating_tmr_out_c, C_COUNTER_ZERO, error, "Check counter is zero after clear");
+    end loop;  -- i in range 0 to C_NUM_TESTS-1
+
+    wait for 100 ns;  -- to allow some time for completion
+    report_alert_counters(FINAL);  -- Report final counters and print conclusion for simulation (Success/Fail)
     log(ID_LOG_HDR, "SIMULATION COMPLETED", C_SCOPE);
 
     -- Finish the simulation

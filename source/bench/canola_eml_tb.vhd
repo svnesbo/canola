@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2020-01-06
+-- Last update: 2020-01-31
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -173,7 +173,25 @@ architecture tb of canola_eml_tb is
   signal s_eml_transmit_success                 : std_logic := '0';
   signal s_eml_receive_success                  : std_logic := '0';
   signal s_eml_recv_11_recessive_bits           : std_logic := '0';
+  signal s_eml_tec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_tec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
+  signal s_eml_tec_count_up                     : std_logic;
+  signal s_eml_tec_count_down                   : std_logic;
+  signal s_eml_tec_clear                        : std_logic;
+  signal s_eml_tec_set                          : std_logic;
+  signal s_eml_tec_set_value                    : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_rec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_rec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
+  signal s_eml_rec_count_up                     : std_logic;
+  signal s_eml_rec_count_down                   : std_logic;
+  signal s_eml_rec_clear                        : std_logic;
+  signal s_eml_rec_set                          : std_logic;
+  signal s_eml_rec_set_value                    : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_recessive_bit_count_value        : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_recessive_bit_count_up           : std_logic;
+  signal s_eml_recessive_bit_count_clear        : std_logic;
   signal s_eml_error_state                      : can_error_state_t;
+
   signal s_eml_transmit_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_eml_receive_error_count              : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
@@ -202,9 +220,78 @@ begin
       TRANSMIT_SUCCESS                 => s_eml_transmit_success,
       RECEIVE_SUCCESS                  => s_eml_receive_success,
       RECV_11_RECESSIVE_BITS           => s_eml_recv_11_recessive_bits,
-      ERROR_STATE                      => s_eml_error_state,
-      TRANSMIT_ERROR_COUNT             => s_eml_transmit_error_count,
-      RECEIVE_ERROR_COUNT              => s_eml_receive_error_count);
+      TEC_COUNT_VALUE                  => s_eml_tec_count_value,
+      TEC_COUNT_INCR                   => s_eml_tec_count_incr,
+      TEC_COUNT_UP                     => s_eml_tec_count_up,
+      TEC_COUNT_DOWN                   => s_eml_tec_count_down,
+      TEC_CLEAR                        => s_eml_tec_clear,
+      TEC_SET                          => s_eml_tec_set,
+      TEC_SET_VALUE                    => s_eml_tec_set_value,
+      REC_COUNT_VALUE                  => s_eml_rec_count_value,
+      REC_COUNT_INCR                   => s_eml_rec_count_incr,
+      REC_COUNT_UP                     => s_eml_rec_count_up,
+      REC_COUNT_DOWN                   => s_eml_rec_count_down,
+      REC_CLEAR                        => s_eml_rec_clear,
+      REC_SET                          => s_eml_rec_set,
+      REC_SET_VALUE                    => s_eml_rec_set_value,
+      RECESSIVE_BIT_COUNT_VALUE        => s_eml_recessive_bit_count_value,
+      RECESSIVE_BIT_COUNT_UP           => s_eml_recessive_bit_count_up,
+      RECESSIVE_BIT_COUNT_CLEAR        => s_eml_recessive_bit_count_clear,
+      ERROR_STATE                      => s_eml_error_state);
+
+  -- Receive Error Counter (REC) used by EML
+  INST_receive_error_counter: entity work.counter_saturating
+    generic map (
+      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE    => false)
+    port map (
+      CLK            => s_clk,
+      RESET          => s_reset,
+      CLEAR          => s_eml_rec_clear,
+      SET            => s_eml_rec_set,
+      SET_VALUE      => s_eml_rec_set_value,
+      COUNT_UP       => s_eml_rec_count_up,
+      COUNT_DOWN     => s_eml_rec_count_down,
+      COUNT_INCR     => s_eml_rec_count_incr,
+      COUNT_OUT      => s_eml_rec_count_value,
+      COUNT_VOTED_IN => s_eml_rec_count_value);
+
+  -- Transmit Error Counter (TEC) used by EML
+  INST_transmit_error_counter: entity work.counter_saturating
+    generic map (
+      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE    => false)
+    port map (
+      CLK            => s_clk,
+      RESET          => s_reset,
+      CLEAR          => s_eml_tec_clear,
+      SET            => s_eml_tec_set,
+      SET_VALUE      => s_eml_tec_set_value,
+      COUNT_UP       => s_eml_tec_count_up,
+      COUNT_DOWN     => s_eml_tec_count_down,
+      COUNT_INCR     => s_eml_tec_count_incr,
+      COUNT_OUT      => s_eml_tec_count_value,
+      COUNT_VOTED_IN => s_eml_tec_count_value);
+
+  -- Counter for sequences of 11 recessive bits used by EML
+  INST_recessive_bit_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => C_ERROR_COUNT_LENGTH,
+      IS_SATURATING => true,
+      VERBOSE       => false)
+    port map (
+      CLK            => s_clk,
+      RESET          => s_reset,
+      CLEAR          => s_eml_recessive_bit_count_clear,
+      COUNT_UP       => s_eml_recessive_bit_count_up,
+      COUNT_OUT      => s_eml_recessive_bit_count_value,
+      COUNT_VOTED_IN => s_eml_recessive_bit_count_value);
+
+
+  s_eml_transmit_error_count <= unsigned(s_eml_tec_count_value);
+  s_eml_receive_error_count  <= unsigned(s_eml_rec_count_value);
 
 
   p_main: process
@@ -314,6 +401,10 @@ begin
       s_eml_rx_stuff_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 1");
     end loop;
@@ -322,6 +413,10 @@ begin
     s_eml_rx_stuff_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_stuff_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -345,6 +440,10 @@ begin
       s_eml_rx_crc_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 1");
     end loop;
@@ -353,6 +452,10 @@ begin
     s_eml_rx_crc_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_crc_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -376,6 +479,10 @@ begin
       s_eml_rx_form_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 1");
     end loop;
@@ -384,6 +491,10 @@ begin
     s_eml_rx_form_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_form_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -413,6 +524,10 @@ begin
       s_eml_tx_bit_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
                   ERROR, "Check transmit error count increase by 8");
     end loop;
@@ -421,6 +536,10 @@ begin
     s_eml_tx_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -447,6 +566,10 @@ begin
       s_eml_tx_ack_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
                   ERROR, "Check transmit error count increase by 8");
     end loop;
@@ -460,6 +583,10 @@ begin
     s_eml_tx_ack_error <= '0';
     wait until rising_edge(s_clk);
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_transmit_error_count,
                 to_unsigned(C_ERROR_PASSIVE_THRESHOLD, s_eml_transmit_error_count'length),
                 ERROR, "Transmit error count no increase on ACK error in ERROR PASSIVE.");
@@ -468,6 +595,10 @@ begin
     s_eml_tx_ack_passive_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_ack_passive_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -490,6 +621,10 @@ begin
       s_eml_tx_active_error_flag_bit_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
                   ERROR, "Check transmit error count increase by 8 on BIT ERROR in ACTIVE ERROR FLAG");
     end loop;
@@ -498,6 +633,10 @@ begin
     s_eml_tx_active_error_flag_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_active_error_flag_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -524,6 +663,10 @@ begin
       s_eml_rx_dominant_bit_after_error_flag <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 8 on dominant bit after ERROR flag.");
     end loop;
@@ -532,6 +675,10 @@ begin
     s_eml_rx_dominant_bit_after_error_flag <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_dominant_bit_after_error_flag <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -554,6 +701,10 @@ begin
       s_eml_rx_active_error_flag_bit_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 8 on BIT ERROR in ACTIVE ERROR FLAG");
     end loop;
@@ -562,6 +713,10 @@ begin
     s_eml_rx_active_error_flag_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_active_error_flag_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -584,6 +739,10 @@ begin
       s_eml_rx_overload_flag_bit_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i*8, s_eml_receive_error_count'length),
                   ERROR, "Receive error count increase by 8 on BIT ERROR in OVERLOAD flag");
     end loop;
@@ -592,6 +751,10 @@ begin
     s_eml_rx_overload_flag_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_overload_flag_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -619,6 +782,10 @@ begin
       s_eml_rx_form_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 1");
     end loop;
@@ -629,6 +796,10 @@ begin
       s_eml_receive_success <= '1';
       wait until rising_edge(s_clk);
       s_eml_receive_success <= '0';
+      wait until rising_edge(s_clk);
+
+      -- It takes one clock cycle for EML to process success signal,
+      -- and an additional clock cycle for the counter module to decrease
       wait until rising_edge(s_clk);
 
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
@@ -643,6 +814,10 @@ begin
     s_eml_receive_success <= '1';
     wait until rising_edge(s_clk);
     s_eml_receive_success <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -667,6 +842,10 @@ begin
       s_eml_rx_form_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_receive_error_count, to_unsigned(i, s_eml_receive_error_count'length),
                   ERROR, "Check receive error count increase by 1");
     end loop;
@@ -677,8 +856,12 @@ begin
     s_eml_receive_success <= '0';
     wait until rising_edge(s_clk);
 
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_receive_error_count,
-                to_unsigned(C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE, s_eml_receive_error_count'length),
+                to_unsigned(C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE, s_eml_receive_error_count'length),
                 ERROR, "Check receive error count jump to below error passive threshold");
 
 
@@ -702,6 +885,10 @@ begin
       s_eml_tx_bit_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_transmit_error_count, to_unsigned(i*8, s_eml_transmit_error_count'length),
                   ERROR, "Check receive error count increase by 8 on Tx BIT ERROR");
     end loop;
@@ -712,6 +899,10 @@ begin
       s_eml_transmit_success <= '1';
       wait until rising_edge(s_clk);
       s_eml_transmit_success <= '0';
+      wait until rising_edge(s_clk);
+
+      -- It takes one clock cycle for EML to process success signal,
+      -- and an additional clock cycle for the counter module to decrease
       wait until rising_edge(s_clk);
 
       check_value(s_eml_transmit_error_count, to_unsigned(i, s_eml_transmit_error_count'length),
@@ -726,6 +917,10 @@ begin
     s_eml_transmit_success <= '1';
     wait until rising_edge(s_clk);
     s_eml_transmit_success <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -756,6 +951,10 @@ begin
       s_eml_rx_stuff_error <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_error_state, ERROR_ACTIVE,
                   ERROR, "Check that error state is ERROR ACTIVE");
     end loop;
@@ -767,6 +966,10 @@ begin
       s_eml_tx_bit_error   <= '1';
       wait until rising_edge(s_clk);
       s_eml_tx_bit_error   <= '0';
+      wait until rising_edge(s_clk);
+
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
       wait until rising_edge(s_clk);
 
       check_value(s_eml_error_state, ERROR_ACTIVE,
@@ -789,6 +992,10 @@ begin
     s_eml_rx_stuff_error <= '0';
     wait until rising_edge(s_clk);
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_receive_error_count,
                 to_unsigned(C_ERROR_PASSIVE_THRESHOLD, s_eml_receive_error_count'length),
                 ERROR, "Check receive error count is 128 (ie. ERROR PASSIVE threshold)");
@@ -802,6 +1009,10 @@ begin
     s_eml_tx_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -829,6 +1040,10 @@ begin
       s_eml_tx_bit_error   <= '0';
       wait until rising_edge(s_clk);
 
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
+      wait until rising_edge(s_clk);
+
       check_value(s_eml_error_state, ERROR_ACTIVE,
                   ERROR, "Check that error state is ERROR ACTIVE");
     end loop;
@@ -840,6 +1055,10 @@ begin
     s_eml_tx_bit_error <= '0';
     wait until rising_edge(s_clk);
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, ERROR_PASSIVE,
                 ERROR, "Check that error state is ERROR PASSIVE");
 
@@ -848,6 +1067,10 @@ begin
     s_eml_transmit_success <= '1';
     wait until rising_edge(s_clk);
     s_eml_transmit_success <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -863,6 +1086,10 @@ begin
     s_eml_tx_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -896,6 +1123,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_receive_error_count,
                 to_unsigned(2**s_eml_receive_error_count'length-1, s_eml_receive_error_count'length),
                 ERROR, "Check receive error count is at maximum value");
@@ -914,6 +1145,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_transmit_error_count,
                 to_unsigned(C_BUS_OFF_THRESHOLD-8, s_eml_transmit_error_count'length),
                 ERROR, "Check transmit error count at 248 (8 below BUS OFF threshold)");
@@ -925,6 +1160,10 @@ begin
     s_eml_tx_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_transmit_error_count,
@@ -941,6 +1180,10 @@ begin
       s_eml_tx_bit_error <= '1';
       wait until rising_edge(s_clk);
       s_eml_tx_bit_error <= '0';
+      wait until rising_edge(s_clk);
+
+      -- It takes one clock cycle for EML to process error signal,
+      -- and an additional clock cycle for the counter module to increase
       wait until rising_edge(s_clk);
 
       check_value(s_eml_error_state, BUS_OFF,
@@ -971,6 +1214,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, ERROR_PASSIVE, ERROR, "Check that error state is ERROR PASSIVE");
 
     -- Count down transmit error to ERROR PASSIVE threshold
@@ -982,6 +1229,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, ERROR_PASSIVE, ERROR, "Check that error state is still ERROR PASSIVE");
 
     -- Count down transmit error by one, bringing it below ERROR PASSIVE threshold
@@ -989,6 +1240,10 @@ begin
     s_eml_transmit_success <= '1';
     wait until rising_edge(s_clk);
     s_eml_transmit_success <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
     wait until rising_edge(s_clk);
 
     check_value(s_eml_error_state, ERROR_ACTIVE, ERROR, "Check that error state is now ERROR ACTIVE");
@@ -1014,6 +1269,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, ERROR_ACTIVE, ERROR, "Check that error state is still ERROR ACTIVE");
 
     -- Count up receive error counter to ERROR PASSIVE threshold
@@ -1021,6 +1280,10 @@ begin
     s_eml_rx_form_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_rx_form_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_receive_error_count,
@@ -1034,8 +1297,12 @@ begin
     s_eml_receive_success <= '0';
     wait until rising_edge(s_clk);
 
+    -- It takes one clock cycle for EML to process success signal,
+    -- and an additional clock cycle for the counter module to decrease
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_receive_error_count,
-                to_unsigned(C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE, s_eml_receive_error_count'length),
+                to_unsigned(C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE, s_eml_receive_error_count'length),
                 ERROR, "Check receive error count jumped below passive threshold");
     check_value(s_eml_error_state, ERROR_ACTIVE, ERROR, "Check that error state is now ERROR ACTIVE");
 
@@ -1077,6 +1344,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, ERROR_PASSIVE,
                 ERROR, "Check that error state is ERROR PASSIVE");
 
@@ -1084,6 +1355,10 @@ begin
     s_eml_tx_bit_error <= '1';
     wait until rising_edge(s_clk);
     s_eml_tx_bit_error <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process error signal,
+    -- and an additional clock cycle for the counter module to increase
     wait until rising_edge(s_clk);
 
     check_value(s_eml_error_state, BUS_OFF,
@@ -1099,6 +1374,10 @@ begin
       wait until rising_edge(s_clk);
     end loop;
 
+    -- It takes one clock cycle for EML to process the 11-bit sequence signal
+    -- and an additional clock cycle for the counter module to increase
+    wait until rising_edge(s_clk);
+
     check_value(s_eml_error_state, BUS_OFF,
                 ERROR, "Check that error state is still bus OFF");
 
@@ -1106,6 +1385,14 @@ begin
     s_eml_recv_11_recessive_bits <= '1';
     wait until rising_edge(s_clk);
     s_eml_recv_11_recessive_bits <= '0';
+    wait until rising_edge(s_clk);
+
+    -- It takes one clock cycle for EML to process the 11-bit sequence signal,
+    -- one clock cycle for the 11-bit sequence counter module to increase,
+    -- one clock cycle for EML to reset REC/TEC based on 11-bit sequence count,
+    -- and an additional clock cycle for bus state to update based on new REC/TEC
+    wait until rising_edge(s_clk);
+    wait until rising_edge(s_clk);
     wait until rising_edge(s_clk);
 
     check_value(s_eml_error_state, ERROR_ACTIVE,

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-29
+-- Last update: 2020-01-31
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -1640,8 +1640,8 @@ begin
     -- which should bring the controller back into ERROR ACTIVE.
     ----------------------------------------------------------------------------
     v_11_recessive_bits_count_current :=
-      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+      unsigned(<<signal INST_canola_top_1.s_eml_recessive_bit_count_value :
+               std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0)>> );
 
     v_11_recessive_bits_count_prev := v_11_recessive_bits_count_current;
 
@@ -1649,8 +1649,8 @@ begin
       wait for 11*C_CAN_BAUD_PERIOD;
 
       v_11_recessive_bits_count_current :=
-        <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-        unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+        unsigned(<<signal INST_canola_top_1.s_eml_recessive_bit_count_value :
+                 std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0)>>);
 
       check_value(v_11_recessive_bits_count_prev+1,
                   v_11_recessive_bits_count_current,
@@ -1674,8 +1674,8 @@ begin
     wait for C_CAN_BAUD_PERIOD;
 
     v_11_recessive_bits_count_current :=
-      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+    unsigned(<<signal INST_canola_top_1.s_eml_recessive_bit_count_value :
+             std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0)>>);
 
     check_value(to_integer(v_11_recessive_bits_count_current), 0, error,
                 "Check count of 11 consecutive recess. bits now zero.");
@@ -1795,6 +1795,9 @@ begin
                     unsigned(v_rx_form_error_count)+1,
                     error, "Check received form error count in CAN controller.");
       end if;
+
+      -- Wait one clock cycle to allow error state to update
+      wait until rising_edge(s_clk);
 
       -- Check error state
       if unsigned(s_can_ctrl1_receive_error_count) >= C_ERROR_PASSIVE_THRESHOLD then

@@ -41,6 +41,8 @@ entity counter_saturating_tmr_wrapper_triplicated is
     CLK         : in  std_logic;        -- Clock
     RESET       : in  std_logic;        -- Global fpga reset
     CLEAR       : in  std_logic;        -- Counter clear
+    SET         : in  std_logic;        -- Set counter to value
+    SET_VALUE   : in  std_logic_vector(BIT_WIDTH-1 downto 0);
     COUNT_UP    : in  std_logic;
     COUNT_DOWN  : in  std_logic;
     COUNT_INCR  : in  std_logic_vector(INCR_WIDTH-1 downto 0);
@@ -72,6 +74,8 @@ begin
           CLK            => CLK,
           RESET          => RESET,
           CLEAR          => CLEAR,
+          SET            => SET,
+          SET_VALUE      => SET_VALUE,
           COUNT_UP       => COUNT_UP,
           COUNT_DOWN     => COUNT_DOWN,
           COUNT_INCR     => COUNT_INCR,
@@ -110,6 +114,8 @@ begin
             CLK            => CLK,
             RESET          => RESET,
             CLEAR          => CLEAR,
+            SET            => SET,
+            SET_VALUE      => SET_VALUE,
             COUNT_UP       => COUNT_UP,
             COUNT_DOWN     => COUNT_DOWN,
             COUNT_INCR     => COUNT_INCR,
