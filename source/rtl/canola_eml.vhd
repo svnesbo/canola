@@ -47,8 +47,8 @@ entity canola_eml is
     RECV_11_RECESSIVE_BITS           : in std_logic;  -- Received/detected a sequence of
                                                       -- 11 recessive bits.
 
-    -- Interface to counter modules for Transmit Error Counter (TEC)
-    -- and Receive Error Counter (REC)
+    -- Interface to saturating counter modules for
+    -- Transmit Error Counter (TEC) and Receive Error Counter (REC)
     TEC_COUNT_VALUE           : in  std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
     TEC_COUNT_INCR            : out std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
     TEC_COUNT_UP              : out std_logic;
@@ -63,6 +63,9 @@ entity canola_eml is
     REC_CLEAR                 : out std_logic;
     REC_SET                   : out std_logic;
     REC_SET_VALUE             : out std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+
+    -- Interface to upcounter module for counter for
+    -- received sequences of 11 consecutive recessive bits
     RECESSIVE_BIT_COUNT_VALUE : in  std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
     RECESSIVE_BIT_COUNT_UP    : out std_logic;
     RECESSIVE_BIT_COUNT_CLEAR : out std_logic;
