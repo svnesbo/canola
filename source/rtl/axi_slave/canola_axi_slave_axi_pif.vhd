@@ -10,12 +10,12 @@ entity canola_axi_slave_axi_pif is
   generic (
     -- AXI Bus Interface Generics
     g_axi_baseaddr        : std_logic_vector(31 downto 0) := 32X"0");
-  port (    
+  port (
     -- AXI Bus Interface Ports
     axi_rw_regs    : out t_canola_axi_slave_rw_regs    := c_canola_axi_slave_rw_regs;
     axi_ro_regs    : in  t_canola_axi_slave_ro_regs    := c_canola_axi_slave_ro_regs;
     axi_pulse_regs : out t_canola_axi_slave_pulse_regs := c_canola_axi_slave_pulse_regs;
-    
+
     -- bus signals
     clk            : in  std_logic;
     areset_n       : in  std_logic;
@@ -58,12 +58,12 @@ architecture behavior of canola_axi_slave_axi_pif is
   signal rdata_i       : t_canola_axi_slave_data;
   signal rresp_i       : std_logic_vector(1 downto 0);
   signal rvalid_i      : std_logic;
-  
+
   signal slv_reg_rden : std_logic;
   signal slv_reg_wren : std_logic;
   signal reg_data_out : t_canola_axi_slave_data;
   -- signal byte_index   : integer; -- unused
-  
+
 begin
 
   axi_rw_regs <= axi_rw_regs_i;
@@ -77,7 +77,7 @@ begin
   rdata   <= rdata_i;
   rresp   <= rresp_i;
   rvalid  <= rvalid_i;
-  
+
   p_awready : process(clk, areset_n)
   begin
     if areset_n = '0' then
@@ -120,97 +120,97 @@ begin
   p_mm_select_write : process(clk, areset_n)
   begin
     if areset_n = '0' then
-      
+
       axi_rw_regs_i <= c_canola_axi_slave_rw_regs;
-      
+
       axi_pulse_regs_cycle <= c_canola_axi_slave_pulse_regs;
-  
+
     elsif rising_edge(clk) then
-      
+
       -- Return PULSE registers to reset value every clock cycle
       axi_pulse_regs_cycle <= c_canola_axi_slave_pulse_regs;
-      
-      
+
+
       if (slv_reg_wren = '1') then
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_CONTROL), 32) then
-          
+
             axi_pulse_regs_cycle.CONTROL.TX_START <= wdata(0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_CONFIG), 32) then
-          
+
             axi_rw_regs_i.CONFIG.TX_RETRANSMIT_EN <= wdata(0);
             axi_rw_regs_i.CONFIG.BTL_TRIPLE_SAMPLING_EN <= wdata(1);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PROP_SEG), 32) then
-          
+
             axi_rw_regs_i.BTL_PROP_SEG <= wdata(15 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PHASE_SEG1), 32) then
-          
+
             axi_rw_regs_i.BTL_PHASE_SEG1 <= wdata(15 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PHASE_SEG2), 32) then
-          
+
             axi_rw_regs_i.BTL_PHASE_SEG2 <= wdata(15 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_SYNC_JUMP_WIDTH), 32) then
-          
+
             axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH <= wdata(1 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_TIME_QUANTA_CLOCK_SCALE), 32) then
-          
+
             axi_rw_regs_i.BTL_TIME_QUANTA_CLOCK_SCALE <= wdata(7 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_MSG_ID), 32) then
-          
+
             axi_rw_regs_i.TX_MSG_ID.EXT_ID_EN <= wdata(0);
             axi_rw_regs_i.TX_MSG_ID.RTR_EN <= wdata(1);
             axi_rw_regs_i.TX_MSG_ID.ARB_ID_B <= wdata(19 downto 2);
             axi_rw_regs_i.TX_MSG_ID.ARB_ID_A <= wdata(30 downto 20);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_LENGTH), 32) then
-          
+
             axi_rw_regs_i.TX_PAYLOAD_LENGTH <= wdata(3 downto 0);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_0), 32) then
-          
+
             axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_0 <= wdata(7 downto 0);
             axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_1 <= wdata(15 downto 8);
             axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_2 <= wdata(23 downto 16);
             axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_3 <= wdata(31 downto 24);
-          
+
           end if;
-      
+
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_1), 32) then
-          
+
             axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_4 <= wdata(7 downto 0);
             axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_5 <= wdata(15 downto 8);
             axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_6 <= wdata(23 downto 16);
             axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_7 <= wdata(31 downto 24);
-          
+
           end if;
-      
+
       end if;
-  
+
     end if;
   end process p_mm_select_write;
 
@@ -285,182 +285,188 @@ end process p_pulse_CONTROL;
 
   p_mm_select_read : process(all)
   begin
-  
+
     reg_data_out <= (others => '0');
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_STATUS), 32) then
-    
+
       reg_data_out(0) <= axi_ro_regs.STATUS.RX_MSG_VALID;
       reg_data_out(1) <= axi_ro_regs.STATUS.TX_BUSY;
       reg_data_out(2) <= axi_ro_regs.STATUS.TX_DONE;
       reg_data_out(3) <= axi_ro_regs.STATUS.TX_FAILED;
       reg_data_out(5 downto 4) <= axi_ro_regs.STATUS.ERROR_STATE;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_CONFIG), 32) then
-    
+
       reg_data_out(0) <= axi_rw_regs_i.CONFIG.TX_RETRANSMIT_EN;
       reg_data_out(1) <= axi_rw_regs_i.CONFIG.BTL_TRIPLE_SAMPLING_EN;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PROP_SEG), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_rw_regs_i.BTL_PROP_SEG;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PHASE_SEG1), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_rw_regs_i.BTL_PHASE_SEG1;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_PHASE_SEG2), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_rw_regs_i.BTL_PHASE_SEG2;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_SYNC_JUMP_WIDTH), 32) then
-    
+
       reg_data_out(1 downto 0) <= axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_TIME_QUANTA_CLOCK_SCALE), 32) then
-    
+
       reg_data_out(7 downto 0) <= axi_rw_regs_i.BTL_TIME_QUANTA_CLOCK_SCALE;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TRANSMIT_ERROR_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.TRANSMIT_ERROR_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RECEIVE_ERROR_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.RECEIVE_ERROR_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_MSG_SENT_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.TX_MSG_SENT_COUNT;
-    
+
     end if;
-    
-    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ACK_RECV_COUNT), 32) then
-    
-      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ACK_RECV_COUNT;
-    
+
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ACK_ERROR_COUNT), 32) then
+
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ACK_ERROR_COUNT;
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ARB_LOST_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.TX_ARB_LOST_COUNT;
-    
+
     end if;
-    
-    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ERROR_COUNT), 32) then
-    
-      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ERROR_COUNT;
-    
+
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_BIT_ERROR_COUNT), 32) then
+
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_BIT_ERROR_COUNT;
+
     end if;
-    
+
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_RETRANSMIT_COUNT), 32) then
+
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_RETRANSMIT_COUNT;
+
+    end if;
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_MSG_RECV_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.RX_MSG_RECV_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_CRC_ERROR_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.RX_CRC_ERROR_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_FORM_ERROR_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.RX_FORM_ERROR_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_STUFF_ERROR_COUNT), 32) then
-    
+
       reg_data_out(15 downto 0) <= axi_ro_regs.RX_STUFF_ERROR_COUNT;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_MSG_ID), 32) then
-    
+
       reg_data_out(0) <= axi_rw_regs_i.TX_MSG_ID.EXT_ID_EN;
       reg_data_out(1) <= axi_rw_regs_i.TX_MSG_ID.RTR_EN;
       reg_data_out(19 downto 2) <= axi_rw_regs_i.TX_MSG_ID.ARB_ID_B;
       reg_data_out(30 downto 20) <= axi_rw_regs_i.TX_MSG_ID.ARB_ID_A;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_LENGTH), 32) then
-    
+
       reg_data_out(3 downto 0) <= axi_rw_regs_i.TX_PAYLOAD_LENGTH;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_0), 32) then
-    
+
       reg_data_out(7 downto 0) <= axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_0;
       reg_data_out(15 downto 8) <= axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_1;
       reg_data_out(23 downto 16) <= axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_2;
       reg_data_out(31 downto 24) <= axi_rw_regs_i.TX_PAYLOAD_0.PAYLOAD_BYTE_3;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_PAYLOAD_1), 32) then
-    
+
       reg_data_out(7 downto 0) <= axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_4;
       reg_data_out(15 downto 8) <= axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_5;
       reg_data_out(23 downto 16) <= axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_6;
       reg_data_out(31 downto 24) <= axi_rw_regs_i.TX_PAYLOAD_1.PAYLOAD_BYTE_7;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_MSG_ID), 32) then
-    
+
       reg_data_out(0) <= axi_ro_regs.RX_MSG_ID.EXT_ID_EN;
       reg_data_out(1) <= axi_ro_regs.RX_MSG_ID.RTR_EN;
       reg_data_out(19 downto 2) <= axi_ro_regs.RX_MSG_ID.ARB_ID_B;
       reg_data_out(30 downto 20) <= axi_ro_regs.RX_MSG_ID.ARB_ID_A;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_PAYLOAD_LENGTH), 32) then
-    
+
       reg_data_out(3 downto 0) <= axi_ro_regs.RX_PAYLOAD_LENGTH;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_PAYLOAD_0), 32) then
-    
+
       reg_data_out(7 downto 0) <= axi_ro_regs.RX_PAYLOAD_0.PAYLOAD_BYTE_0;
       reg_data_out(15 downto 8) <= axi_ro_regs.RX_PAYLOAD_0.PAYLOAD_BYTE_1;
       reg_data_out(23 downto 16) <= axi_ro_regs.RX_PAYLOAD_0.PAYLOAD_BYTE_2;
       reg_data_out(31 downto 24) <= axi_ro_regs.RX_PAYLOAD_0.PAYLOAD_BYTE_3;
-    
+
     end if;
-    
+
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_RX_PAYLOAD_1), 32) then
-    
+
       reg_data_out(7 downto 0) <= axi_ro_regs.RX_PAYLOAD_1.PAYLOAD_BYTE_4;
       reg_data_out(15 downto 8) <= axi_ro_regs.RX_PAYLOAD_1.PAYLOAD_BYTE_5;
       reg_data_out(23 downto 16) <= axi_ro_regs.RX_PAYLOAD_1.PAYLOAD_BYTE_6;
       reg_data_out(31 downto 24) <= axi_ro_regs.RX_PAYLOAD_1.PAYLOAD_BYTE_7;
-    
+
     end if;
-    
+
   end process p_mm_select_read;
 
   p_output : process(clk, areset_n)

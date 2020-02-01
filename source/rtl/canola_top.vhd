@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-01-31
+-- Last update: 2020-02-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -34,8 +34,10 @@ use work.canola_pkg.all;
 
 entity canola_top is
   generic (
-    G_BUS_REG_WIDTH : natural;
-    G_ENABLE_EXT_ID : boolean);
+    G_BUS_REG_WIDTH       : natural;
+    G_ENABLE_EXT_ID       : boolean; -- Note: not implemented
+    G_SATURATING_COUNTERS : boolean  -- True: saturate, False: Wrap-around
+    );
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -74,13 +76,15 @@ entity canola_top is
 
     -- Registers/counters
     REG_TX_MSG_SENT_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_TX_ACK_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_ACK_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_TX_ARB_LOST_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_TX_ERROR_COUNT       : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_BIT_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    REG_TX_RETRANSMIT_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0)
+    REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
+    CLEAR_COUNTERS           : in  std_logic
     );
 
 end entity canola_top;
@@ -91,10 +95,8 @@ architecture struct of canola_top is
   signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
   signal s_tx_fsm_arb_won                     : std_logic;  -- Arbitration was won
-  signal s_tx_fsm_failed                      : std_logic;
-
-  -- Signals for Rx Frame FSM
-  -- ...
+  signal s_tx_fsm_failed                      : std_logic;  -- Failed to send message
+  signal s_tx_fsm_retransmitting              : std_logic;  -- Attempting retransmit
 
   -- BSP interface to Tx Frame FSM
   signal s_bsp_tx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -154,6 +156,11 @@ architecture struct of canola_top is
   signal s_eml_transmit_success                 : std_logic;
   signal s_eml_receive_success                  : std_logic;
   signal s_eml_recv_11_recessive_bits           : std_logic;
+  signal s_eml_error_state                      : can_error_state_t;
+
+  -- EML counter signals
+  -- These counters are actively used by the EML
+  -- to determine error state for the controller
   signal s_eml_tec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_eml_tec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
   signal s_eml_tec_count_up                     : std_logic;
@@ -171,7 +178,6 @@ architecture struct of canola_top is
   signal s_eml_recessive_bit_count_value        : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_eml_recessive_bit_count_up           : std_logic;
   signal s_eml_recessive_bit_count_clear        : std_logic;
-  signal s_eml_error_state                      : can_error_state_t;
 
   -- State registers
   signal s_btl_sync_fsm_state : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
@@ -201,10 +207,10 @@ begin  -- architecture struct
       TX_RETRANSMIT_EN                   => TX_RETRANSMIT_EN,
       TX_BUSY                            => TX_BUSY,
       TX_DONE                            => TX_DONE,
-      TX_ACK_RECV                        => open,
-      TX_ARB_LOST                        => open,
+      TX_ARB_LOST                        => s_tx_fsm_arb_lost,
       TX_ARB_WON                         => s_tx_fsm_arb_won,
       TX_FAILED                          => s_tx_fsm_failed,
+      TX_RETRANSMITTING                  => s_tx_fsm_retransmitting,
       BSP_TX_DATA                        => s_bsp_tx_data,
       BSP_TX_DATA_COUNT                  => s_bsp_tx_data_count,
       BSP_TX_WRITE_EN                    => s_bsp_tx_write_en,
@@ -223,10 +229,6 @@ begin  -- architecture struct
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      REG_MSG_SENT_COUNT                 => REG_TX_MSG_SENT_COUNT,
-      REG_ACK_RECV_COUNT                 => REG_TX_ACK_RECV_COUNT,
-      REG_ARB_LOST_COUNT                 => REG_TX_ARB_LOST_COUNT,
-      REG_ERROR_COUNT                    => REG_TX_ERROR_COUNT,
       FSM_STATE_O                        => s_frame_tx_fsm_state,
       FSM_STATE_VOTED_I                  => s_frame_tx_fsm_state);
 
@@ -263,10 +265,6 @@ begin  -- architecture struct
       EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
       EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      REG_MSG_RECV_COUNT                 => REG_RX_MSG_RECV_COUNT,
-      REG_CRC_ERROR_COUNT                => REG_RX_CRC_ERROR_COUNT,
-      REG_FORM_ERROR_COUNT               => REG_RX_FORM_ERROR_COUNT,
-      REG_STUFF_ERROR_COUNT              => REG_RX_STUFF_ERROR_COUNT,
       FSM_STATE_O                        => s_frame_rx_fsm_state,
       FSM_STATE_VOTED_I                  => s_frame_rx_fsm_state);
 
@@ -388,6 +386,10 @@ begin  -- architecture struct
       ERROR_STATE                      => s_eml_error_state);
 
 
+  -----------------------------------------------------------------------------
+  -- EML counters
+  -----------------------------------------------------------------------------
+
   -- Receive Error Counter (REC) used by EML
   INST_receive_error_counter: entity work.counter_saturating
     generic map (
@@ -437,5 +439,126 @@ begin  -- architecture struct
       COUNT_UP       => s_eml_recessive_bit_count_up,
       COUNT_OUT      => s_eml_recessive_bit_count_value,
       COUNT_VOTED_IN => s_eml_recessive_bit_count_value);
+
+
+  -----------------------------------------------------------------------------
+  -- Status counters (messages sent/received, error counts)
+  -----------------------------------------------------------------------------
+  INST_tx_msg_sent_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => TX_DONE,
+      COUNT_OUT      => REG_TX_MSG_SENT_COUNT,
+      COUNT_VOTED_IN => REG_TX_MSG_SENT_COUNT);
+
+  INST_tx_ack_error_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_eml_tx_ack_error,
+      COUNT_OUT      => REG_TX_ACK_ERROR_COUNT,
+      COUNT_VOTED_IN => REG_TX_ACK_ERROR_COUNT);
+
+  INST_tx_arb_lost_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_tx_fsm_arb_lost,
+      COUNT_OUT      => REG_TX_ARB_LOST_COUNT,
+      COUNT_VOTED_IN => REG_TX_ARB_LOST_COUNT);
+
+  INST_tx_bit_error_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_eml_tx_bit_error,
+      COUNT_OUT      => REG_TX_BIT_ERROR_COUNT,
+      COUNT_VOTED_IN => REG_TX_BIT_ERROR_COUNT);
+
+  INST_tx_retransmit_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_tx_fsm_retransmitting,
+      COUNT_OUT      => REG_TX_RETRANSMIT_COUNT,
+      COUNT_VOTED_IN => REG_TX_RETRANSMIT_COUNT);
+
+  INST_rx_msg_recv_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => RX_MSG_VALID,
+      COUNT_OUT      => REG_RX_MSG_RECV_COUNT,
+      COUNT_VOTED_IN => REG_RX_MSG_RECV_COUNT);
+
+  INST_rx_crc_error_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_eml_rx_crc_error,
+      COUNT_OUT      => REG_RX_CRC_ERROR_COUNT,
+      COUNT_VOTED_IN => REG_RX_CRC_ERROR_COUNT);
+
+  INST_rx_form_error_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_eml_rx_form_error,
+      COUNT_OUT      => REG_RX_FORM_ERROR_COUNT,
+      COUNT_VOTED_IN => REG_RX_FORM_ERROR_COUNT);
+
+  INST_rx_stuff_error_counter: entity work.upcounter
+    generic map (
+      BIT_WIDTH     => G_BUS_REG_WIDTH,
+      IS_SATURATING => G_SATURATING_COUNTERS,
+      VERBOSE       => false)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_COUNTERS,
+      COUNT_UP       => s_eml_rx_stuff_error,
+      COUNT_OUT      => REG_RX_STUFF_ERROR_COUNT,
+      COUNT_VOTED_IN => REG_RX_STUFF_ERROR_COUNT);
 
 end architecture struct;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-01-06
+-- Last update: 2020-02-01
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -612,17 +612,21 @@ begin
                   resize_data(c_canola_axi_slave_ro_regs.TX_MSG_SENT_COUNT),
                   "Check TX_MSG_SENT_COUNT register");
 
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT,
-                  resize_data(c_canola_axi_slave_ro_regs.TX_ACK_RECV_COUNT),
-                  "Check TX_ACK_RECV_COUNT register");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_ACK_ERROR_COUNT),
+                  "Check TX_ACK_ERROR_COUNT register");
 
     axilite_check(C_ADDR_TX_ARB_LOST_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.TX_ARB_LOST_COUNT),
                   "Check TX_ARB_LOST_COUNT register");
 
-    axilite_check(C_ADDR_TX_ERROR_COUNT,
-                  resize_data(c_canola_axi_slave_ro_regs.TX_ERROR_COUNT),
-                  "Check TX_ERROR_COUNT register");
+    axilite_check(C_ADDR_TX_BIT_ERROR_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_BIT_ERROR_COUNT),
+                  "Check TX_BIT_ERROR_COUNT register");
+
+    axilite_check(C_ADDR_TX_RETRANSMIT_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_RETRANSMIT_COUNT),
+                  "Check TX_RETRANSMIT_COUNT register");
 
     axilite_check(C_ADDR_RX_MSG_RECV_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.RX_MSG_RECV_COUNT),
@@ -746,7 +750,7 @@ begin
     end loop;
 
     axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS, "Check number of messages sent");
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS, "Check number of ACKs received");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT, 0, "Check ACK error count is zero");
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #4: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
@@ -854,7 +858,7 @@ begin
     end loop;
 
     axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS*2, "Check number of messages sent");
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS*2, "Check number of ACKs received");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT, 0, "Check ACK error count is zero");
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete

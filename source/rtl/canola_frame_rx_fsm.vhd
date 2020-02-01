@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-01-29
+-- Last update: 2020-02-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -92,12 +92,6 @@ entity canola_frame_rx_fsm is
     EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     EML_ERROR_STATE                    : in  can_error_state_t;
 
-    -- Counter registers for FSM
-    REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-
     -- FSM state register output/input - for triplication and voting of state
     FSM_STATE_O       : out std_logic_vector(C_FRAME_RX_FSM_STATE_BITSIZE-1 downto 0);
     FSM_STATE_VOTED_I : in  std_logic_vector(C_FRAME_RX_FSM_STATE_BITSIZE-1 downto 0)
@@ -122,19 +116,7 @@ architecture rtl of canola_frame_rx_fsm is
   signal s_eml_error_state                : can_error_state_t;
   signal s_rx_active_error_flag_bit_error : std_logic;
 
-  signal s_reg_msg_recv_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_crc_error_counter   : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_form_error_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_stuff_error_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-
-
-
 begin  -- architecture rtl
-
-  REG_MSG_RECV_COUNT    <= std_logic_vector(s_reg_msg_recv_counter);
-  REG_CRC_ERROR_COUNT   <= std_logic_vector(s_reg_crc_error_counter);
-  REG_FORM_ERROR_COUNT  <= std_logic_vector(s_reg_form_error_counter);
-  REG_STUFF_ERROR_COUNT <= std_logic_vector(s_reg_stuff_error_counter);
 
   RX_MSG_OUT            <= s_reg_rx_msg;
 
@@ -161,10 +143,6 @@ begin  -- architecture rtl
 
         s_fsm_state_out                    <= ST_IDLE;
         s_crc_mismatch                     <= '0';
-        s_reg_msg_recv_counter             <= (others => '0');
-        s_reg_crc_error_counter            <= (others => '0');
-        s_reg_form_error_counter           <= (others => '0');
-        s_reg_stuff_error_counter          <= (others => '0');
         s_rx_active_error_flag_bit_error   <= '0';
         BSP_RX_BIT_DESTUFF_EN              <= '1';
         BSP_RX_STOP                        <= '0';
@@ -482,13 +460,11 @@ begin  -- architecture rtl
             --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
             --  ACK Delimiter, unless an Error flag for another error condition has already been started."
             if s_reg_tx_arb_won = '0' then
-              -- Increase error counters and send error flag if we are
-              -- receiving this message from a different node.
+              -- Send error flag on CRC error when receiving from a different node.
               -- But we don't want to do that if we are transmitting this message
-              -- ourselves. Let the Tx FSM handle errors in that case.
-              s_reg_crc_error_counter <= s_reg_crc_error_counter + 1;
-              EML_RX_CRC_ERROR        <= '1';
-              s_fsm_state_out         <= ST_WAIT_ERROR_FLAG;
+              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
+              EML_RX_CRC_ERROR <= '1';
+              s_fsm_state_out  <= ST_WAIT_ERROR_FLAG;
             else
               -- Todo:
               -- What if Tx frame FSM is sending error flag?
@@ -500,36 +476,32 @@ begin  -- architecture rtl
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
             if s_reg_tx_arb_won = '0' then
-              -- Increase error counters and send error flag if we are
-              -- receiving this message from a different node.
+              -- Send error flag on form error when receiving from a different node.
               -- But we don't want to do that if we are transmitting this message
-              -- ourselves. Let the Tx FSM handle errors in that case.
-              EML_RX_FORM_ERROR        <= '1';
-              s_reg_form_error_counter <= s_reg_form_error_counter + 1;
-              s_fsm_state_out          <= ST_WAIT_ERROR_FLAG;
+              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
+              EML_RX_FORM_ERROR <= '1';
+              s_fsm_state_out   <= ST_WAIT_ERROR_FLAG;
             else
               -- Todo:
               -- What if Tx frame FSM is sending error flag?
               -- We have to wait for it somehow, shouldn't go back into Rx then...
-              s_fsm_state_out             <= ST_WAIT_BUS_IDLE;
+              s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
           when ST_STUFF_ERROR =>
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
             if s_reg_tx_arb_won = '0' then
-              -- Increase error counters and send error flag if we are
-              -- receiving this message from a different node.
+              -- Send error flag on stuff error when receiving from a different node.
               -- But we don't want to do that if we are transmitting this message
-              -- ourselves. Let the Tx FSM handle errors in that case.
-              EML_RX_STUFF_ERROR        <= '1';
-              s_fsm_state_out           <= ST_WAIT_ERROR_FLAG;
-              s_reg_stuff_error_counter <= s_reg_stuff_error_counter + 1;
+              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
+              EML_RX_STUFF_ERROR <= '1';
+              s_fsm_state_out    <= ST_WAIT_ERROR_FLAG;
             else
               -- Todo:
               -- What if Tx frame FSM is sending error flag?
               -- We have to wait for it somehow, shouldn't go back into Rx then...
-              s_fsm_state_out             <= ST_WAIT_BUS_IDLE;
+              s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
           when ST_WAIT_ERROR_FLAG =>
@@ -553,8 +525,7 @@ begin  -- architecture rtl
             -- (ie. when arbitration was won)
             if s_reg_tx_arb_won = '0' then
               -- Pulsed one cycle
-              RX_MSG_VALID           <= '1';
-              s_reg_msg_recv_counter <= s_reg_msg_recv_counter + 1;
+              RX_MSG_VALID         <= '1';
             end if;
 
             BSP_RX_STOP     <= '1';

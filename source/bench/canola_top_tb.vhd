@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-31
+-- Last update: 2020-02-01
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -100,6 +100,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl1_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl1_tx_busy          : std_logic;
   signal s_can_ctrl1_tx_done          : std_logic;
+  signal s_can_ctrl1_tx_failed        : std_logic;
 
   signal s_can_ctrl1_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -112,9 +113,10 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -133,6 +135,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl2_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl2_tx_busy          : std_logic;
   signal s_can_ctrl2_tx_done          : std_logic;
+  signal s_can_ctrl2_tx_failed        : std_logic;
 
   signal s_can_ctrl2_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl2_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -145,9 +148,10 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -166,6 +170,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl3_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl3_tx_busy          : std_logic;
   signal s_can_ctrl3_tx_done          : std_logic;
+  signal s_can_ctrl3_tx_failed        : std_logic;
 
   signal s_can_ctrl3_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl3_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -178,9 +183,10 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -249,8 +255,9 @@ begin
 
   INST_canola_top_1 : entity work.canola_top
     generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
+      G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID       => true,
+      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => s_clk,
       RESET => s_can_ctrl1_reset,
@@ -269,6 +276,7 @@ begin
       TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
       TX_BUSY          => s_can_ctrl1_tx_busy,
       TX_DONE          => s_can_ctrl1_tx_done,
+      TX_FAILED        => s_can_ctrl1_tx_failed,
 
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
@@ -285,19 +293,22 @@ begin
 
       -- Registers/counters
       REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl1_reg_tx_ack_recv_count,
+      REG_TX_ACK_ERROR_COUNT   => s_can_ctrl1_reg_tx_ack_error_count,
       REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl1_reg_tx_error_count,
+      REG_TX_BIT_ERROR_COUNT   => s_can_ctrl1_reg_tx_bit_error_count,
+      REG_TX_RETRANSMIT_COUNT  => s_can_ctrl1_reg_tx_retransmit_count,
       REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
       REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
       REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count,
+      CLEAR_COUNTERS           => '0'
       );
 
   INST_canola_top_2 : entity work.canola_top
     generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
+      G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID       => true,
+      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => s_clk,
       RESET => s_can_ctrl2_reset,
@@ -316,6 +327,7 @@ begin
       TX_RETRANSMIT_EN => s_can_ctrl2_tx_retransmit_en,
       TX_BUSY          => s_can_ctrl2_tx_busy,
       TX_DONE          => s_can_ctrl2_tx_done,
+      TX_FAILED        => s_can_ctrl2_tx_failed,
 
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl2_prop_seg,
@@ -332,19 +344,22 @@ begin
 
       -- Registers/counters
       REG_TX_MSG_SENT_COUNT    => s_can_ctrl2_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl2_reg_tx_ack_recv_count,
+      REG_TX_ACK_ERROR_COUNT   => s_can_ctrl2_reg_tx_ack_error_count,
       REG_TX_ARB_LOST_COUNT    => s_can_ctrl2_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl2_reg_tx_error_count,
+      REG_TX_BIT_ERROR_COUNT   => s_can_ctrl2_reg_tx_bit_error_count,
+      REG_TX_RETRANSMIT_COUNT  => s_can_ctrl2_reg_tx_retransmit_count,
       REG_RX_MSG_RECV_COUNT    => s_can_ctrl2_reg_rx_msg_recv_count,
       REG_RX_CRC_ERROR_COUNT   => s_can_ctrl2_reg_rx_crc_error_count,
       REG_RX_FORM_ERROR_COUNT  => s_can_ctrl2_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count,
+      CLEAR_COUNTERS           => '0'
       );
 
   INST_canola_top_3 : entity work.canola_top
     generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
+      G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID       => true,
+      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => s_clk,
       RESET => s_can_ctrl3_reset,
@@ -363,6 +378,7 @@ begin
       TX_RETRANSMIT_EN => s_can_ctrl3_tx_retransmit_en,
       TX_BUSY          => s_can_ctrl3_tx_busy,
       TX_DONE          => s_can_ctrl3_tx_done,
+      TX_FAILED        => s_can_ctrl3_tx_failed,
 
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl3_prop_seg,
@@ -379,13 +395,15 @@ begin
 
       -- Registers/counters
       REG_TX_MSG_SENT_COUNT    => s_can_ctrl3_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl3_reg_tx_ack_recv_count,
+      REG_TX_ACK_ERROR_COUNT   => s_can_ctrl3_reg_tx_ack_error_count,
       REG_TX_ARB_LOST_COUNT    => s_can_ctrl3_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl3_reg_tx_error_count,
+      REG_TX_BIT_ERROR_COUNT   => s_can_ctrl3_reg_tx_bit_error_count,
+      REG_TX_RETRANSMIT_COUNT  => s_can_ctrl3_reg_tx_retransmit_count,
       REG_RX_MSG_RECV_COUNT    => s_can_ctrl3_reg_rx_msg_recv_count,
       REG_RX_CRC_ERROR_COUNT   => s_can_ctrl3_reg_rx_crc_error_count,
       REG_RX_FORM_ERROR_COUNT  => s_can_ctrl3_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count,
+      CLEAR_COUNTERS           => '0'
       );
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
@@ -547,9 +565,10 @@ begin
     variable v_can_tx_status    : can_tx_status_t;
     variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
 
+    variable v_tx_msg_sent_count               : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_arb_lost_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_recv_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_tx_error_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_error_count                 : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_bit_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_msg_count                    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_crc_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_form_error_count             : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -704,8 +723,8 @@ begin
 
     check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS,
-                error, "Check number of acknowledged messages in CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_error_count)), 0,
+                error, "Check number of acknowledge errors in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #3: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
@@ -828,8 +847,8 @@ begin
 
     check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS*2,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS*2,
-                error, "Check number of acknowledged messages in CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_error_count)), 0,
+                error, "Check number of acknowledge errors in CAN controller.");
 
 
     -----------------------------------------------------------------------------------------------
@@ -977,7 +996,7 @@ begin
       wait until rising_edge(s_clk);
 
       v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_ack_error_count := s_can_ctrl1_reg_tx_ack_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1044,10 +1063,11 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should not have increased, because when
+      -- Ack error count should have increased, because when
       -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
       -- was no way for the BFM to receive the message and acknowledge it
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
+      check_value(unsigned(s_can_ctrl1_reg_tx_ack_error_count),
+                  unsigned(v_ack_error_count)+1,
                   error, "Check ACK received count in CAN controller.");
 
       wait until rising_edge(s_can_baud_clk);
@@ -1366,8 +1386,9 @@ begin
       s_msg_reset <= '0';
       wait until rising_edge(s_clk);
 
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_arb_lost_count    := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_error_count   := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_msg_sent_count := s_can_ctrl1_reg_tx_msg_sent_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1408,7 +1429,12 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
+      -- Message sent count should not increase when no ACK is received
+      check_value(s_can_ctrl1_reg_tx_msg_sent_count, v_tx_msg_sent_count,
+                  error, "Check msg sent count no increase in CAN controller.");
+
+      check_value(unsigned(s_can_ctrl1_reg_tx_ack_error_count),
+                  unsigned(v_ack_error_count)+1,
                   error, "Check ACK received count in CAN controller.");
 
       -- Error count should only increase while ERROR ACTIVE
@@ -1446,8 +1472,9 @@ begin
     v_test_num := 0;
 
     while v_test_num < C_ERROR_PASSIVE_THRESHOLD loop
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_arb_lost_count    := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_error_count   := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_msg_sent_count := s_can_ctrl1_reg_tx_msg_sent_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1491,9 +1518,18 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should have increased now
-      check_value(unsigned(s_can_ctrl1_reg_tx_ack_recv_count), unsigned(v_ack_recv_count)+1,
-                  error, "Check ACK received count increased in CAN controller.");
+      -- Message sent count should increase when ACK is received
+      check_value(unsigned(s_can_ctrl1_reg_tx_msg_sent_count),
+                  unsigned(v_tx_msg_sent_count)+1,
+                  error, "Check msg sent count increase in CAN controller.");
+
+      -- Ack error count should not have increased
+      check_value(s_can_ctrl1_reg_tx_ack_error_count, v_ack_error_count,
+                  error, "Check ACK error count should not increase in CAN controller.");
+
+      -- Message should be successfully sent, which indicates ACK was received
+      check_value(unsigned(s_can_ctrl1_reg_tx_msg_sent_count), unsigned(v_tx_msg_sent_count)+1,
+                  error, "Check msg sent count increased in CAN controller.");
 
       check_value(to_integer(s_can_ctrl1_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD-(v_test_num+1),
                   error, "Check that transmit error count decreased on successful transmit");
@@ -1510,19 +1546,22 @@ begin
     -----------------------------------------------------------------------------------------------
     pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
 
-    -- In this test the CAN controller sends messages, but receives no ACK.
-    -- This should increase the transmit error counter to the error passive threshold,
-    -- causing the controller to become error passive. But the counter should not
-    -- increase further on missing ACK after that.
+    -- In this test the CAN controller sends messages, and the BFM is not listening.
+    -- After the controller is done with the arbitration field, a bit error is
+    -- generated on the bus signals, which should be interpreted as a Tx bit
+    -- error by the controller.
+    -- These bit errors should cause the Transmit Error Counter (TEC) to increase,
+    -- and the controller will go into error passive and eventually bus off state.
     v_test_num    := 0;
     v_xmit_ext_id := '1';
 
     v_can_bfm_config.ack_missing_severity := FAILURE;
 
     while s_can_ctrl1_error_state /= BUS_OFF loop
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
-      v_tx_error_count := s_can_ctrl1_reg_tx_error_count;
+      v_arb_lost_count     := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_tx_msg_sent_count  := s_can_ctrl1_reg_tx_msg_sent_count;
+      v_ack_error_count    := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_bit_error_count := s_can_ctrl1_reg_tx_bit_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1594,13 +1633,18 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should not have increased
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
-                  error, "Check ACK received count in CAN controller.");
+      -- Message sent count should not have increased when ACKs are not received
+      check_value(s_can_ctrl1_reg_tx_msg_sent_count, v_tx_msg_sent_count,
+                  error, "Check msg sent count no increase in CAN controller.");
 
-      -- Tx error should have increased
-      check_value(unsigned(s_can_ctrl1_reg_tx_error_count), unsigned(v_tx_error_count)+1,
-                  error, "Check Tx error increase in CAN controller.");
+      -- Ack error count should not have increased
+      check_value(s_can_ctrl1_reg_tx_ack_error_count, v_ack_error_count,
+                  error, "Check ACK error count no increase in CAN controller.");
+
+      -- Tx bit error count should have increased
+      check_value(unsigned(s_can_ctrl1_reg_tx_bit_error_count),
+                  unsigned(v_tx_bit_error_count)+1,
+                  error, "Check Tx bit error increase in CAN controller.");
 
       check_value(to_integer(s_can_ctrl1_transmit_error_count), (v_test_num+1)*8,
                   error, "Check that transmit error count increase by 8");

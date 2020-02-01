@@ -114,8 +114,9 @@ begin
 
   INST_canola_top : entity work.canola_top
     generic map (
-      G_BUS_REG_WIDTH => C_INTERNAL_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
+      G_BUS_REG_WIDTH       => C_INTERNAL_REG_WIDTH,
+      G_ENABLE_EXT_ID       => true,
+      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => AXI_CLK,
       RESET => AXI_RESET,
@@ -150,13 +151,15 @@ begin
 
       -- Registers/counters
       REG_TX_MSG_SENT_COUNT    => axi_ro_regs.TX_MSG_SENT_COUNT,
-      REG_TX_ACK_RECV_COUNT    => axi_ro_regs.TX_ACK_RECV_COUNT,
+      REG_TX_ACK_ERROR_COUNT   => axi_ro_regs.TX_ACK_ERROR_COUNT,
       REG_TX_ARB_LOST_COUNT    => axi_ro_regs.TX_ARB_LOST_COUNT,
-      REG_TX_ERROR_COUNT       => axi_ro_regs.TX_ERROR_COUNT,
+      REG_TX_BIT_ERROR_COUNT   => axi_ro_regs.TX_BIT_ERROR_COUNT,
+      REG_TX_RETRANSMIT_COUNT  => axi_ro_regs.TX_RETRANSMIT_COUNT,
       REG_RX_MSG_RECV_COUNT    => axi_ro_regs.RX_MSG_RECV_COUNT,
       REG_RX_CRC_ERROR_COUNT   => axi_ro_regs.RX_CRC_ERROR_COUNT,
       REG_RX_FORM_ERROR_COUNT  => axi_ro_regs.RX_FORM_ERROR_COUNT,
-      REG_RX_STUFF_ERROR_COUNT => axi_ro_regs.RX_STUFF_ERROR_COUNT
+      REG_RX_STUFF_ERROR_COUNT => axi_ro_regs.RX_STUFF_ERROR_COUNT,
+      CLEAR_COUNTERS           => '0'
       );
 
   -- User Logic End

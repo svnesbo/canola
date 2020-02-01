@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-01-06
+-- Last update: 2020-02-01
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -105,6 +105,7 @@ architecture tb of canola_vs_opencores_can_tb is
   signal s_can_ctrl1_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl1_tx_busy          : std_logic;
   signal s_can_ctrl1_tx_done          : std_logic;
+  signal s_can_ctrl1_tx_failed        : std_logic;
 
   signal s_can_ctrl1_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -117,9 +118,10 @@ architecture tb of canola_vs_opencores_can_tb is
 
   -- Registers/counters
   signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -183,8 +185,9 @@ begin
 
   INST_canola_top_1 : entity work.canola_top
     generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
+      G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID       => true,
+      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => s_clk,
       RESET => s_can_ctrl1_reset,
@@ -203,6 +206,7 @@ begin
       TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
       TX_BUSY          => s_can_ctrl1_tx_busy,
       TX_DONE          => s_can_ctrl1_tx_done,
+      TX_FAILED        => s_can_ctrl1_tx_failed,
 
       BTL_TRIPLE_SAMPLING         => '0',
       BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
@@ -219,13 +223,15 @@ begin
 
       -- Registers/counters
       REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl1_reg_tx_ack_recv_count,
+      REG_TX_ACK_ERROR_COUNT   => s_can_ctrl1_reg_tx_ack_error_count,
       REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl1_reg_tx_error_count,
+      REG_TX_BIT_ERROR_COUNT   => s_can_ctrl1_reg_tx_bit_error_count,
+      REG_TX_RETRANSMIT_COUNT  => s_can_ctrl1_reg_tx_retransmit_count,
       REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
       REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
       REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
+      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count,
+      CLEAR_COUNTERS           => '0'
       );
 
 

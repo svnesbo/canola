@@ -7,10 +7,10 @@ package canola_axi_slave_pif_pkg is
 
   constant C_CANOLA_AXI_SLAVE_ADDR_WIDTH : natural := 32;
   constant C_CANOLA_AXI_SLAVE_DATA_WIDTH : natural := 32;
-  
+
   subtype t_canola_axi_slave_addr is std_logic_vector(C_CANOLA_AXI_SLAVE_ADDR_WIDTH-1 downto 0);
   subtype t_canola_axi_slave_data is std_logic_vector(C_CANOLA_AXI_SLAVE_DATA_WIDTH-1 downto 0);
-  
+
   constant C_ADDR_STATUS : t_canola_axi_slave_addr := 32X"0";
   constant C_ADDR_CONTROL : t_canola_axi_slave_addr := 32X"4";
   constant C_ADDR_CONFIG : t_canola_axi_slave_addr := 32X"8";
@@ -22,50 +22,51 @@ package canola_axi_slave_pif_pkg is
   constant C_ADDR_TRANSMIT_ERROR_COUNT : t_canola_axi_slave_addr := 32X"34";
   constant C_ADDR_RECEIVE_ERROR_COUNT : t_canola_axi_slave_addr := 32X"38";
   constant C_ADDR_TX_MSG_SENT_COUNT : t_canola_axi_slave_addr := 32X"3C";
-  constant C_ADDR_TX_ACK_RECV_COUNT : t_canola_axi_slave_addr := 32X"40";
+  constant C_ADDR_TX_ACK_ERROR_COUNT : t_canola_axi_slave_addr := 32X"40";
   constant C_ADDR_TX_ARB_LOST_COUNT : t_canola_axi_slave_addr := 32X"44";
-  constant C_ADDR_TX_ERROR_COUNT : t_canola_axi_slave_addr := 32X"48";
-  constant C_ADDR_RX_MSG_RECV_COUNT : t_canola_axi_slave_addr := 32X"4C";
-  constant C_ADDR_RX_CRC_ERROR_COUNT : t_canola_axi_slave_addr := 32X"50";
-  constant C_ADDR_RX_FORM_ERROR_COUNT : t_canola_axi_slave_addr := 32X"54";
-  constant C_ADDR_RX_STUFF_ERROR_COUNT : t_canola_axi_slave_addr := 32X"58";
-  constant C_ADDR_TX_MSG_ID : t_canola_axi_slave_addr := 32X"5C";
-  constant C_ADDR_TX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"60";
-  constant C_ADDR_TX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"64";
-  constant C_ADDR_TX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"68";
-  constant C_ADDR_RX_MSG_ID : t_canola_axi_slave_addr := 32X"6C";
-  constant C_ADDR_RX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"70";
-  constant C_ADDR_RX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"74";
-  constant C_ADDR_RX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"78";
-  
+  constant C_ADDR_TX_BIT_ERROR_COUNT : t_canola_axi_slave_addr := 32X"48";
+  constant C_ADDR_TX_RETRANSMIT_COUNT : t_canola_axi_slave_addr := 32X"4C";
+  constant C_ADDR_RX_MSG_RECV_COUNT : t_canola_axi_slave_addr := 32X"50";
+  constant C_ADDR_RX_CRC_ERROR_COUNT : t_canola_axi_slave_addr := 32X"54";
+  constant C_ADDR_RX_FORM_ERROR_COUNT : t_canola_axi_slave_addr := 32X"58";
+  constant C_ADDR_RX_STUFF_ERROR_COUNT : t_canola_axi_slave_addr := 32X"5C";
+  constant C_ADDR_TX_MSG_ID : t_canola_axi_slave_addr := 32X"60";
+  constant C_ADDR_TX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"64";
+  constant C_ADDR_TX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"68";
+  constant C_ADDR_TX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"6C";
+  constant C_ADDR_RX_MSG_ID : t_canola_axi_slave_addr := 32X"70";
+  constant C_ADDR_RX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"74";
+  constant C_ADDR_RX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"78";
+  constant C_ADDR_RX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"7C";
+
   -- RW Register Record Definitions
-  
+
   type t_canola_axi_slave_rw_CONFIG is record
     TX_RETRANSMIT_EN : std_logic;
     BTL_TRIPLE_SAMPLING_EN : std_logic;
   end record;
-  
+
   type t_canola_axi_slave_rw_TX_MSG_ID is record
     EXT_ID_EN : std_logic;
     RTR_EN : std_logic;
     ARB_ID_B : std_logic_vector(17 downto 0);
     ARB_ID_A : std_logic_vector(10 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_rw_TX_PAYLOAD_0 is record
     PAYLOAD_BYTE_0 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_1 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_2 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_3 : std_logic_vector(7 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_rw_TX_PAYLOAD_1 is record
     PAYLOAD_BYTE_4 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_5 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_6 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_7 : std_logic_vector(7 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_rw_regs is record
     CONFIG : t_canola_axi_slave_rw_CONFIG;
     BTL_PROP_SEG : std_logic_vector(15 downto 0);
@@ -80,7 +81,7 @@ package canola_axi_slave_pif_pkg is
   end record;
 
   -- RW Register Reset Value Constant
-  
+
   constant c_canola_axi_slave_rw_regs : t_canola_axi_slave_rw_regs := (
     CONFIG => (
       TX_RETRANSMIT_EN => '0',
@@ -108,7 +109,7 @@ package canola_axi_slave_pif_pkg is
       PAYLOAD_BYTE_7 => (others => '0')));
 
   -- RO Register Record Definitions
-  
+
   type t_canola_axi_slave_ro_STATUS is record
     RX_MSG_VALID : std_logic;
     TX_BUSY : std_logic;
@@ -116,36 +117,37 @@ package canola_axi_slave_pif_pkg is
     TX_FAILED : std_logic;
     ERROR_STATE : std_logic_vector(1 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_ro_RX_MSG_ID is record
     EXT_ID_EN : std_logic;
     RTR_EN : std_logic;
     ARB_ID_B : std_logic_vector(17 downto 0);
     ARB_ID_A : std_logic_vector(10 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_ro_RX_PAYLOAD_0 is record
     PAYLOAD_BYTE_0 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_1 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_2 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_3 : std_logic_vector(7 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_ro_RX_PAYLOAD_1 is record
     PAYLOAD_BYTE_4 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_5 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_6 : std_logic_vector(7 downto 0);
     PAYLOAD_BYTE_7 : std_logic_vector(7 downto 0);
   end record;
-  
+
   type t_canola_axi_slave_ro_regs is record
     STATUS : t_canola_axi_slave_ro_STATUS;
     TRANSMIT_ERROR_COUNT : std_logic_vector(15 downto 0);
     RECEIVE_ERROR_COUNT : std_logic_vector(15 downto 0);
     TX_MSG_SENT_COUNT : std_logic_vector(15 downto 0);
-    TX_ACK_RECV_COUNT : std_logic_vector(15 downto 0);
+    TX_ACK_ERROR_COUNT : std_logic_vector(15 downto 0);
     TX_ARB_LOST_COUNT : std_logic_vector(15 downto 0);
-    TX_ERROR_COUNT : std_logic_vector(15 downto 0);
+    TX_BIT_ERROR_COUNT : std_logic_vector(15 downto 0);
+    TX_RETRANSMIT_COUNT : std_logic_vector(15 downto 0);
     RX_MSG_RECV_COUNT : std_logic_vector(15 downto 0);
     RX_CRC_ERROR_COUNT : std_logic_vector(15 downto 0);
     RX_FORM_ERROR_COUNT : std_logic_vector(15 downto 0);
@@ -157,7 +159,7 @@ package canola_axi_slave_pif_pkg is
   end record;
 
   -- RO Register Reset Value Constant
-  
+
   constant c_canola_axi_slave_ro_regs : t_canola_axi_slave_ro_regs := (
     STATUS => (
       RX_MSG_VALID => '0',
@@ -168,9 +170,10 @@ package canola_axi_slave_pif_pkg is
     TRANSMIT_ERROR_COUNT => (others => '0'),
     RECEIVE_ERROR_COUNT => (others => '0'),
     TX_MSG_SENT_COUNT => (others => '0'),
-    TX_ACK_RECV_COUNT => (others => '0'),
+    TX_ACK_ERROR_COUNT => (others => '0'),
     TX_ARB_LOST_COUNT => (others => '0'),
-    TX_ERROR_COUNT => (others => '0'),
+    TX_BIT_ERROR_COUNT => (others => '0'),
+    TX_RETRANSMIT_COUNT => (others => '0'),
     RX_MSG_RECV_COUNT => (others => '0'),
     RX_CRC_ERROR_COUNT => (others => '0'),
     RX_FORM_ERROR_COUNT => (others => '0'),
@@ -192,17 +195,17 @@ package canola_axi_slave_pif_pkg is
       PAYLOAD_BYTE_6 => (others => '0'),
       PAYLOAD_BYTE_7 => (others => '0')));
   -- PULSE Register Record Definitions
-  
+
   type t_canola_axi_slave_pulse_CONTROL is record
     TX_START : std_logic;
   end record;
-  
+
   type t_canola_axi_slave_pulse_regs is record
     CONTROL : t_canola_axi_slave_pulse_CONTROL;
   end record;
 
   -- PULSE Register Reset Value Constant
-  
+
   constant c_canola_axi_slave_pulse_regs : t_canola_axi_slave_pulse_regs := (
     CONTROL => (TX_START => '0'));
 

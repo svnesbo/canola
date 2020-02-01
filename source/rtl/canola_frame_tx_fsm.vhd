@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-29
+-- Last update: 2020-02-01
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -56,11 +56,11 @@ entity canola_frame_tx_fsm is
     TX_START                       : in  std_logic;  -- Start sending TX_MSG
     TX_RETRANSMIT_EN               : in  std_logic;
     TX_BUSY                        : out std_logic;  -- FSM busy
-    TX_DONE                        : out std_logic;  -- Transmit complete
-    TX_ACK_RECV                    : out std_logic;  -- Acknowledge was received
+    TX_DONE                        : out std_logic;  -- Transmit done, ack received
     TX_ARB_LOST                    : out std_logic;  -- Arbitration was lost
     TX_ARB_WON                     : out std_logic;  -- Arbitration was won (pulsed)
     TX_FAILED                      : out std_logic;  -- (Re)transmit failed (arb lost or error)
+    TX_RETRANSMITTING              : out std_logic;  -- Attempting retransmit
 
     -- Signals to/from BSP
     BSP_TX_DATA                     : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
@@ -84,13 +84,6 @@ entity canola_frame_tx_fsm is
     EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     EML_ERROR_STATE                    : in  can_error_state_t;
 
-    -- Counter registers for FSM
-    REG_MSG_SENT_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_ACK_RECV_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_ARB_LOST_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_ERROR_COUNT      : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_RETRANSMIT_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-
     -- FSM state register output/input - for triplication and voting of state
     FSM_STATE_O       : out std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0);
     FSM_STATE_VOTED_I : in  std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0)
@@ -110,13 +103,6 @@ architecture rtl of canola_frame_tx_fsm is
   signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
 
-  signal s_reg_msg_sent_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_ack_recv_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_ack_missing_counter : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_arb_lost_counter    : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_error_counter       : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-  signal s_reg_retransmit_counter  : unsigned(G_BUS_REG_WIDTH-1 downto 0);
-
   signal s_bsp_tx_write_en                : std_logic;
   signal s_eml_error_state                : can_error_state_t;
   signal s_tx_active_error_flag_bit_error : std_logic;
@@ -128,11 +114,6 @@ architecture rtl of canola_frame_tx_fsm is
   alias a_tx_msg_id_b_reversed : std_logic_vector(a_tx_msg_id_b'reverse_range) is a_tx_msg_id_b;
 
 begin  -- architecture rtl
-
-  REG_MSG_SENT_COUNT <= std_logic_vector(s_reg_msg_sent_counter);
-  REG_ACK_RECV_COUNT <= std_logic_vector(s_reg_ack_recv_counter);
-  REG_ARB_LOST_COUNT <= std_logic_vector(s_reg_arb_lost_counter);
-  REG_ERROR_COUNT    <= std_logic_vector(s_reg_error_counter);
 
   -- We have to hold BSP_TX_WRITE_EN while sending data,
   -- but want it to go low immediately when BSP is done.
@@ -156,17 +137,14 @@ begin  -- architecture rtl
         TX_BUSY                            <= '0';
         BSP_TX_DATA                        <= (others => '0');
         BSP_TX_ACTIVE                      <= '0';
+        TX_ARB_WON                         <= '0';
+        TX_ARB_LOST                        <= '0';
         TX_DONE                            <= '0';
         EML_TX_BIT_ERROR                   <= '0';
         EML_TX_ACK_ERROR                   <= '0';
         EML_TX_ARB_STUFF_ERROR             <= '0';
         EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
         s_tx_ack_recv                      <= '0';
-        s_reg_msg_sent_counter             <= (others => '0');
-        s_reg_ack_recv_counter             <= (others => '0');
-        s_reg_ack_missing_counter          <= (others => '0');
-        s_reg_arb_lost_counter             <= (others => '0');
-        s_reg_error_counter                <= (others => '0');
         s_retransmit_attempts              <= 0;
         s_tx_active_error_flag_bit_error   <= '0';
       else
@@ -174,6 +152,7 @@ begin  -- architecture rtl
         s_bsp_tx_write_en                  <= '0';
         BSP_TX_BIT_STUFF_EN                <= '1';
         TX_ARB_WON                         <= '0';
+        TX_ARB_LOST                        <= '0';
         TX_DONE                            <= '0';
         EML_TX_BIT_ERROR                   <= '0';
         EML_TX_ACK_ERROR                   <= '0';
@@ -194,8 +173,6 @@ begin  -- architecture rtl
 
             if TX_START = '1' and s_eml_error_state /= BUS_OFF then
               TX_BUSY         <= '1';
-              TX_ACK_RECV     <= '0';
-              TX_ARB_LOST     <= '0';
               s_reg_tx_msg    <= TX_MSG_IN;
               s_fsm_state_out <= ST_WAIT_FOR_BUS_IDLE;
             end if;
@@ -528,19 +505,16 @@ begin  -- architecture rtl
 
           when ST_ARB_LOST =>
             TX_ARB_LOST            <= '1';
-            s_reg_arb_lost_counter <= s_reg_arb_lost_counter + 1;
             s_fsm_state_out        <= ST_RETRANSMIT;
 
           when ST_BIT_ERROR =>
-            BSP_SEND_ERROR_FLAG <= '1';
-            EML_TX_BIT_ERROR    <= '1';
-            s_reg_error_counter <= s_reg_error_counter + 1;
-            s_fsm_state_out     <= ST_RETRANSMIT;
+            BSP_SEND_ERROR_FLAG   <= '1';
+            EML_TX_BIT_ERROR      <= '1';
+            s_fsm_state_out       <= ST_RETRANSMIT;
 
           when ST_ACK_ERROR =>
             BSP_SEND_ERROR_FLAG       <= '1';
             EML_TX_ACK_ERROR          <= '1';
-            s_reg_ack_missing_counter <= s_reg_ack_missing_counter + 1;
             s_fsm_state_out           <= ST_RETRANSMIT;
 
           when ST_RETRANSMIT =>
@@ -554,29 +528,15 @@ begin  -- architecture rtl
               TX_FAILED       <= '1';
               s_fsm_state_out <= ST_IDLE;
             else
-              s_reg_retransmit_counter <= s_reg_retransmit_counter + 1;
-              s_retransmit_attempts    <= s_retransmit_attempts + 1;
-              s_fsm_state_out          <= ST_WAIT_FOR_BUS_IDLE;
+              TX_RETRANSMITTING      <= '1';
+              s_retransmit_attempts  <= s_retransmit_attempts + 1;
+              s_fsm_state_out        <= ST_WAIT_FOR_BUS_IDLE;
             end if;
 
           when ST_DONE =>
-            -- Increase counters, set status outputs, etc...
-            -- Should I increase this when no ACK was received?
-            s_reg_msg_sent_counter <= s_reg_msg_sent_counter + 1;
-
-            BSP_TX_ACTIVE <= '0';
-
-            if s_tx_ack_recv = '1' then
-              s_reg_ack_recv_counter <= s_reg_ack_recv_counter + 1;
-              TX_ACK_RECV            <= '1';
-              TX_DONE                <= '1';
-              s_fsm_state_out        <= ST_IDLE;
-            else
-              -- Did not receive ACK..
-              -- Pulsing TX_ACTIVE allows BSP to reset CRC etc.,
-              -- and prevents BTL from syncing
-              s_fsm_state_out <= ST_RETRANSMIT;
-            end if;
+            BSP_TX_ACTIVE   <= '0';
+            TX_DONE         <= '1';
+            s_fsm_state_out <= ST_IDLE;
 
         end case;
       end if;
