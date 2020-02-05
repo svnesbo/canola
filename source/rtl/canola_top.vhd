@@ -100,7 +100,7 @@ architecture struct of canola_top is
 
   -- BSP interface to Tx Frame FSM
   signal s_bsp_tx_data              : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-  signal s_bsp_tx_data_count        : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_tx_data_count        : std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
   signal s_bsp_tx_write_en          : std_logic;
   signal s_bsp_tx_bit_stuff_en      : std_logic;  -- Enable bit stuffing on current data
   signal s_bsp_tx_rx_mismatch       : std_logic;  -- Mismatch Tx and Rx
@@ -113,7 +113,7 @@ architecture struct of canola_top is
   signal s_bsp_rx_active               : std_logic;
   signal s_bsp_rx_ifs                  : std_logic;
   signal s_bsp_rx_data                 : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-  signal s_bsp_rx_data_count           : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_rx_data_count           : std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
   signal s_bsp_rx_data_clear           : std_logic;
   signal s_bsp_rx_data_overflow        : std_logic;
   signal s_bsp_rx_bit_destuff_en       : std_logic;

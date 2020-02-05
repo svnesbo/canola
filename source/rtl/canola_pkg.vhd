@@ -71,7 +71,8 @@ package canola_pkg is
                                                                                 C_PHASE_SEG2_WIDTH));
   -- Longest field that BSP will be transmitting/receiving is the payload,
   -- which is 8 bytes
-  constant C_BSP_DATA_LENGTH : natural := 8*8;
+  constant C_BSP_DATA_LENGTH      : natural := 8*8;
+  constant C_BSP_DATA_LEN_BITSIZE : natural := integer(ceil(log2(1.0+real(C_BSP_DATA_LENGTH))));
 
   constant C_STUFF_BIT_THRESHOLD : natural := 5;
 

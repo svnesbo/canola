@@ -64,7 +64,7 @@ entity canola_frame_rx_fsm is
     BSP_RX_ACTIVE             : in  std_logic;
     BSP_RX_IFS                : in  std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA               : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT         : in  natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_COUNT         : in  std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_RX_DATA_CLEAR         : out std_logic;
     BSP_RX_DATA_OVERFLOW      : in  std_logic;
     BSP_RX_BIT_DESTUFF_EN     : out std_logic;  -- Enable bit destuffing on data
@@ -116,6 +116,7 @@ architecture rtl of canola_frame_rx_fsm is
   signal s_bsp_data_cleared               : std_logic;
   signal s_reg_tx_arb_won                 : std_logic;
   signal s_rx_active_error_flag_bit_error : std_logic;
+  signal s_bsp_rx_data_count              : natural range 0 to C_BSP_DATA_LENGTH;
 
 begin  -- architecture rtl
 
@@ -127,6 +128,8 @@ begin  -- architecture rtl
 
   -- Convert voted FSM state register input from std_logic_vector to frame_rx_fsm_state_t
   s_fsm_state_voted <= can_frame_rx_fsm_state_t'val(to_integer(unsigned(FSM_STATE_VOTED_I)));
+
+  s_bsp_rx_data_count <= to_integer(unsigned(BSP_RX_DATA_COUNT));
 
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
@@ -182,7 +185,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if BSP_RX_DATA(0) = C_SOF_VALUE then
@@ -196,7 +199,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = C_ID_A_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = C_ID_A_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR     <= '1';
               s_reg_rx_msg.arb_id_a <= BSP_RX_DATA(0 to C_ID_A_LENGTH-1);
               s_fsm_state_out       <= ST_RECV_SRR_RTR;
@@ -206,7 +209,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
               s_srr_rtr_bit     <= BSP_RX_DATA(0);
               s_fsm_state_out   <= ST_RECV_IDE;
@@ -216,7 +219,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if BSP_RX_DATA(0) = C_IDE_EXT_VALUE then
@@ -241,7 +244,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = C_ID_B_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = C_ID_B_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR     <= '1';
               s_reg_rx_msg.arb_id_b <= BSP_RX_DATA(0 to C_ID_B_LENGTH-1);
               s_fsm_state_out       <= ST_RECV_EXT_FRAME_RTR;
@@ -251,7 +254,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR           <= '1';
               s_reg_rx_msg.remote_request <= BSP_RX_DATA(0);
               s_fsm_state_out             <= ST_RECV_R1;
@@ -261,7 +264,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
@@ -272,7 +275,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
@@ -284,7 +287,7 @@ begin  -- architecture rtl
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
 
-            elsif BSP_RX_DATA_COUNT = C_DLC_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = C_DLC_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if unsigned(BSP_RX_DATA(0 to C_DLC_LENGTH-1)) > C_DLC_MAX_VALUE then
@@ -307,7 +310,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = unsigned(s_reg_rx_msg.data_length)*8 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = unsigned(s_reg_rx_msg.data_length)*8 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               s_reg_rx_msg.data(0) <= BSP_RX_DATA(0 to 7);
@@ -329,7 +332,7 @@ begin  -- architecture rtl
               s_fsm_state_out <= ST_FORM_ERROR;
 
               -- 15-bit CRC
-            elsif BSP_RX_DATA_COUNT = C_CAN_CRC_WIDTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = C_CAN_CRC_WIDTH and BSP_RX_DATA_CLEAR = '0' then
               if BSP_RX_DATA(0 to C_CAN_CRC_WIDTH-1) /= s_crc_calc then
                 s_crc_mismatch <= '1';
               else
@@ -349,7 +352,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if BSP_RX_DATA(0) /= C_CRC_DELIM_VALUE then
@@ -384,7 +387,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if s_crc_mismatch = '0' and BSP_RX_DATA(0) /= C_ACK_VALUE then
@@ -410,7 +413,7 @@ begin  -- architecture rtl
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
               s_fsm_state_out <= ST_FORM_ERROR;
-            elsif BSP_RX_DATA_COUNT = 1 and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if s_crc_mismatch = '1' then
@@ -437,14 +440,14 @@ begin  -- architecture rtl
             -- No bit stuffing for EOF (End of Frame)
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if BSP_RX_DATA_COUNT < C_EOF_LENGTH then
+            if s_bsp_rx_data_count < C_EOF_LENGTH then
               -- Check for bit errors in EOF in the first 6 bits of EOF
               -- Note: Last bit of EOF is don't care for the receiver
               -- See CAN specification 2.0B: 5 Message Validation
               if BTL_RX_BIT_VALID = '1' and BTL_RX_BIT_VALUE /= C_EOF_VALUE then
                 s_fsm_state_out <= ST_FORM_ERROR;
               end if;
-            elsif BSP_RX_DATA_COUNT = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
               s_fsm_state_out   <= ST_DONE;
             end if;

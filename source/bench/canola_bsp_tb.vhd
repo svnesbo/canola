@@ -104,6 +104,7 @@ architecture tb of canola_bsp_tb is
 
   signal s_bsp_tx_data                : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
   signal s_bsp_tx_data_count          : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_tx_data_count_bits     : std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
   signal s_bsp_tx_write_en            : std_logic         := '0';
   signal s_bsp_tx_bit_stuff_en        : std_logic         := '1';
   signal s_bsp_tx_rx_mismatch         : std_logic;
@@ -114,6 +115,7 @@ architecture tb of canola_bsp_tb is
   signal s_bsp_rx_active              : std_logic;
   signal s_bsp_rx_data                : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
   signal s_bsp_rx_data_count          : natural range 0 to C_BSP_DATA_LENGTH;
+  signal s_bsp_rx_data_count_bits     : std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
   signal s_bsp_rx_data_clear          : std_logic         := '0';
   signal s_bsp_rx_data_overflow       : std_logic;
   signal s_bsp_rx_bit_destuff_en      : std_logic         := '0';
@@ -168,12 +170,15 @@ begin
   s_eml_error_state_bits <= std_logic_vector(to_unsigned(can_error_state_t'pos(s_eml_error_state),
                                                          C_CAN_ERROR_STATE_BITSIZE));
 
+  s_bsp_tx_data_count_bits <= std_logic_vector(to_unsigned(s_bsp_tx_data_count, C_BSP_DATA_LEN_BITSIZE));
+  s_bsp_rx_data_count      <= to_integer(unsigned(s_bsp_rx_data_count_bits));
+
   INST_canola_bsp : entity work.canola_bsp
     port map (
       CLK                        => s_clk,
       RESET                      => s_reset,
       BSP_TX_DATA                => s_bsp_tx_data,
-      BSP_TX_DATA_COUNT          => s_bsp_tx_data_count,
+      BSP_TX_DATA_COUNT          => s_bsp_tx_data_count_bits,
       BSP_TX_WRITE_EN            => s_bsp_tx_write_en,
       BSP_TX_BIT_STUFF_EN        => s_bsp_tx_bit_stuff_en,
       BSP_TX_RX_MISMATCH         => s_bsp_tx_rx_mismatch,
@@ -183,7 +188,7 @@ begin
       BSP_TX_ACTIVE              => s_bsp_tx_active,
       BSP_RX_ACTIVE              => s_bsp_rx_active,
       BSP_RX_DATA                => s_bsp_rx_data,
-      BSP_RX_DATA_COUNT          => s_bsp_rx_data_count,
+      BSP_RX_DATA_COUNT          => s_bsp_rx_data_count_bits,
       BSP_RX_DATA_CLEAR          => s_bsp_rx_data_clear,
       BSP_RX_DATA_OVERFLOW       => s_bsp_rx_data_overflow,
       BSP_RX_BIT_DESTUFF_EN      => s_bsp_rx_bit_destuff_en,

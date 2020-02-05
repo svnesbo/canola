@@ -64,7 +64,7 @@ entity canola_frame_tx_fsm is
 
     -- Signals to/from BSP
     BSP_TX_DATA                     : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_TX_DATA_COUNT               : out natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_TX_DATA_COUNT               : out std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_TX_WRITE_EN                 : out std_logic;
     BSP_TX_BIT_STUFF_EN             : out std_logic;
     BSP_TX_RX_MISMATCH              : in  std_logic;
@@ -106,6 +106,7 @@ architecture rtl of canola_frame_tx_fsm is
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
 
   signal s_bsp_tx_write_en                : std_logic;
+  signal s_bsp_tx_data_count              : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_tx_active_error_flag_bit_error : std_logic;
 
   alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_a;
@@ -129,6 +130,7 @@ begin  -- architecture rtl
   -- Convert voted FSM state register input from std_logic_vector to frame_tx_fsm_state_t
   s_fsm_state_voted <= can_frame_tx_fsm_state_t'val(to_integer(unsigned(FSM_STATE_VOTED_I)));
 
+  BSP_TX_DATA_COUNT <= std_logic_vector(to_unsigned(s_bsp_tx_data_count, C_BSP_DATA_LEN_BITSIZE));
 
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
@@ -181,9 +183,9 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_SOF =>
-            BSP_TX_DATA(0)    <= C_SOF_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state_out   <= ST_SEND_SOF;
+            BSP_TX_DATA(0)      <= C_SOF_VALUE;
+            s_bsp_tx_data_count <= 1;
+            s_fsm_state_out     <= ST_SEND_SOF;
 
           when ST_SEND_SOF =>
             if BSP_TX_RX_MISMATCH = '1' then
@@ -197,7 +199,7 @@ begin  -- architecture rtl
 
           when ST_SETUP_ID_A =>
             BSP_TX_DATA(0 to C_ID_A_LENGTH-1) <= a_tx_msg_id_a_reversed;
-            BSP_TX_DATA_COUNT                 <= C_ID_A_LENGTH;
+            s_bsp_tx_data_count               <= C_ID_A_LENGTH;
             s_fsm_state_out                   <= ST_SEND_ID_A;
 
           when ST_SEND_ID_A =>
@@ -218,9 +220,9 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_SRR =>
-            BSP_TX_DATA(0)    <= C_SRR_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state_out   <= ST_SEND_SRR;
+            BSP_TX_DATA(0)      <= C_SRR_VALUE;
+            s_bsp_tx_data_count <= 1;
+            s_fsm_state_out     <= ST_SEND_SRR;
 
           when ST_SEND_SRR =>
             if BSP_TX_RX_MISMATCH = '1' then
@@ -234,11 +236,11 @@ begin  -- architecture rtl
 
           when ST_SETUP_IDE =>
             if s_reg_tx_msg.ext_id = '1' then
-              BSP_TX_DATA(0)    <= C_IDE_EXT_VALUE;
-              BSP_TX_DATA_COUNT <= 1;
+              BSP_TX_DATA(0)      <= C_IDE_EXT_VALUE;
+              s_bsp_tx_data_count <= 1;
             else
-              BSP_TX_DATA(0)    <= C_IDE_STD_VALUE;
-              BSP_TX_DATA_COUNT <= 1;
+              BSP_TX_DATA(0)      <= C_IDE_STD_VALUE;
+              s_bsp_tx_data_count <= 1;
             end if;
 
             s_fsm_state_out <= ST_SEND_IDE;
@@ -264,7 +266,7 @@ begin  -- architecture rtl
 
           when ST_SETUP_ID_B =>
             BSP_TX_DATA(0 to C_ID_B_LENGTH-1) <= a_tx_msg_id_b_reversed;
-            BSP_TX_DATA_COUNT                 <= C_ID_B_LENGTH;
+            s_bsp_tx_data_count               <= C_ID_B_LENGTH;
             s_fsm_state_out                   <= ST_SEND_ID_B;
 
           when ST_SEND_ID_B =>
@@ -280,10 +282,10 @@ begin  -- architecture rtl
           when ST_SETUP_RTR =>
             -- At this point we have just won the arbitration,
             -- both for extended and basic ID messages
-            TX_ARB_WON        <= '1';
-            BSP_TX_DATA(0)    <= s_reg_tx_msg.remote_request;
-            BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state_out   <= ST_SEND_RTR;
+            TX_ARB_WON          <= '1';
+            BSP_TX_DATA(0)      <= s_reg_tx_msg.remote_request;
+            s_bsp_tx_data_count <= 1;
+            s_fsm_state_out     <= ST_SEND_RTR;
 
           when ST_SEND_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
@@ -300,9 +302,9 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_R1 =>
-            BSP_TX_DATA(0)    <= C_R1_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state_out   <= ST_SEND_R1;
+            BSP_TX_DATA(0)      <= C_R1_VALUE;
+            s_bsp_tx_data_count <= 1;
+            s_fsm_state_out     <= ST_SEND_R1;
 
           when ST_SEND_R1 =>
             if BSP_TX_RX_MISMATCH = '1' then
@@ -315,9 +317,9 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_R0 =>
-            BSP_TX_DATA(0)    <= C_R0_VALUE;
-            BSP_TX_DATA_COUNT <= 1;
-            s_fsm_state_out   <= ST_SEND_R0;
+            BSP_TX_DATA(0)      <= C_R0_VALUE;
+            s_bsp_tx_data_count <= 1;
+            s_fsm_state_out     <= ST_SEND_R0;
 
           when ST_SEND_R0 =>
             if BSP_TX_RX_MISMATCH = '1' then
@@ -331,7 +333,7 @@ begin  -- architecture rtl
 
           when ST_SETUP_DLC =>
             BSP_TX_DATA(0 to C_DLC_LENGTH-1) <= s_reg_tx_msg.data_length;
-            BSP_TX_DATA_COUNT                <= C_DLC_LENGTH;
+            s_bsp_tx_data_count              <= C_DLC_LENGTH;
             s_fsm_state_out                  <= ST_SEND_DLC;
 
           when ST_SEND_DLC =>
@@ -359,7 +361,7 @@ begin  -- architecture rtl
             BSP_TX_DATA(40 to 47) <= s_reg_tx_msg.data(5);
             BSP_TX_DATA(48 to 55) <= s_reg_tx_msg.data(6);
             BSP_TX_DATA(56 to 63) <= s_reg_tx_msg.data(7);
-            BSP_TX_DATA_COUNT     <= to_integer(unsigned(s_reg_tx_msg.data_length))*8;
+            s_bsp_tx_data_count   <= to_integer(unsigned(s_reg_tx_msg.data_length))*8;
             s_fsm_state_out       <= ST_SEND_DATA;
 
           when ST_SEND_DATA =>
@@ -375,7 +377,7 @@ begin  -- architecture rtl
           when ST_SETUP_CRC =>
             -- CRC and CRC delimiter
             BSP_TX_DATA(0 to C_CAN_CRC_WIDTH-1) <= BSP_TX_CRC_CALC;
-            BSP_TX_DATA_COUNT                   <= C_CAN_CRC_WIDTH;
+            s_bsp_tx_data_count                 <= C_CAN_CRC_WIDTH;
             s_fsm_state_out                     <= ST_SEND_CRC;
 
           when ST_SEND_CRC =>
@@ -392,7 +394,7 @@ begin  -- architecture rtl
             -- CRC and CRC delimiter
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_CRC_DELIM_VALUE;
-            BSP_TX_DATA_COUNT   <= 1;
+            s_bsp_tx_data_count <= 1;
             s_fsm_state_out     <= ST_SEND_CRC_DELIM;
 
           when ST_SEND_CRC_DELIM =>
@@ -413,7 +415,7 @@ begin  -- architecture rtl
           when ST_SETUP_ACK_SLOT =>
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_TRANSMIT_VALUE;
-            BSP_TX_DATA_COUNT   <= 1;
+            s_bsp_tx_data_count <= 1;
             s_fsm_state_out     <= ST_SEND_RECV_ACK_SLOT;
 
           when ST_SEND_RECV_ACK_SLOT =>
@@ -444,7 +446,7 @@ begin  -- architecture rtl
           when ST_SETUP_ACK_DELIM =>
             BSP_TX_BIT_STUFF_EN <= '0';
             BSP_TX_DATA(0)      <= C_ACK_DELIM_VALUE;
-            BSP_TX_DATA_COUNT   <= 1;
+            s_bsp_tx_data_count <= 1;
             s_fsm_state_out     <= ST_SEND_ACK_DELIM;
 
           when ST_SEND_ACK_DELIM =>
@@ -462,7 +464,7 @@ begin  -- architecture rtl
           when ST_SETUP_EOF =>
             BSP_TX_BIT_STUFF_EN              <= '0';
             BSP_TX_DATA(0 to C_EOF_LENGTH-1) <= C_EOF;
-            BSP_TX_DATA_COUNT                <= C_EOF_LENGTH;
+            s_bsp_tx_data_count              <= C_EOF_LENGTH;
             s_fsm_state_out                  <= ST_SEND_EOF;
 
           when ST_SEND_EOF =>
