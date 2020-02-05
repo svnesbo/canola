@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-29
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -115,9 +115,7 @@ entity canola_bsp is
 
     -- Interface to EML
     EML_RECV_11_RECESSIVE_BITS : out std_logic;
-    EML_ERROR_STATE            : in  can_error_state_t;  -- Indicates if the CAN controller
-                                                         -- is in active or passive error
-                                                         -- state,   or bus off state
+    EML_ERROR_STATE            : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;
@@ -146,10 +144,12 @@ architecture rtl of canola_bsp is
   -----------------------------------------------------------------------------
   signal s_rx_fsm_state_out   : bsp_rx_fsm_state_t := ST_IDLE;
   signal s_rx_fsm_state_voted : bsp_rx_fsm_state_t := ST_IDLE;
+  signal s_eml_error_state    : can_error_state_t;
 
   attribute fsm_encoding                         : string;
   attribute fsm_encoding of s_rx_fsm_state_out   : signal is "sequential";
   attribute fsm_encoding of s_rx_fsm_state_voted : signal is "sequential";
+  attribute fsm_encoding of s_eml_error_state    : signal is "sequential";
 
   signal s_rx_bit               : std_logic;
   signal s_rx_bit_stream_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
@@ -198,6 +198,8 @@ begin  -- architecture rtl
 
   -- Convert voted Rx FSM state register input from std_logic_vector to bsp_rx_fsm_state_t
   s_rx_fsm_state_voted <= bsp_rx_fsm_state_t'val(to_integer(unsigned(RX_FSM_STATE_VOTED_I)));
+
+  s_eml_error_state <= can_error_state_t'val(to_integer(unsigned(EML_ERROR_STATE)));
 
 
   proc_bsp_rx_fsm : process(CLK) is
@@ -539,7 +541,7 @@ begin  -- architecture rtl
         -- If case the BSP is requested to send an error flag,
         -- ignore any other state assignments and go directly to ST_NEXT_ERROR_FLAG_BIT
         if BSP_SEND_ERROR_FLAG = '1' then
-          if EML_ERROR_STATE = ERROR_ACTIVE then
+          if s_eml_error_state = ERROR_ACTIVE then
             BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
           else
             BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;

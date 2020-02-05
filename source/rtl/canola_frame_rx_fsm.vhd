@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-02-01
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ entity canola_frame_rx_fsm is
     EML_RX_CRC_ERROR                   : out std_logic;
     EML_RX_FORM_ERROR                  : out std_logic;
     EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
-    EML_ERROR_STATE                    : in  can_error_state_t;
+    EML_ERROR_STATE                    : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
     -- FSM state register output/input - for triplication and voting of state
     FSM_STATE_O       : out std_logic_vector(C_FRAME_RX_FSM_STATE_BITSIZE-1 downto 0);
@@ -102,10 +102,12 @@ end entity canola_frame_rx_fsm;
 architecture rtl of canola_frame_rx_fsm is
   signal s_fsm_state_out   : can_frame_rx_fsm_state_t;
   signal s_fsm_state_voted : can_frame_rx_fsm_state_t;
+  signal s_eml_error_state : can_error_state_t;
 
   attribute fsm_encoding                      : string;
   attribute fsm_encoding of s_fsm_state_out   : signal is "sequential";
   attribute fsm_encoding of s_fsm_state_voted : signal is "sequential";
+  attribute fsm_encoding of s_eml_error_state : signal is "sequential";
 
   signal s_reg_rx_msg                     : can_msg_t;
   signal s_srr_rtr_bit                    : std_logic;
@@ -113,7 +115,6 @@ architecture rtl of canola_frame_rx_fsm is
   signal s_crc_calc                       : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_data_cleared               : std_logic;
   signal s_reg_tx_arb_won                 : std_logic;
-  signal s_eml_error_state                : can_error_state_t;
   signal s_rx_active_error_flag_bit_error : std_logic;
 
 begin  -- architecture rtl
@@ -130,6 +131,16 @@ begin  -- architecture rtl
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
     if rising_edge(CLK) then
+      RX_MSG_VALID                       <= '0';
+      BSP_RX_SEND_ACK                    <= '0';
+      BSP_RX_DATA_CLEAR                  <= '0';
+      BSP_RX_BIT_DESTUFF_EN              <= '1';
+      BSP_RX_STOP                        <= '0';
+      EML_RX_STUFF_ERROR                 <= '0';
+      EML_RX_CRC_ERROR                   <= '0';
+      EML_RX_FORM_ERROR                  <= '0';
+      EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+
       if RESET = '1' then
         s_reg_rx_msg.arb_id_a       <= (others => '0');
         s_reg_rx_msg.arb_id_b       <= (others => '0');
@@ -144,24 +155,7 @@ begin  -- architecture rtl
         s_fsm_state_out                    <= ST_IDLE;
         s_crc_mismatch                     <= '0';
         s_rx_active_error_flag_bit_error   <= '0';
-        BSP_RX_BIT_DESTUFF_EN              <= '1';
-        BSP_RX_STOP                        <= '0';
-        RX_MSG_VALID                       <= '0';
-        EML_RX_STUFF_ERROR                 <= '0';
-        EML_RX_CRC_ERROR                   <= '0';
-        EML_RX_FORM_ERROR                  <= '0';
-        EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
       else
-        RX_MSG_VALID                       <= '0';
-        BSP_RX_SEND_ACK                    <= '0';
-        BSP_RX_DATA_CLEAR                  <= '0';
-        BSP_RX_BIT_DESTUFF_EN              <= '1';
-        BSP_RX_STOP                        <= '0';
-        EML_RX_STUFF_ERROR                 <= '0';
-        EML_RX_CRC_ERROR                   <= '0';
-        EML_RX_FORM_ERROR                  <= '0';
-        EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
-
         -- Tx FSM is transmitting message, and won arbitration
         if TX_ARB_WON = '1' then
           s_reg_tx_arb_won <= '1';
@@ -177,7 +171,7 @@ begin  -- architecture rtl
 
             -- EML_ERROR_STATE may change after transmission of error flag has started.
             -- Keep a registered version since we need to know its value while transmitting error flag
-            s_eml_error_state <= EML_ERROR_STATE;
+            s_eml_error_state <= can_error_state_t'val(to_integer(unsigned(EML_ERROR_STATE)));
 
             if BSP_RX_ACTIVE = '1' then
               BSP_RX_DATA_CLEAR <= '1';

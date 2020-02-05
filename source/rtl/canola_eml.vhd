@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-01-31
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -70,14 +70,21 @@ entity canola_eml is
     RECESSIVE_BIT_COUNT_UP    : out std_logic;
     RECESSIVE_BIT_COUNT_CLEAR : out std_logic;
 
-    ERROR_STATE          : out can_error_state_t
+    ERROR_STATE             : out std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0)
     );
 
 end entity canola_eml;
 
 architecture rtl of canola_eml is
 
+  signal s_error_state                    : can_error_state_t;
+  attribute fsm_encoding                  : string;
+  attribute fsm_encoding of s_error_state : signal is "sequential";
+
 begin  -- architecture rtl
+
+  ERROR_STATE <= std_logic_vector(to_unsigned(can_error_state_t'pos(s_error_state),
+                                              C_CAN_ERROR_STATE_BITSIZE));
 
   -- The only value the Receive Error Counter (REC) will be set directly to
   REC_SET_VALUE <= std_logic_vector(to_unsigned(C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE,
@@ -95,119 +102,106 @@ begin  -- architecture rtl
     variable v_recv_error_count_incr : natural;
   begin
     if rising_edge(CLK) then
-      -- Synchronous reset
-      if RESET = '1' then
-        TEC_COUNT_UP              <= '0';
-        TEC_COUNT_DOWN            <= '0';
-        TEC_CLEAR                 <= '0';
-        REC_COUNT_UP              <= '0';
-        REC_COUNT_DOWN            <= '0';
-        REC_CLEAR                 <= '0';
-        REC_SET                   <= '0';
-        RECESSIVE_BIT_COUNT_UP    <= '0';
-        RECESSIVE_BIT_COUNT_CLEAR <= '0';
-      else
-        TEC_COUNT_UP              <= '0';
-        TEC_COUNT_DOWN            <= '0';
-        TEC_CLEAR                 <= '0';
-        REC_COUNT_UP              <= '0';
-        REC_COUNT_DOWN            <= '0';
-        REC_CLEAR                 <= '0';
-        REC_SET                   <= '0';
-        RECESSIVE_BIT_COUNT_UP    <= '0';
-        RECESSIVE_BIT_COUNT_CLEAR <= '0';
+      TEC_COUNT_UP              <= '0';
+      TEC_COUNT_DOWN            <= '0';
+      TEC_CLEAR                 <= '0';
+      REC_COUNT_UP              <= '0';
+      REC_COUNT_DOWN            <= '0';
+      REC_CLEAR                 <= '0';
+      REC_SET                   <= '0';
+      RECESSIVE_BIT_COUNT_UP    <= '0';
+      RECESSIVE_BIT_COUNT_CLEAR <= '0';
 
-        ------------------------------------------------------------------------
-        -- Transmit Error Counter (TEC) logic
-        ------------------------------------------------------------------------
-        if TX_BIT_ERROR = '1' then
-          TEC_COUNT_UP            <= '1';
-          v_xmit_error_count_incr := C_TEC_BIT_ERROR_INCREASE;
+      ------------------------------------------------------------------------
+      -- Transmit Error Counter (TEC) logic
+      ------------------------------------------------------------------------
+      if TX_BIT_ERROR = '1' then
+        TEC_COUNT_UP            <= '1';
+        v_xmit_error_count_incr := C_TEC_BIT_ERROR_INCREASE;
 
-        elsif TX_ACK_ERROR = '1' and ERROR_STATE = ERROR_ACTIVE then
-          TEC_COUNT_UP            <= '1';
-          v_xmit_error_count_incr := C_TEC_ACK_ERROR_INCREASE;
+      elsif TX_ACK_ERROR = '1' and s_error_state = ERROR_ACTIVE then
+        TEC_COUNT_UP            <= '1';
+        v_xmit_error_count_incr := C_TEC_ACK_ERROR_INCREASE;
 
-        elsif TX_ACK_PASSIVE_ERROR = '1' then
-          -- Todo: What is this??? TX_ACK_PASSIVE_ERROR is not connected anywhere...
-          TEC_COUNT_UP            <= '1';
-          v_xmit_error_count_incr := C_TEC_ACK_PASSIVE_ERROR_INCREASE;
+      elsif TX_ACK_PASSIVE_ERROR = '1' then
+        -- Todo: What is this??? TX_ACK_PASSIVE_ERROR is not connected anywhere...
+        TEC_COUNT_UP            <= '1';
+        v_xmit_error_count_incr := C_TEC_ACK_PASSIVE_ERROR_INCREASE;
 
-        elsif TX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
-          TEC_COUNT_UP            <= '1';
-          v_xmit_error_count_incr := C_TEC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE;
+      elsif TX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
+        TEC_COUNT_UP            <= '1';
+        v_xmit_error_count_incr := C_TEC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE;
 
-        elsif TRANSMIT_SUCCESS = '1' then
-          TEC_COUNT_DOWN          <= '1';
-          v_xmit_error_count_incr := C_TEC_SUCCESS_DECREASE;
-        end if;
+      elsif TRANSMIT_SUCCESS = '1' then
+        TEC_COUNT_DOWN          <= '1';
+        v_xmit_error_count_incr := C_TEC_SUCCESS_DECREASE;
+      end if;
 
-        TEC_COUNT_INCR <= std_logic_vector(to_unsigned(v_xmit_error_count_incr,
-                                                       TEC_COUNT_INCR'length));
+      TEC_COUNT_INCR <= std_logic_vector(to_unsigned(v_xmit_error_count_incr,
+                                                     TEC_COUNT_INCR'length));
 
-        ------------------------------------------------------------------------
-        -- Receive Error Counter (REC) logic
-        ------------------------------------------------------------------------
-        if RX_STUFF_ERROR = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_STUFF_ERROR_INCREASE;
+      ------------------------------------------------------------------------
+      -- Receive Error Counter (REC) logic
+      ------------------------------------------------------------------------
+      if RX_STUFF_ERROR = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_STUFF_ERROR_INCREASE;
 
-        elsif RX_CRC_ERROR = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_CRC_ERROR_INCREASE;
+      elsif RX_CRC_ERROR = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_CRC_ERROR_INCREASE;
 
-        elsif RX_FORM_ERROR = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_FORM_ERROR_INCREASE;
+      elsif RX_FORM_ERROR = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_FORM_ERROR_INCREASE;
 
-        elsif RX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE;
+      elsif RX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE;
 
-        elsif RX_OVERLOAD_FLAG_BIT_ERROR = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_OVERLOAD_FLAG_BIT_ERROR_INCREASE;
+      elsif RX_OVERLOAD_FLAG_BIT_ERROR = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_OVERLOAD_FLAG_BIT_ERROR_INCREASE;
 
-        elsif RX_DOMINANT_BIT_AFTER_ERROR_FLAG = '1' then
-          REC_COUNT_UP            <= '1';
-          v_recv_error_count_incr := C_REC_DOMINANT_BIT_AFTER_ERR_FLAG_INCREASE;
+      elsif RX_DOMINANT_BIT_AFTER_ERROR_FLAG = '1' then
+        REC_COUNT_UP            <= '1';
+        v_recv_error_count_incr := C_REC_DOMINANT_BIT_AFTER_ERR_FLAG_INCREASE;
 
-        elsif RECEIVE_SUCCESS = '1' then
-          if unsigned(REC_COUNT_VALUE) >= C_ERROR_PASSIVE_THRESHOLD then
-            -- Note: C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE is assigned
-            --       to the set value outside this process
-            --       We will never set the counter directly to a different value,
-            --       so might as well do it outside the process so it can be
-            --       hard-wired on the FPGA
-            REC_SET <= '1';
-          else
-            REC_COUNT_DOWN          <= '1';
-            v_recv_error_count_incr := C_REC_SUCCES_ERROR_ACTIVE_DECREASE;
-          end if;
-        end if;
-
-        REC_COUNT_INCR <= std_logic_vector(to_unsigned(v_recv_error_count_incr,
-                                                       REC_COUNT_INCR'length));
-
-        ------------------------------------------------------------------------
-        -- 11 successive recessive bit counter logic
-        ------------------------------------------------------------------------
-        if ERROR_STATE = BUS_OFF then
-          if unsigned(RECESSIVE_BIT_COUNT_VALUE) = C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD then
-            -- Clear REC/TEC when exiting BUS OFF
-            TEC_CLEAR <= '1';
-            REC_CLEAR <= '1';
-
-          elsif RECV_11_RECESSIVE_BITS = '1' then
-            RECESSIVE_BIT_COUNT_UP <= '1';
-          end if;
+      elsif RECEIVE_SUCCESS = '1' then
+        if unsigned(REC_COUNT_VALUE) >= C_ERROR_PASSIVE_THRESHOLD then
+          -- Note: C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE is assigned
+          --       to the set value outside this process
+          --       We will never set the counter directly to a different value,
+          --       so might as well do it outside the process so it can be
+          --       hard-wired on the FPGA
+          REC_SET <= '1';
         else
-          -- Clear counter of 11 recessive bits when we are not in BUS OFF
-          RECESSIVE_BIT_COUNT_CLEAR <= '1';
+          REC_COUNT_DOWN          <= '1';
+          v_recv_error_count_incr := C_REC_SUCCES_ERROR_ACTIVE_DECREASE;
         end if;
+      end if;
 
-      end if; -- reset
-    end if; -- rising_edge(clk)
+      REC_COUNT_INCR <= std_logic_vector(to_unsigned(v_recv_error_count_incr,
+                                                     REC_COUNT_INCR'length));
+
+      ------------------------------------------------------------------------
+      -- 11 successive recessive bit counter logic
+      ------------------------------------------------------------------------
+      if s_error_state = BUS_OFF then
+        if unsigned(RECESSIVE_BIT_COUNT_VALUE) = C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD then
+          -- Clear REC/TEC when exiting BUS OFF
+          TEC_CLEAR <= '1';
+          REC_CLEAR <= '1';
+
+        elsif RECV_11_RECESSIVE_BITS = '1' then
+          RECESSIVE_BIT_COUNT_UP <= '1';
+        end if;
+      else
+        -- Clear counter of 11 recessive bits when we are not in BUS OFF
+        RECESSIVE_BIT_COUNT_CLEAR <= '1';
+      end if;
+
+    end if;  -- rising_edge(clk)
   end process proc_error_counters;
 
   ------------------------------------------------------------------------
@@ -216,16 +210,16 @@ begin  -- architecture rtl
   proc_error_state : process(TEC_COUNT_VALUE, REC_COUNT_VALUE) is
   begin
     if unsigned(TEC_COUNT_VALUE) >= C_BUS_OFF_THRESHOLD then
-      ERROR_STATE <= BUS_OFF;
+      s_error_state <= BUS_OFF;
 
     elsif unsigned(TEC_COUNT_VALUE) >= C_ERROR_PASSIVE_THRESHOLD then
-      ERROR_STATE <= ERROR_PASSIVE;
+      s_error_state <= ERROR_PASSIVE;
 
     elsif unsigned(REC_COUNT_VALUE) >= C_ERROR_PASSIVE_THRESHOLD then
-      ERROR_STATE <= ERROR_PASSIVE;
+      s_error_state <= ERROR_PASSIVE;
 
     else
-      ERROR_STATE <= ERROR_ACTIVE;
+      s_error_state <= ERROR_ACTIVE;
     end if;
   end process proc_error_state;
 

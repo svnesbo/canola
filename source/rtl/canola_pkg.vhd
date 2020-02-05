@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-31
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -258,6 +258,10 @@ package canola_pkg is
                               ST_ACK_ERROR,
                               ST_RETRANSMIT,
                               ST_DONE);
+
+  -- Calculate number of bits needed to represent the error states
+  constant C_CAN_ERROR_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(can_error_state_t'pos(can_error_state_t'high)))));
 
   -- Calculate number of bits needed to represent states in BTL sync FSM state register
   constant C_BTL_SYNC_FSM_STATE_BITSIZE : natural :=

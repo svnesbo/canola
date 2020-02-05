@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2020-01-31
+-- Last update: 2020-02-05
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -191,6 +191,7 @@ architecture tb of canola_eml_tb is
   signal s_eml_recessive_bit_count_up           : std_logic;
   signal s_eml_recessive_bit_count_clear        : std_logic;
   signal s_eml_error_state                      : can_error_state_t;
+  signal s_eml_error_state_bits                 : std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
   signal s_eml_transmit_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_eml_receive_error_count              : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
@@ -202,6 +203,8 @@ begin
 
   -- Set up clock generators
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
+
+  s_eml_error_state <= can_error_state_t'val(to_integer(unsigned(s_eml_error_state_bits)));
 
   INST_canola_eml: entity work.canola_eml
     port map (
@@ -237,7 +240,7 @@ begin
       RECESSIVE_BIT_COUNT_VALUE        => s_eml_recessive_bit_count_value,
       RECESSIVE_BIT_COUNT_UP           => s_eml_recessive_bit_count_up,
       RECESSIVE_BIT_COUNT_CLEAR        => s_eml_recessive_bit_count_clear,
-      ERROR_STATE                      => s_eml_error_state);
+      ERROR_STATE                      => s_eml_error_state_bits);
 
   -- Receive Error Counter (REC) used by EML
   INST_receive_error_counter: entity work.counter_saturating

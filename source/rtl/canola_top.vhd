@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-01
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -129,7 +129,6 @@ architecture struct of canola_top is
   signal s_bsp_rx_passive_error_flag       : std_logic;
   signal s_bsp_error_flag_done             : std_logic;
   signal s_bsp_active_error_flag_bit_error : std_logic;
-  signal s_bsp_error_state                 : can_error_state_t;
 
   -- BTL signals
   signal s_btl_tx_bit_value    : std_logic;
@@ -156,7 +155,7 @@ architecture struct of canola_top is
   signal s_eml_transmit_success                 : std_logic;
   signal s_eml_receive_success                  : std_logic;
   signal s_eml_recv_11_recessive_bits           : std_logic;
-  signal s_eml_error_state                      : can_error_state_t;
+  signal s_eml_error_state                      : std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
   -- EML counter signals
   -- These counters are actively used by the EML
@@ -190,7 +189,7 @@ begin  -- architecture struct
 
   TRANSMIT_ERROR_COUNT <= unsigned(s_eml_tec_count_value);
   RECEIVE_ERROR_COUNT  <= unsigned(s_eml_rec_count_value);
-  ERROR_STATE          <= s_eml_error_state;
+  ERROR_STATE          <= can_error_state_t'val(to_integer(unsigned(s_eml_error_state)));
 
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 

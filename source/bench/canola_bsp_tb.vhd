@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2020-01-29
+-- Last update: 2020-02-05
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -126,6 +126,7 @@ architecture tb of canola_bsp_tb is
   signal s_bsp_send_error_flag        : std_logic         := '0';
   signal s_eml_recv_11_recessive_bits : std_logic;
   signal s_eml_error_state            : can_error_state_t := ERROR_ACTIVE;
+  signal s_eml_error_state_bits       : std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
   signal s_btl_tx_bit_value           : std_logic         := '0';
   signal s_btl_tx_bit_valid           : std_logic         := '0';
   signal s_btl_tx_rdy                 : std_logic         := '0';
@@ -162,7 +163,10 @@ begin
   s_can_rx       <= '1' ?= can_bus_signal;
 
   s_bsp_rx_bit_stuff_error <= s_bsp_rx_bit_destuff_en and
-                             (s_bsp_rx_active_error_flag or s_bsp_rx_passive_error_flag);
+                              (s_bsp_rx_active_error_flag or s_bsp_rx_passive_error_flag);
+
+  s_eml_error_state_bits <= std_logic_vector(to_unsigned(can_error_state_t'pos(s_eml_error_state),
+                                                         C_CAN_ERROR_STATE_BITSIZE));
 
   INST_canola_bsp : entity work.canola_bsp
     port map (
@@ -190,7 +194,7 @@ begin
       BSP_RX_PASSIVE_ERROR_FLAG  => s_bsp_rx_passive_error_flag,
       BSP_SEND_ERROR_FLAG        => s_bsp_send_error_flag,
       EML_RECV_11_RECESSIVE_BITS => s_eml_recv_11_recessive_bits,
-      EML_ERROR_STATE            => s_eml_error_state,
+      EML_ERROR_STATE            => s_eml_error_state_bits,
       BTL_TX_BIT_VALUE           => s_btl_tx_bit_value,
       BTL_TX_BIT_VALID           => s_btl_tx_bit_valid,
       BTL_TX_RDY                 => s_btl_tx_rdy,

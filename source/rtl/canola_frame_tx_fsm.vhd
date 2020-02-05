@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-01
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ entity canola_frame_tx_fsm is
     EML_TX_ACK_ERROR                   : out std_logic;  -- No ack received
     EML_TX_ARB_STUFF_ERROR             : out std_logic;  -- Stuff error during arbitration field
     EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
-    EML_ERROR_STATE                    : in  can_error_state_t;
+    EML_ERROR_STATE                    : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
     -- FSM state register output/input - for triplication and voting of state
     FSM_STATE_O       : out std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0);
@@ -94,17 +94,18 @@ end entity canola_frame_tx_fsm;
 architecture rtl of canola_frame_tx_fsm is
   signal s_fsm_state_out   : can_frame_tx_fsm_state_t;
   signal s_fsm_state_voted : can_frame_tx_fsm_state_t;
+  signal s_eml_error_state : can_error_state_t;
 
   attribute fsm_encoding                      : string;
   attribute fsm_encoding of s_fsm_state_out   : signal is "sequential";
   attribute fsm_encoding of s_fsm_state_voted : signal is "sequential";
+  attribute fsm_encoding of s_eml_error_state : signal is "sequential";
 
   signal s_reg_tx_msg          : can_msg_t;
   signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
 
   signal s_bsp_tx_write_en                : std_logic;
-  signal s_eml_error_state                : can_error_state_t;
   signal s_tx_active_error_flag_bit_error : std_logic;
 
   alias a_tx_msg_id_a : std_logic_vector(C_ID_A_LENGTH-1 downto 0) is s_reg_tx_msg.arb_id_a;
@@ -132,33 +133,26 @@ begin  -- architecture rtl
   proc_fsm : process(CLK) is
   begin  -- process proc_fsm
     if rising_edge(CLK) then
+      TX_ARB_WON                         <= '0';
+      TX_ARB_LOST                        <= '0';
+      TX_DONE                            <= '0';
+      EML_TX_BIT_ERROR                   <= '0';
+      EML_TX_ACK_ERROR                   <= '0';
+      EML_TX_ARB_STUFF_ERROR             <= '0';
+      EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+      BSP_SEND_ERROR_FLAG                <= '0';
+      s_bsp_tx_write_en                  <= '0';
+      BSP_TX_BIT_STUFF_EN                <= '1';
+
       if RESET = '1' then
         s_fsm_state_out                    <= ST_IDLE;
         TX_BUSY                            <= '0';
         BSP_TX_DATA                        <= (others => '0');
         BSP_TX_ACTIVE                      <= '0';
-        TX_ARB_WON                         <= '0';
-        TX_ARB_LOST                        <= '0';
-        TX_DONE                            <= '0';
-        EML_TX_BIT_ERROR                   <= '0';
-        EML_TX_ACK_ERROR                   <= '0';
-        EML_TX_ARB_STUFF_ERROR             <= '0';
-        EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
         s_tx_ack_recv                      <= '0';
         s_retransmit_attempts              <= 0;
         s_tx_active_error_flag_bit_error   <= '0';
       else
-        BSP_SEND_ERROR_FLAG                <= '0';
-        s_bsp_tx_write_en                  <= '0';
-        BSP_TX_BIT_STUFF_EN                <= '1';
-        TX_ARB_WON                         <= '0';
-        TX_ARB_LOST                        <= '0';
-        TX_DONE                            <= '0';
-        EML_TX_BIT_ERROR                   <= '0';
-        EML_TX_ACK_ERROR                   <= '0';
-        EML_TX_ARB_STUFF_ERROR             <= '0';
-        EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
-
         case s_fsm_state_voted is
           when ST_IDLE =>
             BSP_TX_ACTIVE                    <= '0';
@@ -169,7 +163,7 @@ begin  -- architecture rtl
 
             -- EML_ERROR_STATE may change after transmission of error flag has started.
             -- Keep a registered version since we need to know its value while transmitting error flag
-            s_eml_error_state <= EML_ERROR_STATE;
+            s_eml_error_state <= can_error_state_t'val(to_integer(unsigned(EML_ERROR_STATE)));
 
             if TX_START = '1' and s_eml_error_state /= BUS_OFF then
               TX_BUSY         <= '1';
