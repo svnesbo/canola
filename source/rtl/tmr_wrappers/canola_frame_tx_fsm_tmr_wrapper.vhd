@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-29
--- Last update: 2020-01-29
+-- Last update: 2020-02-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -29,10 +29,13 @@ use ieee.numeric_std.all;
 library work;
 use work.canola_pkg.all;
 
-entity canola_frame_tx_fsm is
+entity canola_frame_tx_fsm_tmr_wrapper is
   generic (
-    G_BUS_REG_WIDTH : natural;
-    G_ENABLE_EXT_ID : boolean);
+    G_BUS_REG_WIDTH       : natural;
+    G_ENABLE_EXT_ID       : boolean;
+    G_SEE_MITIGATION_EN   : boolean := false;
+    G_MISMATCH_EN         : boolean := false;
+    G_MISMATCH_REGISTERED : boolean := false);
   port (
     CLK                            : in  std_logic;
     RESET                          : in  std_logic;
