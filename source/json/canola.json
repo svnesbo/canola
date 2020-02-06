@@ -55,6 +55,51 @@
                     "name": "TX_START",
                     "type": "sl",
                     "description": "Start transmitting message"
+                },
+                {
+                    "name": "RESET_TX_MSG_SENT_COUNTER",
+                    "type": "sl",
+                    "description": "Reset messages transmitted counter"
+                },
+                {
+                    "name": "RESET_TX_ACK_ERROR_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Tx acknowledge error counter"
+                },
+                {
+                    "name": "RESET_TX_ARB_LOST_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Tx arbitration lost counter"
+                },
+                {
+                    "name": "RESET_TX_BIT_ERROR_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Tx bit error counter"
+                },
+                {
+                    "name": "RESET_TX_RETRANSMIT_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Tx retransmit counter"
+                },
+                {
+                    "name": "RESET_RX_MSG_RECV_COUNTER",
+                    "type": "sl",
+                    "description": "Reset messages received counter"
+                },
+                {
+                    "name": "RESET_RX_CRC_ERROR_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Rx CRC error counter"
+                },
+                {
+                    "name": "RESET_RX_FORM_ERROR_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Rx form error counter"
+                },
+                {
+                    "name": "RESET_RX_STUFF_ERROR_COUNTER",
+                    "type": "sl",
+                    "description": "Reset Rx stuff error counter"
                 }
             ],
             "description": "Control register"
@@ -76,7 +121,7 @@
                     "description": "Enable triple sampling of bits"
                 }
             ],
-            "description": "Control register"
+            "description": "Configuration register"
         },
         {
             "name": "BTL_PROP_SEG",
@@ -151,13 +196,13 @@
             "description": "Number of successfully transmitted messages"
         },
         {
-            "name": "TX_ACK_RECV_COUNT",
+            "name": "TX_ACK_ERROR_COUNT",
             "mode": "ro",
             "type": "slv",
             "address": "0x40",
             "length": 16,
             "reset": "0x0",
-            "description": "Number of transmitted messages where ACK was received"
+            "description": "Number of transmitted messages where ACK was missing"
         },
         {
             "name": "TX_ARB_LOST_COUNT",
@@ -169,19 +214,28 @@
             "description": "Number of times arbitration was lost while attempting to send message"
         },
         {
-            "name": "TX_ERROR_COUNT",
+            "name": "TX_BIT_ERROR_COUNT",
             "mode": "ro",
             "type": "slv",
             "address": "0x48",
             "length": 16,
             "reset": "0x0",
-            "description": "Number of transmit errors"
+            "description": "Number of transmit bit errors (read-back bit didn't match transmitted bit)"
+        },
+        {
+            "name": "TX_RETRANSMIT_COUNT",
+            "mode": "ro",
+            "type": "slv",
+            "address": "0x4c",
+            "length": 16,
+            "reset": "0x0",
+            "description": "Number attempts at retransmitting messages that failed to send."
         },
         {
             "name": "RX_MSG_RECV_COUNT",
             "mode": "ro",
             "type": "slv",
-            "address": "0x4c",
+            "address": "0x50",
             "length": 16,
             "reset": "0x0",
             "description": "Number of messages that were successfully received"
@@ -190,7 +244,7 @@
             "name": "RX_CRC_ERROR_COUNT",
             "mode": "ro",
             "type": "slv",
-            "address": "0x50",
+            "address": "0x54",
             "length": 16,
             "reset": "0x0",
             "description": "Number of received messages with CRC error"
@@ -199,7 +253,7 @@
             "name": "RX_FORM_ERROR_COUNT",
             "mode": "ro",
             "type": "slv",
-            "address": "0x54",
+            "address": "0x58",
             "length": 16,
             "reset": "0x0",
             "description": "Number of received messages with form error"
@@ -208,7 +262,7 @@
             "name": "RX_STUFF_ERROR_COUNT",
             "mode": "ro",
             "type": "slv",
-            "address": "0x58",
+            "address": "0x5c",
             "length": 16,
             "reset": "0x0",
             "description": "Number of received messages with stuff error"
@@ -217,7 +271,7 @@
             "name": "TX_MSG_ID",
             "mode": "rw",
             "type": "fields",
-            "address": "0x5c",
+            "address": "0x60",
             "fields": [
                 {
                     "name": "EXT_ID_EN",
@@ -250,7 +304,7 @@
             "name": "TX_PAYLOAD_LENGTH",
             "mode": "rw",
             "type": "slv",
-            "address": "0x60",
+            "address": "0x64",
             "length": 4,
             "reset": "0x0",
             "description": "Transmit payload length"
@@ -259,7 +313,7 @@
             "name": "TX_PAYLOAD_0",
             "mode": "rw",
             "type": "fields",
-            "address": "0x64",
+            "address": "0x68",
             "fields": [
                 {
                     "name": "PAYLOAD_BYTE_0",
@@ -294,7 +348,7 @@
             "name": "TX_PAYLOAD_1",
             "mode": "rw",
             "type": "fields",
-            "address": "0x68",
+            "address": "0x6c",
             "fields": [
                 {
                     "name": "PAYLOAD_BYTE_4",
@@ -329,7 +383,7 @@
             "name": "RX_MSG_ID",
             "mode": "ro",
             "type": "fields",
-            "address": "0x6c",
+            "address": "0x70",
             "fields": [
                 {
                     "name": "EXT_ID_EN",
@@ -362,7 +416,7 @@
             "name": "RX_PAYLOAD_LENGTH",
             "mode": "ro",
             "type": "slv",
-            "address": "0x70",
+            "address": "0x74",
             "length": 4,
             "reset": "0x0",
             "description": "Received payload length"
@@ -371,7 +425,7 @@
             "name": "RX_PAYLOAD_0",
             "mode": "ro",
             "type": "fields",
-            "address": "0x74",
+            "address": "0x78",
             "fields": [
                 {
                     "name": "PAYLOAD_BYTE_0",
@@ -406,7 +460,7 @@
             "name": "RX_PAYLOAD_1",
             "mode": "ro",
             "type": "fields",
-            "address": "0x78",
+            "address": "0x7c",
             "fields": [
                 {
                     "name": "PAYLOAD_BYTE_4",

@@ -70,6 +70,7 @@ end entity canola_btl_tmr_wrapper;
 
 architecture structural of canola_btl_tmr_wrapper is
   constant C_MISMATCH_OUTPUT_REG : boolean := true;
+
 begin  -- architecture structural
 
   -- -----------------------------------------------------------------------

@@ -128,6 +128,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
 
+
   ------------------------------------------------------------------------------
   -- Signals for CAN controller #2
   ------------------------------------------------------------------------------
@@ -303,18 +304,26 @@ begin
         ERROR_STATE          => s_can_ctrl1_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl1_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl1_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl1_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0',
-        VOTER_MISMATCH_LOGIC     => open,
-        VOTER_MISMATCH_COUNTERS  => open
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
         );
 
     INST_canola_top_2 : entity work.canola_top_tmr
@@ -357,18 +366,26 @@ begin
         ERROR_STATE          => s_can_ctrl2_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl2_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl2_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl2_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl2_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl2_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl2_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl2_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl2_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0',
-        VOTER_MISMATCH_LOGIC     => open,
-        VOTER_MISMATCH_COUNTERS  => open
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
         );
 
     INST_canola_top_3 : entity work.canola_top_tmr
@@ -411,42 +428,81 @@ begin
         ERROR_STATE          => s_can_ctrl3_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl3_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl3_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl3_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl3_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl3_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl3_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl3_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl3_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0',
-        VOTER_MISMATCH_LOGIC     => open,
-        VOTER_MISMATCH_COUNTERS  => open
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
         );
 
+    if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
+      -- Aliases to some signals deep in the controller hierarchy
+      -- that the testbench needs access to.
+      -- Have to do this separately with/without G_SEE_MITIGATION_EN,
+      -- because the hierarchy differs based on that generic.
+      process is
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_btl.s_sample_point_tx : std_logic >>;
 
-    -- Aliases to some signals deep in the controller hierarchy
-    -- that the testbench needs access to
-    process is
-      alias a_can_ctrl1_sample_point_tx is << signal INST_canola_top_1.INST_canola_btl_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_btl.s_sample_point_tx : std_logic >>;
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
 
-      alias a_can_ctrl1_tx_fsm_state is << signal INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+        alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
+      begin
+        while true loop
+          s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
+          s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
+          s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
 
-      alias a_can_ctrl1_recessive_bits_count is << signal INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
-    begin
-      while true loop
-        s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
-        s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
-        s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
+          -- Update on changes to any of these signals
+          wait on a_can_ctrl1_tx_fsm_state,
+            a_can_ctrl1_sample_point_tx,
+            a_can_ctrl1_recessive_bits_count;
 
-        -- Update on changes to any of these signals
-        wait on a_can_ctrl1_tx_fsm_state,
-          a_can_ctrl1_sample_point_tx,
-          a_can_ctrl1_recessive_bits_count;
+        end loop;
+      end process;
+    end generate if_NOMITIGATION_generate;
 
-      end loop;
-    end process;
+
+    if_MITIGATION_generate : if G_SEE_MITIGATION_EN generate
+      -- Aliases to some signals deep in the controller hierarchy
+      -- that the testbench needs access to.
+      -- Have to do this separately with/without G_SEE_MITIGATION_EN,
+      -- because the hierarchy differs based on that generic.
+      process is
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_btl.s_sample_point_tx : std_logic >>;
+
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+
+        alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
+      begin
+        while true loop
+          s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
+          s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
+          s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
+
+          -- Update on changes to any of these signals
+          wait on a_can_ctrl1_tx_fsm_state,
+            a_can_ctrl1_sample_point_tx,
+            a_can_ctrl1_recessive_bits_count;
+
+        end loop;
+      end process;
+    end generate if_MITIGATION_generate;
+
   end generate if_TMR_generate;
 
 
@@ -493,16 +549,24 @@ begin
         ERROR_STATE          => s_can_ctrl1_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl1_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl1_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl1_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0'
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
         );
 
     INST_canola_top_2 : entity work.canola_top
@@ -544,16 +608,24 @@ begin
         ERROR_STATE          => s_can_ctrl2_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl2_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl2_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl2_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl2_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl2_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl2_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl2_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl2_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0'
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
         );
 
     INST_canola_top_3 : entity work.canola_top
@@ -595,16 +667,24 @@ begin
         ERROR_STATE          => s_can_ctrl3_error_state,
 
         -- Registers/counters
-        REG_TX_MSG_SENT_COUNT    => s_can_ctrl3_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT   => s_can_ctrl3_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT    => s_can_ctrl3_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT   => s_can_ctrl3_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT  => s_can_ctrl3_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT    => s_can_ctrl3_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT   => s_can_ctrl3_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT  => s_can_ctrl3_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count,
-        CLEAR_COUNTERS           => '0'
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
         );
 
 

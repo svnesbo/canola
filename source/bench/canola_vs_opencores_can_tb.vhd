@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-02-01
+-- Last update: 2020-02-06
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -222,16 +222,24 @@ begin
       ERROR_STATE          => s_can_ctrl1_error_state,
 
       -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-      REG_TX_ACK_ERROR_COUNT   => s_can_ctrl1_reg_tx_ack_error_count,
-      REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-      REG_TX_BIT_ERROR_COUNT   => s_can_ctrl1_reg_tx_bit_error_count,
-      REG_TX_RETRANSMIT_COUNT  => s_can_ctrl1_reg_tx_retransmit_count,
-      REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
-      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
-      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count,
-      CLEAR_COUNTERS           => '0'
+      REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
+      REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
+      REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
+      REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
+      REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
+      REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
+      REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
+      REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
+      REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
+      CLEAR_TX_MSG_SENT_COUNT    => '0',
+      CLEAR_TX_ACK_ERROR_COUNT   => '0',
+      CLEAR_TX_ARB_LOST_COUNT    => '0',
+      CLEAR_TX_BIT_ERROR_COUNT   => '0',
+      CLEAR_TX_RETRANSMIT_COUNT  => '0',
+      CLEAR_RX_MSG_RECV_COUNT    => '0',
+      CLEAR_RX_CRC_ERROR_COUNT   => '0',
+      CLEAR_RX_FORM_ERROR_COUNT  => '0',
+      CLEAR_RX_STUFF_ERROR_COUNT => '0'
       );
 
 

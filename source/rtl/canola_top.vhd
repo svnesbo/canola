@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-05
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -84,7 +84,16 @@ entity canola_top is
     REG_RX_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    CLEAR_COUNTERS           : in  std_logic
+
+    CLEAR_TX_MSG_SENT_COUNT    : in std_logic;
+    CLEAR_TX_ACK_ERROR_COUNT   : in std_logic;
+    CLEAR_TX_ARB_LOST_COUNT    : in std_logic;
+    CLEAR_TX_BIT_ERROR_COUNT   : in std_logic;
+    CLEAR_TX_RETRANSMIT_COUNT  : in std_logic;
+    CLEAR_RX_MSG_RECV_COUNT    : in std_logic;
+    CLEAR_RX_CRC_ERROR_COUNT   : in std_logic;
+    CLEAR_RX_FORM_ERROR_COUNT  : in std_logic;
+    CLEAR_RX_STUFF_ERROR_COUNT : in std_logic
     );
 
 end entity canola_top;
@@ -451,7 +460,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_MSG_SENT_COUNT,
       COUNT_UP       => TX_DONE,
       COUNT_OUT      => REG_TX_MSG_SENT_COUNT,
       COUNT_VOTED_IN => REG_TX_MSG_SENT_COUNT);
@@ -464,7 +473,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_ACK_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_ack_error,
       COUNT_OUT      => REG_TX_ACK_ERROR_COUNT,
       COUNT_VOTED_IN => REG_TX_ACK_ERROR_COUNT);
@@ -477,7 +486,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_ARB_LOST_COUNT,
       COUNT_UP       => s_tx_fsm_arb_lost,
       COUNT_OUT      => REG_TX_ARB_LOST_COUNT,
       COUNT_VOTED_IN => REG_TX_ARB_LOST_COUNT);
@@ -490,7 +499,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_BIT_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_bit_error,
       COUNT_OUT      => REG_TX_BIT_ERROR_COUNT,
       COUNT_VOTED_IN => REG_TX_BIT_ERROR_COUNT);
@@ -503,7 +512,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_RETRANSMIT_COUNT,
       COUNT_UP       => s_tx_fsm_retransmitting,
       COUNT_OUT      => REG_TX_RETRANSMIT_COUNT,
       COUNT_VOTED_IN => REG_TX_RETRANSMIT_COUNT);
@@ -516,7 +525,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_MSG_RECV_COUNT,
       COUNT_UP       => RX_MSG_VALID,
       COUNT_OUT      => REG_RX_MSG_RECV_COUNT,
       COUNT_VOTED_IN => REG_RX_MSG_RECV_COUNT);
@@ -529,7 +538,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_CRC_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_crc_error,
       COUNT_OUT      => REG_RX_CRC_ERROR_COUNT,
       COUNT_VOTED_IN => REG_RX_CRC_ERROR_COUNT);
@@ -542,7 +551,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_FORM_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_form_error,
       COUNT_OUT      => REG_RX_FORM_ERROR_COUNT,
       COUNT_VOTED_IN => REG_RX_FORM_ERROR_COUNT);
@@ -555,7 +564,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_STUFF_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_stuff_error,
       COUNT_OUT      => REG_RX_STUFF_ERROR_COUNT,
       COUNT_VOTED_IN => REG_RX_STUFF_ERROR_COUNT);

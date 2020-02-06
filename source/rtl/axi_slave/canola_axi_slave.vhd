@@ -150,16 +150,24 @@ begin
       ERROR_STATE                            => s_can_error_state,
 
       -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => axi_ro_regs.TX_MSG_SENT_COUNT,
-      REG_TX_ACK_ERROR_COUNT   => axi_ro_regs.TX_ACK_ERROR_COUNT,
-      REG_TX_ARB_LOST_COUNT    => axi_ro_regs.TX_ARB_LOST_COUNT,
-      REG_TX_BIT_ERROR_COUNT   => axi_ro_regs.TX_BIT_ERROR_COUNT,
-      REG_TX_RETRANSMIT_COUNT  => axi_ro_regs.TX_RETRANSMIT_COUNT,
-      REG_RX_MSG_RECV_COUNT    => axi_ro_regs.RX_MSG_RECV_COUNT,
-      REG_RX_CRC_ERROR_COUNT   => axi_ro_regs.RX_CRC_ERROR_COUNT,
-      REG_RX_FORM_ERROR_COUNT  => axi_ro_regs.RX_FORM_ERROR_COUNT,
-      REG_RX_STUFF_ERROR_COUNT => axi_ro_regs.RX_STUFF_ERROR_COUNT,
-      CLEAR_COUNTERS           => '0'
+      REG_TX_MSG_SENT_COUNT      => axi_ro_regs.TX_MSG_SENT_COUNT,
+      REG_TX_ACK_ERROR_COUNT     => axi_ro_regs.TX_ACK_ERROR_COUNT,
+      REG_TX_ARB_LOST_COUNT      => axi_ro_regs.TX_ARB_LOST_COUNT,
+      REG_TX_BIT_ERROR_COUNT     => axi_ro_regs.TX_BIT_ERROR_COUNT,
+      REG_TX_RETRANSMIT_COUNT    => axi_ro_regs.TX_RETRANSMIT_COUNT,
+      REG_RX_MSG_RECV_COUNT      => axi_ro_regs.RX_MSG_RECV_COUNT,
+      REG_RX_CRC_ERROR_COUNT     => axi_ro_regs.RX_CRC_ERROR_COUNT,
+      REG_RX_FORM_ERROR_COUNT    => axi_ro_regs.RX_FORM_ERROR_COUNT,
+      REG_RX_STUFF_ERROR_COUNT   => axi_ro_regs.RX_STUFF_ERROR_COUNT,
+      CLEAR_TX_MSG_SENT_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_MSG_SENT_COUNTER,
+      CLEAR_TX_ACK_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_TX_ACK_ERROR_COUNTER,
+      CLEAR_TX_ARB_LOST_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_ARB_LOST_COUNTER,
+      CLEAR_TX_BIT_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_TX_BIT_ERROR_COUNTER,
+      CLEAR_TX_RETRANSMIT_COUNT  => axi_pulse_regs.CONTROL.RESET_TX_RETRANSMIT_COUNTER,
+      CLEAR_RX_MSG_RECV_COUNT    => axi_pulse_regs.CONTROL.RESET_RX_MSG_RECV_COUNTER,
+      CLEAR_RX_CRC_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_RX_CRC_ERROR_COUNTER,
+      CLEAR_RX_FORM_ERROR_COUNT  => axi_pulse_regs.CONTROL.RESET_RX_FORM_ERROR_COUNTER,
+      CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER
       );
 
   -- User Logic End

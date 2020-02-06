@@ -87,7 +87,16 @@ entity canola_top_tmr is
     REG_RX_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
     REG_RX_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    CLEAR_COUNTERS           : in  std_logic;
+
+    CLEAR_TX_MSG_SENT_COUNT    : in std_logic;
+    CLEAR_TX_ACK_ERROR_COUNT   : in std_logic;
+    CLEAR_TX_ARB_LOST_COUNT    : in std_logic;
+    CLEAR_TX_BIT_ERROR_COUNT   : in std_logic;
+    CLEAR_TX_RETRANSMIT_COUNT  : in std_logic;
+    CLEAR_RX_MSG_RECV_COUNT    : in std_logic;
+    CLEAR_RX_CRC_ERROR_COUNT   : in std_logic;
+    CLEAR_RX_FORM_ERROR_COUNT  : in std_logic;
+    CLEAR_RX_STUFF_ERROR_COUNT : in std_logic;
 
     VOTER_MISMATCH_LOGIC     : out std_logic; -- Mismatch in main logic
     VOTER_MISMATCH_COUNTERS  : out std_logic  -- Mismatch in status counters
@@ -520,7 +529,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_MSG_SENT_COUNT,
       COUNT_UP       => TX_DONE,
       COUNT_OUT      => REG_TX_MSG_SENT_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_msg_sent_count));
@@ -536,7 +545,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_ACK_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_ack_error,
       COUNT_OUT      => REG_TX_ACK_ERROR_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_ack_error_count));
@@ -552,7 +561,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_ARB_LOST_COUNT,
       COUNT_UP       => s_tx_fsm_arb_lost,
       COUNT_OUT      => REG_TX_ARB_LOST_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_arb_lost_count));
@@ -568,7 +577,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_BIT_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_bit_error,
       COUNT_OUT      => REG_TX_BIT_ERROR_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_bit_error_count));
@@ -584,7 +593,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_TX_RETRANSMIT_COUNT,
       COUNT_UP       => s_tx_fsm_retransmitting,
       COUNT_OUT      => REG_TX_RETRANSMIT_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_retransmit_count));
@@ -600,7 +609,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_MSG_RECV_COUNT,
       COUNT_UP       => RX_MSG_VALID,
       COUNT_OUT      => REG_RX_MSG_RECV_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_msg_recv_count));
@@ -616,7 +625,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_CRC_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_crc_error,
       COUNT_OUT      => REG_RX_CRC_ERROR_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_crc_error_count));
@@ -632,7 +641,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_FORM_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_form_error,
       COUNT_OUT      => REG_RX_FORM_ERROR_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_form_error_count));
@@ -648,7 +657,7 @@ begin  -- architecture struct
     port map (
       CLK            => CLK,
       RESET          => RESET,
-      CLEAR          => CLEAR_COUNTERS,
+      CLEAR          => CLEAR_RX_STUFF_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_stuff_error,
       COUNT_OUT      => REG_RX_STUFF_ERROR_COUNT,
       MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_stuff_error_count));
