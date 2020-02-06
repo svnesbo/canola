@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-01-29
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -23,23 +23,24 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
 library work;
 use work.canola_pkg.all;
+use work.tmr_pkg.all;
 
 entity canola_bsp_tmr_wrapper is
   generic (
-    G_SEE_MITIGATION_EN   : boolean := false;
-    G_MISMATCH_EN         : boolean := false;
-    G_MISMATCH_REGISTERED : boolean := false);
+    G_SEE_MITIGATION_EN  : boolean := true;
+    G_MISMATCH_OUTPUT_EN : boolean := true);
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
 
     -- Interface to Tx FSM
     BSP_TX_DATA              : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_TX_DATA_COUNT        : in  natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_TX_DATA_COUNT        : in  std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_TX_WRITE_EN          : in  std_logic;
     BSP_TX_BIT_STUFF_EN      : in  std_logic;  -- Enable bit stuffing on current data
     BSP_TX_RX_MISMATCH       : out std_logic;  -- Mismatch Tx and Rx. Also used
@@ -53,7 +54,7 @@ entity canola_bsp_tmr_wrapper is
     BSP_RX_ACTIVE          : out std_logic;
     BSP_RX_IFS             : out std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT      : out natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_COUNT      : out std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_RX_DATA_CLEAR      : in  std_logic;
     BSP_RX_DATA_OVERFLOW   : out std_logic;
     BSP_RX_BIT_DESTUFF_EN  : in  std_logic;  -- Enable bit destuffing on data
@@ -74,9 +75,7 @@ entity canola_bsp_tmr_wrapper is
 
     -- Interface to EML
     EML_RECV_11_RECESSIVE_BITS : out std_logic;
-    EML_ERROR_STATE            : in  can_error_state_t;  -- Indicates if the CAN controller
-                                                         -- is in active or passive error
-                                                         -- state,   or bus off state
+    EML_ERROR_STATE            : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;
@@ -95,12 +94,14 @@ end entity canola_bsp_tmr_wrapper;
 
 architecture structural of canola_bsp_tmr_wrapper is
 
+  constant C_MISMATCH_OUTPUT_REG : boolean := true;
+
 begin  -- architecture structural
 
     -- -----------------------------------------------------------------------
   -- Generate single instance of BSP when TMR is disabled
   -- -----------------------------------------------------------------------
-  if_NOMITIGATION_generate : if not SEE_MITIGATION_EN generate
+  if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
     no_tmr_block : block is
       signal s_rx_fsm_state_no_tmr : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
       signal s_tx_fsm_state_no_tmr : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
@@ -160,7 +161,7 @@ begin  -- architecture structural
   -- -----------------------------------------------------------------------
   -- Generate three instances of BSP when TMR is enabled
   -- -----------------------------------------------------------------------
-  if_TMR_generate : if SEE_MITIGATION_EN generate
+  if_TMR_generate : if G_SEE_MITIGATION_EN generate
     tmr_block : block is
       type t_rx_fsm_state_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
       type t_tx_fsm_state_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
@@ -169,13 +170,13 @@ begin  -- architecture structural
 
       type t_bsp_crc_calc_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
       type t_bsp_rx_data_tmr is array (0 to C_K_TMR-1) of std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-      type t_bsp_rx_data_count is array (0 to C_K_TMR-1) of natural range 0 to C_BSP_DATA_LENGTH;
+      type t_bsp_rx_data_count is array (0 to C_K_TMR-1) of std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
 
       signal s_bsp_tx_rx_mismatch_tmr              : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_tx_rx_stuff_mismatch_tmr        : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_tx_done_tmr                     : std_logic_vector(0 to C_K_TMR-1);
-      signal s_bsp_tx_crc_calc_tmr                 : t_bsp_tx_crc_calc_tmr;
-      signal s_bsp_rx_crc_calc_tmr                 : t_bsp_tx_crc_calc_tmr;
+      signal s_bsp_tx_crc_calc_tmr                 : t_bsp_crc_calc_tmr;
+      signal s_bsp_rx_crc_calc_tmr                 : t_bsp_crc_calc_tmr;
       signal s_bsp_rx_active_tmr                   : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_rx_ifs_tmr                      : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_rx_data_tmr                     : t_bsp_rx_data_tmr;
@@ -252,10 +253,9 @@ begin  -- architecture structural
 
       if_not_mismatch_gen : if not G_MISMATCH_OUTPUT_EN generate
         VOTER_MISMATCH <= '0';
-      end generate if_mismatch_gen;
+      end generate if_not_mismatch_gen;
 
-
-      for_TMR_generate : for i in range 0 to C_K_TMR-1 generate
+      for_TMR_generate : for i in 0 to C_K_TMR-1 generate
         INST_canola_bsp: entity work.canola_bsp
         port map (
           CLK                             => CLK,
@@ -298,7 +298,6 @@ begin  -- architecture structural
           RX_FSM_STATE_VOTED_I            => s_rx_fsm_state_voted(i),
           TX_FSM_STATE_O                  => s_tx_fsm_state_out(i),
           TX_FSM_STATE_VOTED_I            => s_tx_fsm_state_voted(i));
-        INST_canola_frame_rx_fsm: entity work.canola_frame_rx_fsm
       end generate for_TMR_generate;
 
       -- -----------------------------------------------------------------------
@@ -307,7 +306,7 @@ begin  -- architecture structural
       INST_rx_fsm_state_voter : entity work.majority_voter_triplicated_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK         => CLK,
           INPUT_A     => s_rx_fsm_state_out(0),
@@ -321,7 +320,7 @@ begin  -- architecture structural
       INST_tx_fsm_state_voter : entity work.majority_voter_triplicated_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK         => CLK,
           INPUT_A     => s_tx_fsm_state_out(0),
@@ -335,7 +334,7 @@ begin  -- architecture structural
       INST_bsp_tx_rx_mismatch_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_tx_rx_mismatch_tmr(0),
@@ -347,7 +346,7 @@ begin  -- architecture structural
       INST_bsp_tx_rx_stuff_mismatch_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_tx_rx_stuff_mismatch_tmr(0),
@@ -359,7 +358,7 @@ begin  -- architecture structural
       INST_bsp_tx_done_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_tx_done_tmr(0),
@@ -371,7 +370,7 @@ begin  -- architecture structural
       INST_bsp_tx_crc_calc_voter : entity work.majority_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_tx_crc_calc_tmr(0),
@@ -383,7 +382,7 @@ begin  -- architecture structural
       INST_bsp_rx_crc_calc_voter : entity work.majority_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_crc_calc_tmr(0),
@@ -395,7 +394,7 @@ begin  -- architecture structural
       INST_bsp_rx_active_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_active_tmr(0),
@@ -407,7 +406,7 @@ begin  -- architecture structural
       INST_bsp_rx_ifs_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_ifs_tmr(0),
@@ -419,7 +418,7 @@ begin  -- architecture structural
       INST_bsp_rx_data_voter : entity work.majority_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_data_tmr(0),
@@ -431,7 +430,7 @@ begin  -- architecture structural
       INST_bsp_rx_data_count_voter : entity work.majority_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_data_count_tmr(0),
@@ -443,7 +442,7 @@ begin  -- architecture structural
       INST_bsp_rx_data_overflow_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_data_overflow_tmr(0),
@@ -455,7 +454,7 @@ begin  -- architecture structural
       INST_bsp_rx_active_error_flag_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_active_error_flag_tmr(0),
@@ -467,7 +466,7 @@ begin  -- architecture structural
       INST_bsp_rx_passive_error_flag_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_rx_passive_error_flag_tmr(0),
@@ -479,7 +478,7 @@ begin  -- architecture structural
       INST_bsp_error_flag_done_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_error_flag_done_tmr(0),
@@ -491,7 +490,7 @@ begin  -- architecture structural
       INST_bsp_active_error_flag_bit_error_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_bsp_active_error_flag_bit_error_tmr(0),
@@ -503,7 +502,7 @@ begin  -- architecture structural
       INST_eml_recv_11_recessive_bits_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_eml_recv_11_recessive_bits_tmr(0),
@@ -515,7 +514,7 @@ begin  -- architecture structural
       INST_btl_tx_bit_value_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_tx_bit_value_tmr(0),
@@ -527,7 +526,7 @@ begin  -- architecture structural
       INST_btl_tx_bit_valid_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_tx_bit_valid_tmr(0),
@@ -539,7 +538,7 @@ begin  -- architecture structural
       INST_btl_rx_stop_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_rx_stop_tmr(0),

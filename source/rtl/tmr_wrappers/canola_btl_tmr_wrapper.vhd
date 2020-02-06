@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-01-29
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -24,15 +24,17 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
+use ieee.numeric_std.all;
 
 library work;
 use work.canola_pkg.all;
+use work.tmr_pkg.all;
 
 entity canola_btl_tmr_wrapper is
   generic (
     G_SEE_MITIGATION_EN   : boolean := false;
-    G_MISMATCH_EN         : boolean := false;
-    G_MISMATCH_REGISTERED : boolean := false);
+    G_MISMATCH_OUTPUT_EN  : boolean := false);
   port (
     CLK                     : in  std_logic;
     RESET                   : in  std_logic;
@@ -62,19 +64,20 @@ entity canola_btl_tmr_wrapper is
     TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
 
     -- Indicates mismatch in any of the TMR voters
-    VOTER_MISMATCH          : out std_logic;
+    VOTER_MISMATCH          : out std_logic
     );
 end entity canola_btl_tmr_wrapper;
 
 architecture structural of canola_btl_tmr_wrapper is
+  constant C_MISMATCH_OUTPUT_REG : boolean := true;
 begin  -- architecture structural
 
   -- -----------------------------------------------------------------------
   -- Generate single instance of BTL when TMR is disabled
   -- -----------------------------------------------------------------------
-  if_NOMITIGATION_generate : if not SEE_MITIGATION_EN generate
+  if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
     no_tmr_block : block is
-      signal s_sync_fsm_state_no_tmr : std_logic_vector(C_SYNC_FSM_STATE_BITSIZE-1 downto 0);
+      signal s_sync_fsm_state_no_tmr : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
     begin
 
       VOTER_MISMATCH <= '0';
@@ -112,7 +115,7 @@ begin  -- architecture structural
   -- -----------------------------------------------------------------------
   -- Generate three instances of BTL when TMR is enabled
   -- -----------------------------------------------------------------------
-  if_TMR_generate : if SEE_MITIGATION_EN generate
+  if_TMR_generate : if G_SEE_MITIGATION_EN generate
     tmr_block : block is
       type t_sync_fsm_state_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
       signal s_sync_fsm_state_out, s_sync_fsm_state_voted : t_sync_fsm_state_tmr;
@@ -159,10 +162,10 @@ begin  -- architecture structural
 
       if_not_mismatch_gen : if not G_MISMATCH_OUTPUT_EN generate
         VOTER_MISMATCH <= '0';
-      end generate if_mismatch_gen;
+      end generate if_not_mismatch_gen;
 
 
-      for_TMR_generate : for i in range 0 to C_K_TMR-1 generate
+      for_TMR_generate : for i in 0 to C_K_TMR-1 generate
         INST_canola_btl : entity work.canola_btl
           port map (
             CLK                     => CLK,
@@ -171,12 +174,12 @@ begin  -- architecture structural
             CAN_RX                  => CAN_RX,
             BTL_TX_BIT_VALUE        => BTL_TX_BIT_VALUE,
             BTL_TX_BIT_VALID        => BTL_TX_BIT_VALID,
-            BTL_TX_RDY              => s_btl_tx_rdy(i),
-            BTL_TX_DONE             => s_btl_tx_done(i),
+            BTL_TX_RDY              => s_btl_tx_rdy_tmr(i),
+            BTL_TX_DONE             => s_btl_tx_done_tmr(i),
             BTL_TX_ACTIVE           => BTL_TX_ACTIVE,
-            BTL_RX_BIT_VALUE        => s_btl_rx_bit_value(i),
-            BTL_RX_BIT_VALID        => s_btl_rx_bit_valid(i),
-            BTL_RX_SYNCED           => s_btl_rx_synced(i),
+            BTL_RX_BIT_VALUE        => s_btl_rx_bit_value_tmr(i),
+            BTL_RX_BIT_VALID        => s_btl_rx_bit_valid_tmr(i),
+            BTL_RX_SYNCED           => s_btl_rx_synced_tmr(i),
             BTL_RX_STOP             => BTL_RX_STOP,
             TRIPLE_SAMPLING         => TRIPLE_SAMPLING,
             PROP_SEG                => PROP_SEG,
@@ -185,7 +188,7 @@ begin  -- architecture structural
             SYNC_JUMP_WIDTH         => SYNC_JUMP_WIDTH,
             TIME_QUANTA_CLOCK_SCALE => TIME_QUANTA_CLOCK_SCALE,
             SYNC_FSM_STATE_O        => s_sync_fsm_state_out(i),
-            SYNC_FSM_STATE_VOTED_I  => s_sync_fsm_state_voted
+            SYNC_FSM_STATE_VOTED_I  => s_sync_fsm_state_voted(i)
             );
       end generate for_TMR_generate;
 
@@ -195,7 +198,7 @@ begin  -- architecture structural
       INST_sync_state_voter : entity work.majority_voter_triplicated_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK         => CLK,
           INPUT_A     => s_sync_fsm_state_out(0),
@@ -209,7 +212,7 @@ begin  -- architecture structural
       INST_can_tx_voter : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_can_tx_tmr(0),
@@ -221,7 +224,7 @@ begin  -- architecture structural
       INST_btl_tx_rdy : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_tx_rdy_tmr(0),
@@ -233,7 +236,7 @@ begin  -- architecture structural
       INST_btl_tx_done : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_tx_done_tmr(0),
@@ -245,7 +248,7 @@ begin  -- architecture structural
       INST_btl_rx_bit_value : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_rx_bit_value_tmr(0),
@@ -257,7 +260,7 @@ begin  -- architecture structural
       INST_btl_rx_bit_valid : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_rx_bit_valid_tmr(0),
@@ -269,7 +272,7 @@ begin  -- architecture structural
       INST_btl_rx_synced : entity work.majority_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-          G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
         port map (
           CLK       => CLK,
           INPUT_A   => s_btl_rx_synced_tmr(0),

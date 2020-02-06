@@ -40,9 +40,15 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_rx_fsm
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_frame_tx_fsm.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_eml.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_top.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/counter_saturating_tmr_wrapper_triplicated.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/upcounter_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/axi_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_pif_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_axi_pif.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/counter_saturating_tmr_wrapper_triplicated.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/upcounter_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_bsp_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_btl_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_eml_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_frame_rx_fsm_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_frame_tx_fsm_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_top_tmr.vhd

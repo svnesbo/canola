@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-05
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -22,6 +22,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+
+library work;
+use work.tmr_pkg.all;
 
 package canola_pkg is
   -----------------------------------------------------------------------------
@@ -283,5 +286,14 @@ package canola_pkg is
   -- Calculate number of bits needed to represent states in Tx Frame FSM state register
   constant C_FRAME_TX_FSM_STATE_BITSIZE : natural :=
     integer(ceil(log2(1.0+real(can_frame_tx_fsm_state_t'pos(can_frame_tx_fsm_state_t'high)))));
+
+
+
+  -----------------------------------------------------------------------------
+  -- Definitions for triplicated types for TMR
+  -----------------------------------------------------------------------------
+
+  -- Todo: Maybe this should go in tmr_pkg.vhd instead
+  type t_eml_counter_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
 
 end canola_pkg;

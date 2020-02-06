@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-02-05
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -51,14 +51,6 @@ entity canola_frame_rx_fsm is
     RX_MSG_OUT        : out can_msg_t;
     RX_MSG_VALID      : out std_logic;
     TX_ARB_WON        : in  std_logic;  -- Tx FSM signal that we are transmitting and won arbitration
-    INTER_FRAME_SPACE : out std_logic;  -- Indicates that we are in inter frame
-                                        -- space, should not transmit
-                                        -- Todo: Rx FSM follows Tx FSM, so Rx
-                                        -- FSM could easily monitor IFS after
-                                        -- Tx and Rx.
-                                        -- Rx FSM can also be made to monitor
-                                        -- incoming error flags, and give out
-                                        -- IFS after error flags.
 
     -- Signals to/from BSP
     BSP_RX_ACTIVE             : in  std_logic;
