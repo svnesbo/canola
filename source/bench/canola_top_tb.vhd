@@ -39,7 +39,7 @@ use work.can_uvvm_bfm_pkg.all;
 -- test bench entity
 entity canola_top_tb is
   generic (
-    G_TMR_EN            : boolean := false;  -- Use canola_top_tmr instead of canola_top
+    G_TMR_TOP_MODULE_EN : boolean := false;  -- Use canola_top_tmr instead of canola_top
     G_SEE_MITIGATION_EN : boolean := false); -- Enable TMR in canola_top_tmr
 end canola_top_tb;
 
@@ -261,9 +261,9 @@ begin
 
 
   -----------------------------------------------------------------------------
-  -- Generate instances of canola_top_tmr when G_TMR_EN is set
+  -- Generate instances of canola_top_tmr when G_TMR_TOP_MODULE_EN is set
   -----------------------------------------------------------------------------
-  if_TMR_generate : if G_TMR_EN generate
+  if_TMR_generate : if G_TMR_TOP_MODULE_EN generate
     INST_canola_top_1 : entity work.canola_top_tmr
       generic map (
         G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
@@ -507,9 +507,9 @@ begin
 
 
   -----------------------------------------------------------------------------
-  -- Generate instances of canola_top when G_TMR_EN is not set
+  -- Generate instances of canola_top when G_TMR_TOP_MODULE_EN is not set
   -----------------------------------------------------------------------------
-  if_not_TMR_generate : if not G_TMR_EN generate
+  if_not_TMR_generate : if not G_TMR_TOP_MODULE_EN generate
     INST_canola_top_1 : entity work.canola_top
       generic map (
         G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
