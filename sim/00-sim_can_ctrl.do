@@ -33,7 +33,7 @@ run -all
 #do 00-wave_can_ctrl.do
 #run -all
 
-#if {[string is true -strict $simulate_opencore_can]} {
+#if {[string is true -strict $wishbone_vip_present] && [string is true -strict $opencores_can_present]} {
 #    vsim -gui -t ps -novopt work.canola_vs_opencores_can_tb
 #    do 00-wave_can_ctrl.do
 #    run -all

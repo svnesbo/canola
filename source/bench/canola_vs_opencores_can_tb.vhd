@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-02-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -32,7 +32,7 @@ library uvvm_util;
 context uvvm_util.uvvm_util_context;
 
 library bitvis_vip_wishbone;
-use bitvis_vip_wishbone.wb_bfm_pkg.all;
+use bitvis_vip_wishbone.wishbone_bfm_pkg.all;
 
 library work;
 use work.canola_pkg.all;
@@ -52,6 +52,18 @@ architecture tb of canola_vs_opencores_can_tb is
 
   constant WB_DATA_WIDTH : natural := 8;
   constant WB_ADDR_WIDTH : natural := 8;
+
+  constant C_WB_CFG : t_wishbone_bfm_config := (
+    max_wait_cycles          => 20,
+    max_wait_cycles_severity => failure,
+    clock_period             => C_CLK_PERIOD,
+    clock_period_margin      => 0 ns,
+    clock_margin_severity    => TB_ERROR,
+    setup_time               => 5 ns,
+    hold_time                => 5 ns,
+    id_for_bfm               => ID_BFM,
+    id_for_bfm_wait          => ID_BFM_WAIT,
+    id_for_bfm_poll          => ID_BFM_POLL);
 
   constant C_CAN_BAUD_PERIOD  : time    := 1000 ns;  -- 1 MHz
   constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
@@ -130,8 +142,8 @@ architecture tb of canola_vs_opencores_can_tb is
   ------------------------------------------------------------------------------
   -- Signals for OpenCores CAN controller
   ------------------------------------------------------------------------------
-  signal wbm_opcores_can_if : t_wbm_if (dat_o(WB_DATA_WIDTH-1 downto 0), addr_o(WB_ADDR_WIDTH-1 downto 0),
-                                 dat_i(WB_DATA_WIDTH-1 downto 0)) := init_wbm_if_signals(8, 8);
+  signal wbm_opcores_can_if : t_wishbone_if (dat_o(WB_DATA_WIDTH-1 downto 0), adr_o(WB_ADDR_WIDTH-1 downto 0),
+                                             dat_i(WB_DATA_WIDTH-1 downto 0)) := init_wishbone_if_signals(8, 8);
 
   signal s_opcores_can_out        : std_logic;
   signal s_opcores_can_rx         : std_logic := '0';
@@ -254,12 +266,12 @@ begin
       clkout_o   => open,
       wb_clk_i   => s_clk,
       wb_rst_i   => s_opcores_can_reset,
-      wb_dat_i   => wbm_opcores_can_if.dat_o,
+    wb_dat_i   => wbm_opcores_can_if.dat_o,
       wb_dat_o   => wbm_opcores_can_if.dat_i,
       wb_cyc_i   => wbm_opcores_can_if.cyc_o,
       wb_stb_i   => wbm_opcores_can_if.stb_o,
       wb_we_i    => wbm_opcores_can_if.we_o,
-      wb_adr_i   => wbm_opcores_can_if.addr_o,
+      wb_adr_i   => wbm_opcores_can_if.adr_o,
       wb_ack_o   => wbm_opcores_can_if.ack_i
       );
 
@@ -391,59 +403,53 @@ begin
 
     end procedure generate_random_can_message;
 
-    procedure init_wishbone_signals is
-    begin
-      wbm_opcores_can_if.dat_o  <= (others => '0');
-      wbm_opcores_can_if.addr_o <= (others => '0');
-      wbm_opcores_can_if.we_o   <= '0';
-      wbm_opcores_can_if.cyc_o  <= '0';
-      wbm_opcores_can_if.stb_o  <= '0';
-
-      log(ID_SEQUENCER_SUB, "Wishbone signals initialized", C_SCOPE);
-    end;
-
     ---------------------------------------------------------------------------
     -- Procedures for wb_bfm
     ---------------------------------------------------------------------------
     procedure wb_check (
-      constant addr_value       : in  natural;
-      constant data_exp         : in  std_logic_vector;
-      constant alert_level      : in  t_alert_level             := error;
-      constant msg              : in  string;
-      signal   wb_if            : inout t_wbm_if;
-      constant scope            : in  string                    := C_SCOPE;
-      constant msg_id_panel     : in  t_msg_id_panel            := shared_msg_id_panel;
-      constant config           : in  t_wb_bfm_config           := C_WB_BFM_CONFIG_DEFAULT
-    ) is
+      constant addr_value   : in    natural;
+      constant data_exp     : in    std_logic_vector;
+      constant alert_level  : in    t_alert_level         := error;
+      constant msg          : in    string;
+      signal wb_if          : inout t_wishbone_if;
+      constant scope        : in    string                := C_SCOPE;
+      constant msg_id_panel : in    t_msg_id_panel        := shared_msg_id_panel;
+      constant config       : in    t_wishbone_bfm_config := C_WB_CFG
+      ) is
     begin
-      wb_check(std_logic_vector(to_unsigned(addr_value, WB_ADDR_WIDTH)), data_exp, error, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      wishbone_check(to_unsigned(addr_value, WB_ADDR_WIDTH), data_exp, msg, s_clk, wb_if, alert_level, scope, msg_id_panel, config);
+      -- Wait a clock cycle before next transaction
+      wait until rising_edge(s_clk);
     end procedure wb_check;
 
     procedure wb_write (
-      constant addr_value       : in  natural;
-      constant data_value       : in  std_logic_vector;
-      constant msg              : in  string;
-      signal   wb_if            : inout t_wbm_if;
-      constant scope            : in  string                    := C_SCOPE;
-      constant msg_id_panel     : in  t_msg_id_panel            := shared_msg_id_panel;
-      constant config           : in  t_wb_bfm_config           := C_WB_BFM_CONFIG_DEFAULT
-    ) is
+      constant addr_value   : in    natural;
+      constant data_value   : in    std_logic_vector;
+      constant msg          : in    string;
+      signal wb_if          : inout t_wishbone_if;
+      constant scope        : in    string                := C_SCOPE;
+      constant msg_id_panel : in    t_msg_id_panel        := shared_msg_id_panel;
+      constant config       : in    t_wishbone_bfm_config := C_WB_CFG
+      ) is
     begin
-      wb_write(std_logic_vector(to_unsigned(addr_value, WB_ADDR_WIDTH)), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      wishbone_write(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      -- Wait a clock cycle before next transaction
+      wait until rising_edge(s_clk);
     end procedure wb_write;
 
     procedure wb_read (
-      constant addr_value       : in  natural;
-      variable data_value       : out std_logic_vector;
-      constant msg              : in  string;
-      signal   wb_if            : inout t_wbm_if;
-      constant scope            : in  string                    := C_SCOPE;
-      constant msg_id_panel     : in  t_msg_id_panel            := shared_msg_id_panel;
-      constant config           : in  t_wb_bfm_config           := C_WB_BFM_CONFIG_DEFAULT;
-      constant proc_name        : in  string                    := "wb_read"  -- overwrite if called from other procedure like wb_check
-    ) is
+      constant addr_value   : in    natural;
+      variable data_value   : out   std_logic_vector;
+      constant msg          : in    string;
+      signal wb_if          : inout t_wishbone_if;
+      constant scope        : in    string                := C_SCOPE;
+      constant msg_id_panel : in    t_msg_id_panel        := shared_msg_id_panel;
+      constant config       : in    t_wishbone_bfm_config := C_WB_CFG
+      ) is
     begin
-      wb_read(std_logic_vector(to_unsigned(addr_value, WB_ADDR_WIDTH)), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      wishbone_read(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      -- Wait a clock cycle before next transaction
+      wait until rising_edge(s_clk);
     end procedure wb_read;
 
     procedure can_ctrl_enable_basic_mode_operation (

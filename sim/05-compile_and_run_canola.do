@@ -4,13 +4,13 @@ echo "\n\nCompile Canola sources..."
 do 02-compile_canola_src.do
 
 if {[file exists ../extern/can_controller] &&
-    [string is true -strict $simulate_opencore_can]} {
+    [string is true -strict $wishbone_vip_present]} {
     echo "\n\nCompile OpenCores CAN sources..."
-    quietly set simulate_opencore_can "true"
+    quietly set opencores_can_present "true"
     do 03-compile_opencores_can_ctrl_src.do
 } else {
     echo "\n\nOpenCores CAN sources missing..."
-    quietly set simulate_opencore_can "false"
+    quietly set opencores_can_present "false"
 }
 
 echo "\n\nCompile Canola testbench..."
