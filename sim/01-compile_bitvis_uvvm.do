@@ -2,9 +2,10 @@
 # Loads bitvis components listed in bitvis_component_list.txt
 
 # Update relativ path to bitvis library
-quietly set bitvis_path ../../bitvis
+quietly set bitvis_path ../extern/UVVM
 quietly set current_path [pwd]/../sim
-do $bitvis_path/script/compile_all.do $bitvis_path/script/ $current_path $current_path/bitvis_component_list.txt
+quietly set run_path [pwd]/
+do $bitvis_path/script/compile_all.do $bitvis_path/script/ $run_path $current_path/bitvis_component_list.txt
 
 if {[file exists $bitvis_path/bitvis_vip_wishbone]} {
     echo "\n\nCompiling Bitvis VIP for Wishbone... (used by testbench w/ OpenCores controller.)"

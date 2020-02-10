@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-02-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -154,6 +154,7 @@ architecture tb of canola_axi_slave_tb is
     clock_margin_severity      => NO_ALERT,
     setup_time                 => 1.5 ns,
     hold_time                  => 1.5 ns,
+    bfm_sync                   => SYNC_ON_CLOCK_ONLY,
     expected_response          => OKAY,
     expected_response_severity => TB_FAILURE,
     protection_setting         => UNPRIVILIGED_UNSECURE_DATA,

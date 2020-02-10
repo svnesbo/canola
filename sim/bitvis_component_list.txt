@@ -1,4 +1,4 @@
 uvvm_util
-bitvis_vip_scoreboard
 uvvm_vvc_framework
+bitvis_vip_scoreboard
 bitvis_vip_axilite

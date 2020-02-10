@@ -5,7 +5,7 @@
 quietly set lib_name "work"
 quietly set part_name "can_controller"
 # path from mpf-file in sim
-quietly set util_part_path "../contrib//$part_name"
+quietly set util_part_path "../extern/$part_name"
 
 # (Re-)Generate library and Compile source files
 #--------------------------------------------------
