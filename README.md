@@ -38,7 +38,64 @@ https://github.com/UVVM/UVVM_Community_VIPs/tree/3a8ec8a82a50bcef1fcd291a885cfd4
 Unfortunately the compile scripts in the UVVM framework expects the VIPs to be located in the UVVM directory, so I was not able to add the Community VIPs as a submodule in a reasonable manner. Instead, copy the bitvis_vip_wishbone_BETA directory from the Community VIP to the extern/UVVM directory, and rename it bitvis_vip_wishbone.
 
 
-## Using the controller in Zynq/AXI design in Vivado
+## Configuration of CAN controller
+
+A summary of the configurable quantities in the Canola CAN controller follows. Exactly how to configure them depends on which top-level entity for Canola is used, which is either the AXI-slave (`source/rtl/axi_slave/canola_axi_slave.vhd`), or one of the top-level entities with a direct interface (`source/rtl/canola_top.vhd` or `source/rtl/canola_top_tmr.vhd`).
+
+### Bit timing and timing segments
+
+Wikipedia has a pretty good page on CAN bus, which explains bit timing in CAN rather well:
+https://en.wikipedia.org/wiki/CAN_bus#Bit_timing
+
+#### Time quanta configuration
+
+A simple clock divider ('source/rtl/canola_time_quanta_gen.vhd') generates a pulse for each time quanta to the Bit Timing Logic (BTL). The TIME_QUANTA_CLOCK_SCALE input to the BTL ('source/rtl/canola_btl.vhd') configures the count value for the time quanta generator. One time quanta is Tclk x (1 + TIME_QUANTA_CLOCK_SCALE) long.
+
+The time quanta scale is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` register in the AXI-slave for the controller. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
+
+#### Time segments configuration
+
+The timing segments in Canola are implemented as a simple shift register. The configured values for the timing segments, PROP_SEG, PHASE_SEG1, and PHASE_SEG2, should be set up with a sequence of '1' bits corresponding to the length of the segment, starting at the LSB. The segment ends when a '0' is encountered.
+
+For example, to configure the propagation segment for 2 time quantas, the first phase segment for 3 time quantas, and the second phase segment for 4 time quantas:
+
+PROP_SEG = 00000011
+PHASE_SEG1 = 00000111
+PHASE_SEG2 = 00001111
+
+Since the segment ends when the first '0' is encountered, technically this is how the values above are processed:
+
+PROP_SEG = XXXXX011
+PHASE_SEG1 = XXXX0111
+PHASE_SEG2 = XXX01111
+
+The time of one baud, in terms of time quantas, is equal to the sum of the length of the time segments, plus one. I.e.:
+
+1 + PROP_SEG + PHASE_SEG1 + PHASE_SEG2
+
+The additional time quanta is due to the sync segment, which is always one time quanta long (See Length of Time Segments, CAN specification 2.0B page 66).
+
+The time segments are configured by the `BTL_PROP_SEG`, `BTL_PHASE_SEG1`, and `BTL_PHASE_SEG2` registers in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
+
+**Note: The Canola controller does not enforce or verify correctness of the timing values, this is the responsibility of the user. Refer to Length of Time Segments, CAN specification 2.0B page 66, when configuring time segments.**
+
+
+#### (Re)Syncronization Jump Width (SJW) configuration
+
+Rising/falling edges are expected to occur during the synchronization segment in a CAN controller. Resynchronization is performed on falling edges that fall outside of the synchronization segment. This is performed by either lengthening the PHASE_SEG1 segment, or shortening the PHASE_SEG2 segment. The SJW specifies the maximum amount that the phase segments may be lengthened or shortened by, in terms of time quantas.
+
+The SJW is configured by the `BTL_SYNC_JUMP_WIDTH` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_SYNC_JUMP_WIDTH` input.
+
+
+#### Triple sampling of received bits
+
+The Rx sample point in a CAN controller is at the start of the second phase segment (and for reference, the Tx sample point is at the beginning of the sync segment).
+When triple sampling is enabled, the controller will sample the bit value at the Rx sample point, and also at the two time quantas before the Rx sample point. A majority vote of these three values will determine the bit value.
+
+Triple sampling is enabled by setting the `BTL_TRIPLE_SAMPLING_EN` bit to '1' in the `CONTROL` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is enabled by setting the `BTL_TRIPLE_SAMPLING` high.
+
+
+## Using the controller in a Zynq/AXI design in Vivado
 
 There are two top level entities for an AXI slave with the controller; canola_axi_slave and canola_axi_slave_tmr.
 
@@ -242,60 +299,3 @@ Turn SW2 on and leave the other switches off to enter the continuous test mode.
 In this test mode transmissions of random data are started from one controller at a time. The test waits for 2 milliseconds after each transmission has been started, which should be sufficient for a CAN message of any length at 1 Mbit. After waiting it verifies that it received the Tx done interrupt from the transmitting controller, and that it got Rx message interrupt from the receiving controllers. The firmware has counters for success, failure, and number of messages sent and received. The counter values are printed when the test is stopped. Counter registers in the controllers are printed for every 10000 message that is sent.
 
 Turn SW2 off again to leave the continuous test mode.
-
-
-## Configuration of CAN controller
-
-A summary of the configurable quantities in the Canola CAN controller follows. Exactly how to configure them depends on which top-level entity for Canola is used, which is either the AXI-slave (`source/rtl/axi_slave/canola_axi_slave.vhd`), or one of the top-level entities with a direct interface (`source/rtl/canola_top.vhd` or `source/rtl/canola_top_tmr.vhd`).
-
-### Bit timing and timing segments
-
-Wikipedia has a pretty good page on CAN bus, which explains bit timing in CAN rather well:
-https://en.wikipedia.org/wiki/CAN_bus#Bit_timing
-
-#### Time quanta configuration
-
-A simple clock divider ('source/rtl/canola_time_quanta_gen.vhd') generates a pulse for each time quanta to the Bit Timing Logic (BTL). The TIME_QUANTA_CLOCK_SCALE input to the BTL ('source/rtl/canola_btl.vhd') configures the count value for the time quanta generator. One time quanta is Tclk x (1 + TIME_QUANTA_CLOCK_SCALE) long.
-
-The time quanta scale is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` register in the AXI-slave for the controller. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
-
-#### Time segments configuration
-
-The timing segments in Canola are implemented as a simple shift register. The configured values for the timing segments, PROP_SEG, PHASE_SEG1, and PHASE_SEG2, should be set up with a sequence of '1' bits corresponding to the length of the segment, starting at the LSB. The segment ends when a '0' is encountered.
-
-For example, to configure the propagation segment for 2 time quantas, the first phase segment for 3 time quantas, and the second phase segment for 4 time quantas:
-
-PROP_SEG = 00000011
-PHASE_SEG1 = 00000111
-PHASE_SEG2 = 00001111
-
-Since the segment ends when the first '0' is encountered, technically this is how the values above are processed:
-
-PROP_SEG = XXXXX011
-PHASE_SEG1 = XXXX0111
-PHASE_SEG2 = XXX01111
-
-The time of one baud, in terms of time quantas, is equal to the sum of the length of the time segments, plus one. I.e.:
-
-1 + PROP_SEG + PHASE_SEG1 + PHASE_SEG2
-
-The additional time quanta is due to the sync segment, which is always one time quanta long (See Length of Time Segments, CAN specification 2.0B page 66).
-
-The time segments are configured by the `BTL_PROP_SEG`, `BTL_PHASE_SEG1`, and `BTL_PHASE_SEG2` registers in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
-
-**Note: The Canola controller does not enforce or verify correctness of the timing values, this is the responsibility of the user. Refer to Length of Time Segments, CAN specification 2.0B page 66, when configuring time segments.**
-
-
-#### (Re)Syncronization Jump Width (SJW) configuration
-
-Rising/falling edges are expected to occur during the synchronization segment in a CAN controller. Resynchronization is performed on falling edges that fall outside of the synchronization segment. This is performed by either lengthening the PHASE_SEG1 segment, or shortening the PHASE_SEG2 segment. The SJW specifies the maximum amount that the phase segments may be lengthened or shortened by, in terms of time quantas.
-
-The SJW is configured by the `BTL_SYNC_JUMP_WIDTH` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_SYNC_JUMP_WIDTH` input.
-
-
-#### Triple sampling of received bits
-
-The Rx sample point in a CAN controller is at the start of the second phase segment (and for reference, the Tx sample point is at the beginning of the sync segment).
-When triple sampling is enabled, the controller will sample the bit value at the Rx sample point, and also at the two time quantas before the Rx sample point. A majority vote of these three values will determine the bit value.
-
-Triple sampling is enabled by setting the `BTL_TRIPLE_SAMPLING_EN` bit to '1' in the `CONTROL` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is enabled by setting the `BTL_TRIPLE_SAMPLING` high.
