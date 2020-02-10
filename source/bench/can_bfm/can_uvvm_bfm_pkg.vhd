@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2019-12-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ use work.can_bfm_pkg.all;
 
 
 package can_uvvm_bfm_pkg is
-  constant C_SCOPE           : string  := "CAN HLP BFM";
+  constant C_SCOPE           : string  := "CAN UVVM BFM";
 
 -- Configuration record to be assigned in the test harness.
   type t_can_uvvm_bfm_config is record
