@@ -1,44 +1,66 @@
 # Canola
 
-A CAN bus controller for FPGA's written in VHDL
+A radiation-tolerant CAN bus controller for FPGA's written in VHDL.
 
 ![Canola CAN Controller Block Diagram](doc/canola_block_diagram.png)
 
-## Bit Timing Logic (BTL)
+## Simulating
 
-### PROP_SEG
+Simulating the CAN controller requires modelsim and the UVVM framework to be present:
+https://github.com/UVVM/UVVM
 
-The length of the propagation segment is equal to PROP_SEG+1
+The UVVM framework has already been added to the repo as a submodule. To fetch it, simply run:
 
-TODO: Require an input sequence like 00011111
+``
+git submodule init
+``
 
-### PHASE_SEG1
-
-The length of the phase segment 1 is equal to PHASE_SEG1+1
-
-TODO: Require an input sequence like 00011111
-
-### PHASE_SEG2
-
-The length of the phase segment 1 is equal to PHASE_SEG2+1
-PHASE_SEG2 should be not be longer than PHASE_SEG1
-
-TODO: Require an input sequence like 00011111
+Assuming that `vsim` is in your path, running `make` from the top-level directory of the repository will run the testbench.
 
 
-# Note
+### Simulating Canola CAN with CAN controller available at opencores.org
 
-The CAN controller should be as dumb as possible! It should not calculate stuff, it should be supplied with the correct register values from software in order to minimize the amount of logic, and reduce its radiation cross section.
+The test bench located in `source/bench/canola_vs_opencores_can_tb.vhd` tests communication between an instance of the Canola CAN controller and the CAN controller available at opencores.org.
+
+Running this test bench requires:
+- UVVM
+- UVVM Community VIP for Wishbone
+- Opencores CAN controller
+
+For UVVM, see previous section.
+
+The UVVM Community VIPs are available here:
+https://github.com/UVVM/UVVM_Community_VIPs/
+
+This is the exact commit of the Community VIPs that was used for testing:
+https://github.com/UVVM/UVVM_Community_VIPs/tree/3a8ec8a82a50bcef1fcd291a885cfd48bff3cc60
+
+Unfortunately the compile scripts in the UVVM framework expects the VIPs to be located in the UVVM directory, so I was not able to add the Community VIPs as a submodule in a reasonable manner. Instead, copy the bitvis_vip_wishbone_BETA directory from the Community VIP to the extern/UVVM directory, and rename it bitvis_vip_wishbone.
+
+
+## Using the controller in Zynq/AXI design in Vivado
+
+There are two top level entities for an AXI slave with the controller; canola_axi_slave and canola_axi_slave_tmr.
+
+The CAN controller is written for VHDL 2008. Vivado supports VHDL 2008, but does not allow it for top level entities for blocks used in a block design. When adding files for the CAN controller, set the VHDL standard to normal VHDL for canola_axi_slave and canola_axi_slave_tmr, and set the standard to VHDL 2008 for the remaining files in the controller.
+
+It should be possible to create instances of canola_axi_slave and canola_axi_slave_tmr in the block design by right clicking somewhere in the design, and choosing Add Module. They should appear in the list if the VHDL standard is configured correctly (if not they may appear among the incompatible modules when unchecking the checkbox for that).
+
+The controllers can also be manually added to the block design from the TCL console:
+
+create_bd_cell -type module -reference canola_axi_slave_tmr canola_axi_slave_0
+
+The AXI address of the controller has to be configured in two places: the address editor, and in the generic G_AXI_BASEADDR. G_AXI_BASEADDR can be changed by right clicking the block, and clicking Customize Block. Settings for TMR for canola_axi_slave_tmr can be changed in the same window.
 
 
 
-# Test project for Zynq ZYBO board
+## Test project for Zynq ZYBO board
 
 The repository includes a test project on the Digilent ZYBO Zynq board is available for the controller. It is a Zynq processor block design with four instances of the Canola controller, and software for testing is also included in the repository. The software configures the controllers for a bitrate of 1 Mbit.
 The project is for the [original ZYBO board](https://store.digilentinc.com/zybo-zynq-7000-arm-fpga-soc-trainer-board/), but could probably be adapted for newer versions of the board without too much difficulty.
 
 
-## Setup Vivado project
+### Setup Vivado project
 
 The canola_test.tcl script in the vivado/ directory allows the project to be created. It was made using Vivado version 2018.3, but may work for other version.
 
@@ -57,23 +79,23 @@ $ vivado -mode gui -source "vivado/canola_test.tcl"
 And finally run implementation and generate bitstream.
 
 
-## Setup Xilinx SDK firmware project
+### Setup Xilinx SDK firmware project
 
 The firmware/software project for the Zynq is written in C and resides in software/canola_zynq_test/.
 
 Before the firmware can be compiled you will have to generate the projects for the Zynq CPU and BSP (Board Support Package) for the canola_test Zynq design.
 
-### Step 1 - Export hardware from Vivado
+#### Step 1 - Export hardware from Vivado
 
 From the Vivado GUI, choose File -> Export Hardware. Choose "Export to: Local to Project". If you want to be able to program the FPGA from the Xilinx SDK, check the "Include bitstream" box (can be left unchecked if you want to program the FPGA from Vivado).
 
 
-### Step 2 - Launch Xilinx SDK
+#### Step 2 - Launch Xilinx SDK
 
 From the Vivado GUI, choose File -> Launch SDK. Leave both "Exported location" and "Workspace" to "Local to Project".
 
 
-### Step 3 - Create BSP project in Xilinx SDK
+#### Step 3 - Create BSP project in Xilinx SDK
 
 From Xilinx SDK, choose File -> New -> Board Support Package to create a new BSP project for the design.
 
@@ -86,7 +108,7 @@ Click Finish, and in then OK in the next window for the Board Support Package Se
 ![Board Support Package Settings](doc/zynq/xilinx_sdk_create_bsp.png "Board Support Package Settings")
 
 
-### Step 4 - Import Canola test project in Xilinx SDK
+#### Step 4 - Import Canola test project in Xilinx SDK
 
 Finally, choose File -> Import in Xilinx SDK, and choose General -> Existing Projects into Workspace, as shown in the image below. The path to the project is software/canola_zynq_test/.
 
@@ -97,7 +119,7 @@ Set the root directory to the project in software/canola_zynq_test/. The import 
 ![Import Project](doc/zynq/xilinx_sdk_import_project2.png "Import Project")
 
 
-### Step 5 - Build and launch project
+#### Step 5 - Build and launch project
 
 You should now be able to build the firmware. Right click the canola_zynq_test project in the Project Explorer, and select Build Project. It should compile without any problems.
 
@@ -106,9 +128,9 @@ After compiling, right click the project again and select Debug As -> "Launch on
 Obviously you can also run the project without the debugger if you don't need or want it.
 
 
-## Using the test firmware
+### Using the test firmware
 
-### UART status messages
+#### UART status messages
 
 The test firmware outputs some status messages and register values for the Canola controllers when it starts up on the JTAG UART. It should look something like below:
 
@@ -162,7 +184,7 @@ When a test mode is active, status messages are displayed periodically (see belo
 The UART for the ZYBO board typically appears as /dev/ttyUSB1 in Linux (unless you had other USB UART/serial devices connected already). The baud rate is 115200.
 
 
-### Observing CAN messages
+#### Observing CAN messages
 
 With a CAN adapter for your PC you can observe the messages transmitted by the Canola CAN controllers. It has been tested with [PEAK System's PCAN-USB](https://www.peak-system.com/PCAN-USB.199.0.html?&L=1)
 
@@ -184,7 +206,7 @@ Or if you want more information about the messages, cansniffer can be used inste
 $ cansniffer can0
 ```
 
-### Starting transmission from Canola controllers on Zynq board
+#### Starting transmission from Canola controllers on Zynq board
 
 The current version of the test firmware has 3 test modes:
 
@@ -193,7 +215,7 @@ The current version of the test firmware has 3 test modes:
 * Sequence mode
 
 
-#### Manual mode
+##### Manual mode
 
 Turn SW0 on and leave the other switches off to enter the manual test mode.
 
@@ -202,7 +224,7 @@ While in the manual test mode, messages are sent when the push buttons are press
 Turn SW0 off again to leave the manual test mode.
 
 
-#### Continuous mode
+##### Continuous mode
 
 Turn SW1 on and leave the other switches off to enter the continuous test mode.
 
@@ -213,10 +235,67 @@ Status counters are printed after every 10000 message.
 Turn SW1 off again to leave the continuous test mode.
 
 
-#### Sequential mode
+##### Sequential mode
 
 Turn SW2 on and leave the other switches off to enter the continuous test mode.
 
 In this test mode transmissions of random data are started from one controller at a time. The test waits for 2 milliseconds after each transmission has been started, which should be sufficient for a CAN message of any length at 1 Mbit. After waiting it verifies that it received the Tx done interrupt from the transmitting controller, and that it got Rx message interrupt from the receiving controllers. The firmware has counters for success, failure, and number of messages sent and received. The counter values are printed when the test is stopped. Counter registers in the controllers are printed for every 10000 message that is sent.
 
 Turn SW2 off again to leave the continuous test mode.
+
+
+## Configuration of CAN controller
+
+A summary of the configurable quantities in the Canola CAN controller follows. Exactly how to configure them depends on which top-level entity for Canola is used, which is either the AXI-slave (`source/rtl/axi_slave/canola_axi_slave.vhd`), or one of the top-level entities with a direct interface (`source/rtl/canola_top.vhd` or `source/rtl/canola_top_tmr.vhd`).
+
+### Bit timing and timing segments
+
+Wikipedia has a pretty good page on CAN bus, which explains bit timing in CAN rather well:
+https://en.wikipedia.org/wiki/CAN_bus#Bit_timing
+
+#### Time quanta configuration
+
+A simple clock divider ('source/rtl/canola_time_quanta_gen.vhd') generates a pulse for each time quanta to the Bit Timing Logic (BTL). The TIME_QUANTA_CLOCK_SCALE input to the BTL ('source/rtl/canola_btl.vhd') configures the count value for the time quanta generator. One time quanta is Tclk x (1 + TIME_QUANTA_CLOCK_SCALE) long.
+
+The time quanta scale is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` register in the AXI-slave for the controller. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
+
+#### Time segments configuration
+
+The timing segments in Canola are implemented as a simple shift register. The configured values for the timing segments, PROP_SEG, PHASE_SEG1, and PHASE_SEG2, should be set up with a sequence of '1' bits corresponding to the length of the segment, starting at the LSB. The segment ends when a '0' is encountered.
+
+For example, to configure the propagation segment for 2 time quantas, the first phase segment for 3 time quantas, and the second phase segment for 4 time quantas:
+
+PROP_SEG = 00000011
+PHASE_SEG1 = 00000111
+PHASE_SEG2 = 00001111
+
+Since the segment ends when the first '0' is encountered, technically this is how the values above are processed:
+
+PROP_SEG = XXXXX011
+PHASE_SEG1 = XXXX0111
+PHASE_SEG2 = XXX01111
+
+The time of one baud, in terms of time quantas, is equal to the sum of the length of the time segments, plus one. I.e.:
+
+1 + PROP_SEG + PHASE_SEG1 + PHASE_SEG2
+
+The additional time quanta is due to the sync segment, which is always one time quanta long (See Length of Time Segments, CAN specification 2.0B page 66).
+
+The time segments are configured by the `BTL_PROP_SEG`, `BTL_PHASE_SEG1`, and `BTL_PHASE_SEG2` registers in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_TIME_QUANTA_CLOCK_SCALE` input.
+
+**Note: The Canola controller does not enforce or verify correctness of the timing values, this is the responsibility of the user. Refer to Length of Time Segments, CAN specification 2.0B page 66, when configuring time segments.**
+
+
+#### (Re)Syncronization Jump Width (SJW) configuration
+
+Rising/falling edges are expected to occur during the synchronization segment in a CAN controller. Resynchronization is performed on falling edges that fall outside of the synchronization segment. This is performed by either lengthening the PHASE_SEG1 segment, or shortening the PHASE_SEG2 segment. The SJW specifies the maximum amount that the phase segments may be lengthened or shortened by, in terms of time quantas.
+
+The SJW is configured by the `BTL_SYNC_JUMP_WIDTH` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_SYNC_JUMP_WIDTH` input.
+
+
+#### Triple sampling of received bits
+
+The Rx sample point in a CAN controller is at the start of the second phase segment (and for reference, the Tx sample point is at the beginning of the sync segment).
+When triple sampling is enabled, the controller will sample the bit value at the Rx sample point, and also at the two time quantas before the Rx sample point. A majority vote of these three values will determine the bit value.
+
+Triple sampling is enabled by setting the `BTL_TRIPLE_SAMPLING_EN` bit to '1' in the `CONTROL` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is enabled by setting the `BTL_TRIPLE_SAMPLING` high.
