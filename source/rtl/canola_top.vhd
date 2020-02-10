@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -291,7 +291,7 @@ begin  -- architecture struct
       BSP_TX_RX_MISMATCH              => s_bsp_tx_rx_mismatch,
       BSP_TX_RX_STUFF_MISMATCH        => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE                     => s_bsp_tx_done,
-      BSP_TX_CRC_CALC                 => s_bsp_tx_crc_calc,
+      BSP_TX_CRC_CALC_O               => s_bsp_tx_crc_calc,
       BSP_TX_ACTIVE                   => s_bsp_tx_active,
       BSP_RX_ACTIVE                   => s_bsp_rx_active,
       BSP_RX_IFS                      => s_bsp_rx_ifs,
@@ -301,7 +301,7 @@ begin  -- architecture struct
       BSP_RX_DATA_OVERFLOW            => s_bsp_rx_data_overflow,
       BSP_RX_BIT_DESTUFF_EN           => s_bsp_rx_bit_destuff_en,
       BSP_RX_STOP                     => s_bsp_rx_stop,
-      BSP_RX_CRC_CALC                 => s_bsp_rx_crc_calc,
+      BSP_RX_CRC_CALC_O               => s_bsp_rx_crc_calc,
       BSP_RX_SEND_ACK                 => s_bsp_rx_send_ack,
       BSP_RX_ACTIVE_ERROR_FLAG        => s_bsp_rx_active_error_flag,
       BSP_RX_PASSIVE_ERROR_FLAG       => s_bsp_rx_passive_error_flag,
@@ -321,7 +321,9 @@ begin  -- architecture struct
       RX_FSM_STATE_O                  => s_bsp_rx_fsm_state,
       RX_FSM_STATE_VOTED_I            => s_bsp_rx_fsm_state,
       TX_FSM_STATE_O                  => s_bsp_tx_fsm_state,
-      TX_FSM_STATE_VOTED_I            => s_bsp_tx_fsm_state);
+      TX_FSM_STATE_VOTED_I            => s_bsp_tx_fsm_state,
+      BSP_TX_CRC_CALC_VOTED_I         => s_bsp_tx_crc_calc,
+      BSP_RX_CRC_CALC_VOTED_I         => s_bsp_rx_crc_calc);
 
   s_btl_tx_active <= s_bsp_tx_active;
 

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-02-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -103,11 +103,16 @@ begin  -- architecture structural
   -- -----------------------------------------------------------------------
   if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
     no_tmr_block : block is
-      signal s_rx_fsm_state_no_tmr : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
-      signal s_tx_fsm_state_no_tmr : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
+      signal s_rx_fsm_state_no_tmr    : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
+      signal s_tx_fsm_state_no_tmr    : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
+      signal s_bsp_tx_crc_calc_no_tmr : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+      signal s_bsp_rx_crc_calc_no_tmr : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     begin
 
       VOTER_MISMATCH <= '0';
+
+      BSP_TX_CRC_CALC <= s_bsp_tx_crc_calc_no_tmr;
+      BSP_RX_CRC_CALC <= s_bsp_rx_crc_calc_no_tmr;
 
       -- Create instance of BSP which connects directly to the wrapper's outputs
       -- The state register output from the BSP is routed directly back to its
@@ -123,7 +128,7 @@ begin  -- architecture structural
           BSP_TX_RX_MISMATCH              => BSP_TX_RX_MISMATCH,
           BSP_TX_RX_STUFF_MISMATCH        => BSP_TX_RX_STUFF_MISMATCH,
           BSP_TX_DONE                     => BSP_TX_DONE,
-          BSP_TX_CRC_CALC                 => BSP_TX_CRC_CALC,
+          BSP_TX_CRC_CALC_O               => s_bsp_tx_crc_calc_no_tmr,
           BSP_TX_ACTIVE                   => BSP_TX_ACTIVE,
           BSP_RX_ACTIVE                   => BSP_RX_ACTIVE,
           BSP_RX_IFS                      => BSP_RX_IFS,
@@ -133,7 +138,7 @@ begin  -- architecture structural
           BSP_RX_DATA_OVERFLOW            => BSP_RX_DATA_OVERFLOW,
           BSP_RX_BIT_DESTUFF_EN           => BSP_RX_BIT_DESTUFF_EN,
           BSP_RX_STOP                     => BSP_RX_STOP,
-          BSP_RX_CRC_CALC                 => BSP_RX_CRC_CALC,
+          BSP_RX_CRC_CALC_O               => s_bsp_rx_crc_calc_no_tmr,
           BSP_RX_SEND_ACK                 => BSP_RX_SEND_ACK,
           BSP_RX_ACTIVE_ERROR_FLAG        => BSP_RX_ACTIVE_ERROR_FLAG,
           BSP_RX_PASSIVE_ERROR_FLAG       => BSP_RX_PASSIVE_ERROR_FLAG,
@@ -153,7 +158,9 @@ begin  -- architecture structural
           RX_FSM_STATE_O                  => s_rx_fsm_state_no_tmr,
           RX_FSM_STATE_VOTED_I            => s_rx_fsm_state_no_tmr,
           TX_FSM_STATE_O                  => s_tx_fsm_state_no_tmr,
-          TX_FSM_STATE_VOTED_I            => s_tx_fsm_state_no_tmr);
+          TX_FSM_STATE_VOTED_I            => s_tx_fsm_state_no_tmr,
+          BSP_TX_CRC_CALC_VOTED_I         => s_bsp_tx_crc_calc_no_tmr,
+          BSP_RX_CRC_CALC_VOTED_I         => s_bsp_rx_crc_calc_no_tmr);
     end block no_tmr_block;
   end generate if_NOMITIGATION_generate;
 
@@ -190,6 +197,9 @@ begin  -- architecture structural
       signal s_btl_tx_bit_value_tmr                : std_logic_vector(0 to C_K_TMR-1);
       signal s_btl_tx_bit_valid_tmr                : std_logic_vector(0 to C_K_TMR-1);
       signal s_btl_rx_stop_tmr                     : std_logic_vector(0 to C_K_TMR-1);
+
+      signal s_bsp_tx_crc_calc_voted  : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+      signal s_bsp_rx_crc_calc_voted  : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
 
       attribute DONT_TOUCH                                          : string;
       attribute DONT_TOUCH of s_rx_fsm_state_out                    : signal is "TRUE";
@@ -242,6 +252,9 @@ begin  -- architecture structural
 
     begin
 
+      BSP_TX_CRC_CALC <= s_bsp_tx_crc_calc_voted;
+      BSP_RX_CRC_CALC <= s_bsp_rx_crc_calc_voted;
+
       if_mismatch_gen : if G_MISMATCH_OUTPUT_EN generate
         proc_mismatch : process (CLK) is
         begin  -- process proc_mismatch
@@ -267,7 +280,7 @@ begin  -- architecture structural
           BSP_TX_RX_MISMATCH              => s_bsp_tx_rx_mismatch_tmr(i),
           BSP_TX_RX_STUFF_MISMATCH        => s_bsp_tx_rx_stuff_mismatch_tmr(i),
           BSP_TX_DONE                     => s_bsp_tx_done_tmr(i),
-          BSP_TX_CRC_CALC                 => s_bsp_tx_crc_calc_tmr(i),
+          BSP_TX_CRC_CALC_O               => s_bsp_tx_crc_calc_tmr(i),
           BSP_TX_ACTIVE                   => BSP_TX_ACTIVE,
           BSP_RX_ACTIVE                   => s_bsp_rx_active_tmr(i),
           BSP_RX_IFS                      => s_bsp_rx_ifs_tmr(i),
@@ -277,7 +290,7 @@ begin  -- architecture structural
           BSP_RX_DATA_OVERFLOW            => s_bsp_rx_data_overflow_tmr(i),
           BSP_RX_BIT_DESTUFF_EN           => BSP_RX_BIT_DESTUFF_EN,
           BSP_RX_STOP                     => BSP_RX_STOP,
-          BSP_RX_CRC_CALC                 => s_bsp_rx_crc_calc_tmr(i),
+          BSP_RX_CRC_CALC_O               => s_bsp_rx_crc_calc_tmr(i),
           BSP_RX_SEND_ACK                 => BSP_RX_SEND_ACK,
           BSP_RX_ACTIVE_ERROR_FLAG        => s_bsp_rx_active_error_flag_tmr(i),
           BSP_RX_PASSIVE_ERROR_FLAG       => s_bsp_rx_passive_error_flag_tmr(i),
@@ -297,7 +310,9 @@ begin  -- architecture structural
           RX_FSM_STATE_O                  => s_rx_fsm_state_out(i),
           RX_FSM_STATE_VOTED_I            => s_rx_fsm_state_voted(i),
           TX_FSM_STATE_O                  => s_tx_fsm_state_out(i),
-          TX_FSM_STATE_VOTED_I            => s_tx_fsm_state_voted(i));
+          TX_FSM_STATE_VOTED_I            => s_tx_fsm_state_voted(i),
+          BSP_TX_CRC_CALC_VOTED_I         => s_bsp_tx_crc_calc_voted,
+          BSP_RX_CRC_CALC_VOTED_I         => s_bsp_rx_crc_calc_voted);
       end generate for_TMR_generate;
 
       -- -----------------------------------------------------------------------
@@ -376,7 +391,7 @@ begin  -- architecture structural
           INPUT_A   => s_bsp_tx_crc_calc_tmr(0),
           INPUT_B   => s_bsp_tx_crc_calc_tmr(1),
           INPUT_C   => s_bsp_tx_crc_calc_tmr(2),
-          VOTER_OUT => BSP_TX_CRC_CALC,
+          VOTER_OUT => s_bsp_tx_crc_calc_voted,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_crc_calc));
 
       INST_bsp_rx_crc_calc_voter : entity work.majority_voter_array
@@ -388,7 +403,7 @@ begin  -- architecture structural
           INPUT_A   => s_bsp_rx_crc_calc_tmr(0),
           INPUT_B   => s_bsp_rx_crc_calc_tmr(1),
           INPUT_C   => s_bsp_rx_crc_calc_tmr(2),
-          VOTER_OUT => BSP_RX_CRC_CALC,
+          VOTER_OUT => s_bsp_rx_crc_calc_voted,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_rx_crc_calc));
 
       INST_bsp_rx_active_voter : entity work.majority_voter

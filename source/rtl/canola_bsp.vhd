@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-02-05
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ entity canola_bsp is
                                                -- for ACK detection
     BSP_TX_RX_STUFF_MISMATCH : out std_logic;  -- Mismatch Tx and Rx for stuff bit
     BSP_TX_DONE              : out std_logic;
-    BSP_TX_CRC_CALC          : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_TX_CRC_CALC_O        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_TX_ACTIVE            : in  std_logic;  -- Resets bit stuff counter and CRC
 
     -- Interface to Rx FSM
@@ -100,7 +100,7 @@ entity canola_bsp is
     BSP_RX_BIT_DESTUFF_EN  : in  std_logic;  -- Enable bit destuffing on data
                                              -- that is currently being received
     BSP_RX_STOP            : in std_logic;   -- Tell BSP to stop when we've got EOF
-    BSP_RX_CRC_CALC        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_CRC_CALC_O      : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK        : in  std_logic;  -- Pulsed input
 
     BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
@@ -131,9 +131,11 @@ entity canola_bsp is
     RX_FSM_STATE_O       : out std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
     RX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
     TX_FSM_STATE_O       : out std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
-    TX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0)
+    TX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
 
-    -- Todo: Output and vote CRC register as well?
+    -- Voted CRC input
+    BSP_TX_CRC_CALC_VOTED_I : in std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_CRC_CALC_VOTED_I : in std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0)
     );
 
 end entity canola_bsp;
@@ -599,7 +601,8 @@ begin  -- architecture rtl
       RESET     => RESET or s_rx_restart_crc_pulse,
       BIT_IN    => s_rx_bit,
       BIT_VALID => s_rx_update_crc_pulse,
-      CRC_OUT   => BSP_RX_CRC_CALC);
+      CRC_IN    => BSP_RX_CRC_CALC_VOTED_I,
+      CRC_OUT   => BSP_RX_CRC_CALC_O);
 
   INST_canola_crc_tx: entity work.canola_crc
     port map (
@@ -607,7 +610,8 @@ begin  -- architecture rtl
       RESET     => RESET or s_tx_restart_crc_pulse,
       BIT_IN    => BTL_TX_BIT_VALUE,
       BIT_VALID => BTL_TX_BIT_VALID and not s_tx_stuff_bit,
-      CRC_OUT   => BSP_TX_CRC_CALC);
+      CRC_IN    => BSP_TX_CRC_CALC_VOTED_I,
+      CRC_OUT   => BSP_TX_CRC_CALC_O);
 
 
 end architecture rtl;
