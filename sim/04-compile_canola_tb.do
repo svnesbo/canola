@@ -27,6 +27,6 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_axi_slave_
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/tmr_voters_tb.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/tmr_counters_tb.vhd
 
-if {[string is true -strict $opencores_can_present] && [string is true -strict $wishbone_vip_present]} {
+if {$1 == "opencores_tb" || ($1 == "all_tb" && $2 == "true")} {
     eval vcom  $compdirectives_vhdl   $util_part_path/source/bench/canola_vs_opencores_can_tb.vhd
 }
