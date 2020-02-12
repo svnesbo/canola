@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-02-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -59,8 +59,7 @@ entity canola_btl_tmr_wrapper is
     PROP_SEG                : in  std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
     PHASE_SEG1              : in  std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
-    SYNC_JUMP_WIDTH         : in  natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
-
+    SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
     TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
 
     -- Indicates mismatch in any of the TMR voters

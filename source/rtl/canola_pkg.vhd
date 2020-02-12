@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -65,13 +65,15 @@ package canola_pkg is
   -----------------------------------------------------------------------------
   -- Definitions specific for the Canola CAN controller implementation
   -----------------------------------------------------------------------------
-  constant C_TIME_QUANTA_WIDTH   : natural := 5;
-  constant C_PROP_SEG_WIDTH      : natural := 4;
-  constant C_PHASE_SEG1_WIDTH    : natural := 4;
-  constant C_PHASE_SEG2_WIDTH    : natural := 4;
-  constant C_SYNC_JUMP_WIDTH_MAX : natural := 2;
-  constant C_SEGMENT_WIDTH_MAX   : natural := maximum(C_PROP_SEG_WIDTH, maximum(C_PHASE_SEG1_WIDTH,
-                                                                                C_PHASE_SEG2_WIDTH));
+  constant C_TIME_QUANTA_WIDTH : natural := 5;
+  constant C_PROP_SEG_WIDTH    : natural := 4;
+  constant C_PHASE_SEG1_WIDTH  : natural := 4;
+  constant C_PHASE_SEG2_WIDTH  : natural := 4;
+  constant C_SEGMENT_WIDTH_MAX : natural := maximum(C_PROP_SEG_WIDTH, maximum(C_PHASE_SEG1_WIDTH,
+                                                                              C_PHASE_SEG2_WIDTH));
+  constant C_SYNC_JUMP_WIDTH_MAX     : natural := 4;
+  constant C_SYNC_JUMP_WIDTH_BITSIZE : natural := integer(ceil(log2(1.0+real(C_SYNC_JUMP_WIDTH_MAX))));
+
   -- Longest field that BSP will be transmitting/receiving is the payload,
   -- which is 8 bytes
   constant C_BSP_DATA_LENGTH      : natural := 8*8;

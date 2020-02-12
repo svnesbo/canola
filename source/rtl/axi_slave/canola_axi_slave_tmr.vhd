@@ -64,7 +64,6 @@ architecture behavior of canola_axi_slave_tmr is
   signal s_can_rx_msg      : can_msg_t;
   signal s_can_tx_msg      : can_msg_t;
   signal s_can_error_state : can_error_state_t;
-  signal s_btl_sync_jump_width : natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
 
   constant C_INTERNAL_REG_WIDTH : natural := 16;
 
@@ -122,13 +121,6 @@ begin
     "01" when ERROR_PASSIVE,
     "10" when BUS_OFF;
 
-  with axi_rw_regs.BTL_SYNC_JUMP_WIDTH select
-    s_btl_sync_jump_width <=
-    1 when "00",
-    1 when "01",
-    2 when "10",
-    2 when others;
-
   INST_canola_top_tmr : entity work.canola_top_tmr
     generic map (
       G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
@@ -157,7 +149,7 @@ begin
       BTL_PROP_SEG                => axi_rw_regs.BTL_PROP_SEG(C_PROP_SEG_WIDTH-1 downto 0),
       BTL_PHASE_SEG1              => axi_rw_regs.BTL_PHASE_SEG1(C_PHASE_SEG1_WIDTH-1 downto 0),
       BTL_PHASE_SEG2              => axi_rw_regs.BTL_PHASE_SEG2(C_PHASE_SEG2_WIDTH-1 downto 0),
-      BTL_SYNC_JUMP_WIDTH         => s_btl_sync_jump_width,
+      BTL_SYNC_JUMP_WIDTH         => unsigned(axi_rw_regs.BTL_SYNC_JUMP_WIDTH),
       BTL_TIME_QUANTA_CLOCK_SCALE => unsigned(axi_rw_regs.BTL_TIME_QUANTA_CLOCK_SCALE(C_TIME_QUANTA_WIDTH-1 downto 0)),
 
       -- Error state and counters

@@ -122,7 +122,9 @@ architecture tb of canola_vs_opencores_can_tb is
   signal s_can_ctrl1_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
   signal s_can_ctrl1_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
-  signal s_can_ctrl1_sync_jump_width : natural range 0 to C_SYNC_JUMP_WIDTH_MAX        := 2;
+
+  signal s_can_ctrl1_sync_jump_width : unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0)
+    := to_unsigned(2, C_SYNC_JUMP_WIDTH_BITSIZE);
 
   signal s_can_ctrl1_transmit_error_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_can_ctrl1_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);

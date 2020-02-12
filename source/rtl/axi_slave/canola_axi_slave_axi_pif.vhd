@@ -175,7 +175,7 @@ begin
       
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_SYNC_JUMP_WIDTH), 32) then
           
-            axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH <= wdata(1 downto 0);
+            axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH <= wdata(2 downto 0);
           
           end if;
       
@@ -334,7 +334,7 @@ end process p_pulse_CONTROL;
     
     if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_BTL_SYNC_JUMP_WIDTH), 32) then
     
-      reg_data_out(1 downto 0) <= axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH;
+      reg_data_out(2 downto 0) <= axi_rw_regs_i.BTL_SYNC_JUMP_WIDTH;
     
     end if;
     

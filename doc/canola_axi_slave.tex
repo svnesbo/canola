@@ -59,7 +59,7 @@ AXI-Lite slave for Canola CAN Controller
       \hline
       5 & BTL{\_}PHASE{\_}SEG2 & RW & \texttt{0x00000028} & SLV & 16 & \texttt{0x7} \\
       \hline
-      6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 2 & \texttt{0x1} \\
+      6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 3 & \texttt{0x1} \\
       \hline
       7 & BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0xF} \\
       \hline
@@ -171,8 +171,8 @@ AXI-Lite slave for Canola CAN Controller
 
 \begin{register}{H}{BTL{\_}SYNC{\_}JUMP{\_}WIDTH - RW}{0x0000002C}  \par Synchronization jump width \regnewline
   \label{BTL_SYNC_JUMP_WIDTH}
-  \regfield{unused}{30}{2}{-}
-  \regfield{}{2}{0}{{0x1}}
+  \regfield{unused}{29}{3}{-}
+  \regfield{}{3}{0}{{0x1}}
 \reglabel{Reset}\regnewline
 \end{register}
 

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2020-01-29
+-- Last update: 2020-02-12
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -131,10 +131,12 @@ architecture tb of canola_btl_tb is
   signal s_btl_recv_data_count : natural := 0;
   signal s_bus_recv_data_count : natural := 0;
 
-  signal s_prop_seg         : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
-  signal s_phase_seg1       : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
-  signal s_phase_seg2       : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
-  signal s_sync_jump_width  : natural range 0 to C_SYNC_JUMP_WIDTH_MAX := 2;
+  signal s_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
+  signal s_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
+  signal s_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
+
+  signal s_sync_jump_width : unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
+
 
   shared variable seed1     : positive := 32564482;
   shared variable seed2     : positive := 89536898;
@@ -144,10 +146,10 @@ begin
   assert (C_CAN_SAMPLE_POINT >= 0.0 and C_CAN_SAMPLE_POINT <= 1.0)
     report "Illegal value for C_CAN_SAMPLE_POINT" severity error;
 
-  s_prop_seg   <= "0111";
-  s_phase_seg1 <= "0111";
-  s_phase_seg2 <= "0111";
-  s_sync_jump_width <= 2;
+  s_prop_seg        <= "0111";
+  s_phase_seg1      <= "0111";
+  s_phase_seg2      <= "0111";
+  s_sync_jump_width <= to_unsigned(2, C_SYNC_JUMP_WIDTH_BITSIZE);
 
   -- Set up clock generators
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);

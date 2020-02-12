@@ -58,7 +58,7 @@ entity canola_btl is
     PROP_SEG                : in  std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
     PHASE_SEG1              : in  std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
-    SYNC_JUMP_WIDTH         : in  natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
+    SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
 
     TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
 
@@ -144,7 +144,7 @@ architecture rtl of canola_btl is
   -- Used for edge detection when not in sync
   signal s_clk_sampled_bit   : std_logic_vector(1 downto 0);
 
-  -- signal s_sync_jump_width : unsigned(C_SYNC_JUMP_WIDTH_MAX downto 0);
+  signal s_sync_jump_width : natural;
 
   -- Number of bauds that the bus has been "idle" (no transitions)
   signal s_bus_idle_count : integer range 0 to C_EOF_LENGTH;
@@ -181,6 +181,10 @@ begin  -- architecture rtl
     variable v_segment                 : std_logic_vector(C_SEGMENT_WIDTH_MAX-1 downto 0);
   begin  -- process proc_fsm
     if rising_edge(CLK) then
+
+      -- Sync jump width should be at least one, but not greater than C_SYNC_JUMP_WIDTH_MAX
+      s_sync_jump_width <= maximum(maximum(1, to_integer(SYNC_JUMP_WIDTH)), C_SYNC_JUMP_WIDTH_MAX);
+
       -- Synchronous reset
       if RESET = '1' then
         BTL_RX_SYNCED             <= '0';
@@ -238,6 +242,9 @@ begin  -- architecture rtl
             when ST_SYNC_SEG =>
 
               if BTL_RX_SYNCED = '1' and s_got_rx_bit_falling_edge = '0' then
+                -- Falling edge not detected during synchronization segment
+                -- We are allowed to resync if falling edge is detected later
+                -- (unless we are transmitting)
                 s_resync_allowed <= '1';
               else
                 s_resync_allowed <= '0';
@@ -255,7 +262,7 @@ begin  -- architecture rtl
               if s_got_rx_bit_falling_edge = '0' then
                 -- Limit phase error to SJW, which is the
                 -- largest jump in phase we are allowed to make
-                if v_phase_error < C_SYNC_JUMP_WIDTH_MAX then
+                if v_phase_error < s_sync_jump_width then
                   v_phase_error := v_phase_error + 1;
                 end if;
               end if;
@@ -285,12 +292,13 @@ begin  -- architecture rtl
                 -- No falling edge detected yet for this bit.
                 -- Limit phase error to SJW, which is the
                 -- largest jump in phase we are allowed to make
-                if v_phase_error < C_SYNC_JUMP_WIDTH_MAX then
+                if v_phase_error < s_sync_jump_width then
                   v_phase_error := v_phase_error + 1;
                 end if;
               elsif s_got_rx_bit_falling_edge = '1' and s_resync_allowed = '1' and s_resync_done = '0' then
-                -- Detected Rx falling edge during PROP_SEG or PHASE_SEG,
-                -- so we should extend PHASE_SEG with the phase error
+                -- Detected late Rx falling edge during PROP_SEG or PHASE_SEG,
+                -- we should extend PHASE_SEG with the phase error so that the
+                -- next edge comes earlier
                 v_segment        := shift_left_and_fill_with_one(v_segment, v_phase_error);
                 s_resync_done    <= '1';
                 s_resync_allowed <= '0';
@@ -309,7 +317,7 @@ begin  -- architecture rtl
                 -- Phase error for PHASE_SEG2 becomes shorter the longer into PHASE_SEG2
                 -- we are, so start with maximum value for v_phase_error and
                 -- decrease it each time quanta in PHASE_SEG2
-                v_phase_error        := C_SYNC_JUMP_WIDTH_MAX;
+                v_phase_error        := s_sync_jump_width;
 
                 s_resync_done        <= '0';
                 s_sync_fsm_state_out <= ST_PHASE_SEG2;

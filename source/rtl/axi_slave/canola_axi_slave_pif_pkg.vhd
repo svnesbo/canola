@@ -72,7 +72,7 @@ package canola_axi_slave_pif_pkg is
     BTL_PROP_SEG : std_logic_vector(15 downto 0);
     BTL_PHASE_SEG1 : std_logic_vector(15 downto 0);
     BTL_PHASE_SEG2 : std_logic_vector(15 downto 0);
-    BTL_SYNC_JUMP_WIDTH : std_logic_vector(1 downto 0);
+    BTL_SYNC_JUMP_WIDTH : std_logic_vector(2 downto 0);
     BTL_TIME_QUANTA_CLOCK_SCALE : std_logic_vector(7 downto 0);
     TX_MSG_ID : t_canola_axi_slave_rw_TX_MSG_ID;
     TX_PAYLOAD_LENGTH : std_logic_vector(3 downto 0);
@@ -89,7 +89,7 @@ package canola_axi_slave_pif_pkg is
     BTL_PROP_SEG => 16X"7",
     BTL_PHASE_SEG1 => 16X"7",
     BTL_PHASE_SEG2 => 16X"7",
-    BTL_SYNC_JUMP_WIDTH => 2X"1",
+    BTL_SYNC_JUMP_WIDTH => 3X"1",
     BTL_TIME_QUANTA_CLOCK_SCALE => 8X"F",
     TX_MSG_ID => (
       EXT_ID_EN => '0',

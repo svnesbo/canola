@@ -155,7 +155,7 @@
             "mode": "rw",
             "type": "slv",
             "address": "0x2c",
-            "length": 2,
+            "length": 3,
             "reset": "0x1",
             "description": "Synchronization jump width"
         },

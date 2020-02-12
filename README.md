@@ -79,12 +79,15 @@ The time segments are configured by the `BTL_PROP_SEG`, `BTL_PHASE_SEG1`, and `B
 
 **Note: The Canola controller does not enforce or verify correctness of the timing values, this is the responsibility of the user. Refer to Length of Time Segments, CAN specification 2.0B page 66, when configuring time segments.**
 
+**Warning: PHASE_SEG2 should NOT be configured shorter than PHASE_SEG1, as per the CAN specification. This is not checked by the controller, and it is the responsibility of the user to configure it correctly.**
 
 #### (Re)Syncronization Jump Width (SJW) configuration
 
 Rising/falling edges are expected to occur during the synchronization segment in a CAN controller. Resynchronization is performed on falling edges that fall outside of the synchronization segment. This is performed by either lengthening the PHASE_SEG1 segment, or shortening the PHASE_SEG2 segment. The SJW specifies the maximum amount that the phase segments may be lengthened or shortened by, in terms of time quantas.
 
 The SJW is configured by the `BTL_SYNC_JUMP_WIDTH` register in the AXI-slave. In the `canola_top` and `canola_top_tmr` entities it is configured by the `BTL_SYNC_JUMP_WIDTH` input.
+
+**Warning: As per the CAN specification, the SJW should not be longer than PHASE_SEG1. This also implies that SJW should not be longer than PHASE_SEG2. This is not checked by the controller, and it is the responsibility of the user to configure it correctly.**
 
 
 #### Triple sampling of received bits
