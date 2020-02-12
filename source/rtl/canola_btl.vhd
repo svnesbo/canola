@@ -34,6 +34,8 @@ library work;
 use work.canola_pkg.all;
 
 entity canola_btl is
+  generic (
+    G_TIME_QUANTA_SCALE_WIDTH : natural);
   port (
     CLK                     : in  std_logic;
     RESET                   : in  std_logic;
@@ -60,7 +62,7 @@ entity canola_btl is
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
 
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+    TIME_QUANTA_CLOCK_SCALE : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Sync FSM state register output/input - for triplication and voting of state
     SYNC_FSM_STATE_O       : out std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
@@ -168,6 +170,8 @@ begin  -- architecture rtl
 
   -- Generates a 1 (system) clock cycle pulse for each time quanta
   INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
     port map (
       CLK               => CLK,
       RESET             => RESET,

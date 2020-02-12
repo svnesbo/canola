@@ -36,8 +36,9 @@ use work.canola_pkg.all;
 
 entity canola_top_tmr is
   generic (
-    G_SEE_MITIGATION_EN   : boolean := true; -- Enable TMR
-    G_MISMATCH_OUTPUT_EN  : boolean := true -- Enable TMR voter mismatch output
+    G_SEE_MITIGATION_EN       : boolean := true;  -- Enable TMR
+    G_MISMATCH_OUTPUT_EN      : boolean := true;  -- Enable TMR voter mismatch output
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT
     );
   port (
     CLK   : in std_logic;
@@ -65,7 +66,7 @@ entity canola_top_tmr is
     BTL_PHASE_SEG1              : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     BTL_PHASE_SEG2              : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     BTL_SYNC_JUMP_WIDTH         : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Error state and counters
     -- Note: transmit/receive error counters do not hold absolute of the
@@ -358,8 +359,9 @@ begin  -- architecture struct
   -- and input/output of individual bits.
   INST_canola_btl_tmr : entity work.canola_btl_tmr_wrapper
     generic map (
-      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
+      G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
+      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
     port map (
       CLK                     => CLK,
       RESET                   => RESET,

@@ -34,6 +34,8 @@ library work;
 use work.canola_pkg.all;
 
 entity canola_top is
+  generic (
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT);
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -60,7 +62,7 @@ entity canola_top is
     BTL_PHASE_SEG1              : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     BTL_PHASE_SEG2              : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     BTL_SYNC_JUMP_WIDTH         : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Error state and counters
     -- Note: transmit/receive error counters do not hold absolute of the
@@ -324,6 +326,8 @@ begin  -- architecture struct
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
   INST_canola_btl : entity work.canola_btl
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
     port map (
       CLK                     => CLK,
       RESET                   => RESET,

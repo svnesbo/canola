@@ -218,6 +218,8 @@ begin
       BSP_RX_CRC_CALC_VOTED_I    => s_bsp_rx_crc_calc);
 
   INST_canola_btl : entity work.canola_btl
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_SCALE_WIDTH_DEFAULT)
     port map (
       CLK                     => s_clk,
       RESET                   => s_reset,
@@ -238,7 +240,7 @@ begin
       PHASE_SEG2              => s_phase_seg2,
       SYNC_JUMP_WIDTH         => s_sync_jump_width,
       TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                             C_TIME_QUANTA_WIDTH),
+                                             C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
       SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
       SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
 

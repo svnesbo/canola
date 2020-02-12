@@ -33,8 +33,9 @@ use work.tmr_pkg.all;
 
 entity canola_btl_tmr_wrapper is
   generic (
-    G_SEE_MITIGATION_EN   : boolean := false;
-    G_MISMATCH_OUTPUT_EN  : boolean := false);
+    G_SEE_MITIGATION_EN       : boolean := false;
+    G_MISMATCH_OUTPUT_EN      : boolean := false;
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT);
   port (
     CLK                     : in  std_logic;
     RESET                   : in  std_logic;
@@ -60,7 +61,7 @@ entity canola_btl_tmr_wrapper is
     PHASE_SEG1              : in  std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+    TIME_QUANTA_CLOCK_SCALE : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Indicates mismatch in any of the TMR voters
     VOTER_MISMATCH          : out std_logic
@@ -86,6 +87,8 @@ begin  -- architecture structural
       -- The state register output from the BTL is routed directly back to its
       -- state register input without voting.
       INST_canola_btl : entity work.canola_btl
+        generic map (
+          G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
         port map (
           CLK                     => CLK,
           RESET                   => RESET,
@@ -167,6 +170,8 @@ begin  -- architecture structural
 
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
         INST_canola_btl : entity work.canola_btl
+          generic map (
+            G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
           port map (
             CLK                     => CLK,
             RESET                   => RESET,

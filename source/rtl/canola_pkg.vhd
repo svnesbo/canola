@@ -65,7 +65,8 @@ package canola_pkg is
   -----------------------------------------------------------------------------
   -- Definitions specific for the Canola CAN controller implementation
   -----------------------------------------------------------------------------
-  constant C_TIME_QUANTA_WIDTH : natural := 5;
+  constant C_TIME_QUANTA_SCALE_WIDTH_DEFAULT : natural := 5;
+
   constant C_PROP_SEG_WIDTH    : natural := 4;
   constant C_PHASE_SEG1_WIDTH  : natural := 4;
   constant C_PHASE_SEG2_WIDTH  : natural := 4;

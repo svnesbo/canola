@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-03
--- Last update: 2020-01-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -31,17 +31,19 @@ use work.canola_pkg.all;
 -- COUNT_VAL+1 clock cycles.
 -- Note: A pulse is outputted immediately following reset.
 entity canola_time_quanta_gen is
+  generic (
+    G_TIME_QUANTA_SCALE_WIDTH : natural);
   port (
     CLK               : in  std_logic;
     RESET             : in  std_logic;
     RESTART           : in  std_logic;
-    COUNT_VAL         : in  unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+    COUNT_VAL         : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
     TIME_QUANTA_PULSE : out std_logic
     );
 end entity canola_time_quanta_gen;
 
 architecture rtl of canola_time_quanta_gen is
-  signal s_counter : unsigned(C_TIME_QUANTA_WIDTH-1 downto 0);
+  signal s_counter : unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 begin  -- architecture rtl
 
   proc_time_quanta_gen : process(CLK) is
