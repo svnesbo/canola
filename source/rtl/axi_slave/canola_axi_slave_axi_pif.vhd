@@ -136,6 +136,15 @@ begin
           if unsigned(awaddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_CONTROL), 32) then
           
             axi_pulse_regs_cycle.CONTROL.TX_START <= wdata(0);
+            axi_pulse_regs_cycle.CONTROL.RESET_TX_MSG_SENT_COUNTER <= wdata(1);
+            axi_pulse_regs_cycle.CONTROL.RESET_TX_ACK_ERROR_COUNTER <= wdata(2);
+            axi_pulse_regs_cycle.CONTROL.RESET_TX_ARB_LOST_COUNTER <= wdata(3);
+            axi_pulse_regs_cycle.CONTROL.RESET_TX_BIT_ERROR_COUNTER <= wdata(4);
+            axi_pulse_regs_cycle.CONTROL.RESET_TX_RETRANSMIT_COUNTER <= wdata(5);
+            axi_pulse_regs_cycle.CONTROL.RESET_RX_MSG_RECV_COUNTER <= wdata(6);
+            axi_pulse_regs_cycle.CONTROL.RESET_RX_CRC_ERROR_COUNTER <= wdata(7);
+            axi_pulse_regs_cycle.CONTROL.RESET_RX_FORM_ERROR_COUNTER <= wdata(8);
+            axi_pulse_regs_cycle.CONTROL.RESET_RX_STUFF_ERROR_COUNTER <= wdata(9);
           
           end if;
       
@@ -353,9 +362,9 @@ end process p_pulse_CONTROL;
     
     end if;
     
-    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ACK_RECV_COUNT), 32) then
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ACK_ERROR_COUNT), 32) then
     
-      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ACK_RECV_COUNT;
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ACK_ERROR_COUNT;
     
     end if;
     
@@ -365,9 +374,15 @@ end process p_pulse_CONTROL;
     
     end if;
     
-    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_ERROR_COUNT), 32) then
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_BIT_ERROR_COUNT), 32) then
     
-      reg_data_out(15 downto 0) <= axi_ro_regs.TX_ERROR_COUNT;
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_BIT_ERROR_COUNT;
+    
+    end if;
+    
+    if unsigned(araddr_i) = resize(unsigned(C_BASEADDR) + unsigned(C_ADDR_TX_RETRANSMIT_COUNT), 32) then
+    
+      reg_data_out(15 downto 0) <= axi_ro_regs.TX_RETRANSMIT_COUNT;
     
     end if;
     

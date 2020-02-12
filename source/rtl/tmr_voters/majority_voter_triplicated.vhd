@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-01-24
+-- Last update: 2020-01-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,33 +42,19 @@ entity majority_voter_triplicated is
     MISMATCH    : out std_logic
     );
 
-  attribute DONT_TOUCH             : string;
-  attribute DONT_TOUCH of INPUT_A  : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_B  : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_C  : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_A : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_B : signal is "TRUE";
-  attribute DONT_TOUCH of OUTPUT_C : signal is "TRUE";
+  attribute DONT_TOUCH                : string;
+  attribute DONT_TOUCH of INPUT_A     : signal is "TRUE";
+  attribute DONT_TOUCH of INPUT_B     : signal is "TRUE";
+  attribute DONT_TOUCH of INPUT_C     : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_A : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_B : signal is "TRUE";
+  attribute DONT_TOUCH of VOTER_OUT_C : signal is "TRUE";
 end entity majority_voter_triplicated;
 
 
 architecture rtl of majority_voter_triplicated is
   signal s_mismatch : std_logic_vector(2 downto 0);
 begin  -- architecture rtl
-
-  -- Majority vote of the inputs
-  proc_voter : process (INPUT_A, INPUT_B, INPUT_C) is
-  begin
-    if INPUT_A = '1' and INPUT_B = '1' then
-      VOTER_OUT <= '1';
-    elsif INPUT_A = '1' and INPUT_C = '1' then
-      VOTER_OUT <= '1';
-    elsif INPUT_B = '1' and INPUT_C = '1' then
-      VOTER_OUT <= '1';
-    else
-      VOTER_OUT <= '0';
-    end if;
-  end process proc_voter;
 
   INST_majority_voter_A : entity work.majority_voter
     generic map (

@@ -51,6 +51,60 @@ static const uint32_t CONTROL_TX_START_WIDTH = 1;
 static const uint32_t CONTROL_TX_START_RESET = 0x0;
 static const uint32_t CONTROL_TX_START_MASK = 0x1;
 
+/* Field: RESET_TX_MSG_SENT_COUNTER */
+static const uint32_t CONTROL_RESET_TX_MSG_SENT_COUNTER_OFFSET = 1;
+static const uint32_t CONTROL_RESET_TX_MSG_SENT_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_TX_MSG_SENT_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_TX_MSG_SENT_COUNTER_MASK = 0x2;
+
+/* Field: RESET_TX_ACK_ERROR_COUNTER */
+static const uint32_t CONTROL_RESET_TX_ACK_ERROR_COUNTER_OFFSET = 2;
+static const uint32_t CONTROL_RESET_TX_ACK_ERROR_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_TX_ACK_ERROR_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_TX_ACK_ERROR_COUNTER_MASK = 0x4;
+
+/* Field: RESET_TX_ARB_LOST_COUNTER */
+static const uint32_t CONTROL_RESET_TX_ARB_LOST_COUNTER_OFFSET = 3;
+static const uint32_t CONTROL_RESET_TX_ARB_LOST_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_TX_ARB_LOST_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_TX_ARB_LOST_COUNTER_MASK = 0x8;
+
+/* Field: RESET_TX_BIT_ERROR_COUNTER */
+static const uint32_t CONTROL_RESET_TX_BIT_ERROR_COUNTER_OFFSET = 4;
+static const uint32_t CONTROL_RESET_TX_BIT_ERROR_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_TX_BIT_ERROR_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_TX_BIT_ERROR_COUNTER_MASK = 0x10;
+
+/* Field: RESET_TX_RETRANSMIT_COUNTER */
+static const uint32_t CONTROL_RESET_TX_RETRANSMIT_COUNTER_OFFSET = 5;
+static const uint32_t CONTROL_RESET_TX_RETRANSMIT_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_TX_RETRANSMIT_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_TX_RETRANSMIT_COUNTER_MASK = 0x20;
+
+/* Field: RESET_RX_MSG_RECV_COUNTER */
+static const uint32_t CONTROL_RESET_RX_MSG_RECV_COUNTER_OFFSET = 6;
+static const uint32_t CONTROL_RESET_RX_MSG_RECV_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_RX_MSG_RECV_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_RX_MSG_RECV_COUNTER_MASK = 0x40;
+
+/* Field: RESET_RX_CRC_ERROR_COUNTER */
+static const uint32_t CONTROL_RESET_RX_CRC_ERROR_COUNTER_OFFSET = 7;
+static const uint32_t CONTROL_RESET_RX_CRC_ERROR_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_RX_CRC_ERROR_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_RX_CRC_ERROR_COUNTER_MASK = 0x80;
+
+/* Field: RESET_RX_FORM_ERROR_COUNTER */
+static const uint32_t CONTROL_RESET_RX_FORM_ERROR_COUNTER_OFFSET = 8;
+static const uint32_t CONTROL_RESET_RX_FORM_ERROR_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_RX_FORM_ERROR_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_RX_FORM_ERROR_COUNTER_MASK = 0x100;
+
+/* Field: RESET_RX_STUFF_ERROR_COUNTER */
+static const uint32_t CONTROL_RESET_RX_STUFF_ERROR_COUNTER_OFFSET = 9;
+static const uint32_t CONTROL_RESET_RX_STUFF_ERROR_COUNTER_WIDTH = 1;
+static const uint32_t CONTROL_RESET_RX_STUFF_ERROR_COUNTER_RESET = 0x0;
+static const uint32_t CONTROL_RESET_RX_STUFF_ERROR_COUNTER_MASK = 0x200;
+
 /* Register: CONFIG */
 static const uint32_t CONFIG_OFFSET = 0x8;
 static const uint32_t CONFIG_RESET = 0x0;
@@ -99,36 +153,40 @@ static const uint32_t RECEIVE_ERROR_COUNT_RESET = 0x0;
 static const uint32_t TX_MSG_SENT_COUNT_OFFSET = 0x3c;
 static const uint32_t TX_MSG_SENT_COUNT_RESET = 0x0;
 
-/* Register: TX_ACK_RECV_COUNT */
-static const uint32_t TX_ACK_RECV_COUNT_OFFSET = 0x40;
-static const uint32_t TX_ACK_RECV_COUNT_RESET = 0x0;
+/* Register: TX_ACK_ERROR_COUNT */
+static const uint32_t TX_ACK_ERROR_COUNT_OFFSET = 0x40;
+static const uint32_t TX_ACK_ERROR_COUNT_RESET = 0x0;
 
 /* Register: TX_ARB_LOST_COUNT */
 static const uint32_t TX_ARB_LOST_COUNT_OFFSET = 0x44;
 static const uint32_t TX_ARB_LOST_COUNT_RESET = 0x0;
 
-/* Register: TX_ERROR_COUNT */
-static const uint32_t TX_ERROR_COUNT_OFFSET = 0x48;
-static const uint32_t TX_ERROR_COUNT_RESET = 0x0;
+/* Register: TX_BIT_ERROR_COUNT */
+static const uint32_t TX_BIT_ERROR_COUNT_OFFSET = 0x48;
+static const uint32_t TX_BIT_ERROR_COUNT_RESET = 0x0;
+
+/* Register: TX_RETRANSMIT_COUNT */
+static const uint32_t TX_RETRANSMIT_COUNT_OFFSET = 0x4c;
+static const uint32_t TX_RETRANSMIT_COUNT_RESET = 0x0;
 
 /* Register: RX_MSG_RECV_COUNT */
-static const uint32_t RX_MSG_RECV_COUNT_OFFSET = 0x4c;
+static const uint32_t RX_MSG_RECV_COUNT_OFFSET = 0x50;
 static const uint32_t RX_MSG_RECV_COUNT_RESET = 0x0;
 
 /* Register: RX_CRC_ERROR_COUNT */
-static const uint32_t RX_CRC_ERROR_COUNT_OFFSET = 0x50;
+static const uint32_t RX_CRC_ERROR_COUNT_OFFSET = 0x54;
 static const uint32_t RX_CRC_ERROR_COUNT_RESET = 0x0;
 
 /* Register: RX_FORM_ERROR_COUNT */
-static const uint32_t RX_FORM_ERROR_COUNT_OFFSET = 0x54;
+static const uint32_t RX_FORM_ERROR_COUNT_OFFSET = 0x58;
 static const uint32_t RX_FORM_ERROR_COUNT_RESET = 0x0;
 
 /* Register: RX_STUFF_ERROR_COUNT */
-static const uint32_t RX_STUFF_ERROR_COUNT_OFFSET = 0x58;
+static const uint32_t RX_STUFF_ERROR_COUNT_OFFSET = 0x5c;
 static const uint32_t RX_STUFF_ERROR_COUNT_RESET = 0x0;
 
 /* Register: TX_MSG_ID */
-static const uint32_t TX_MSG_ID_OFFSET = 0x5c;
+static const uint32_t TX_MSG_ID_OFFSET = 0x60;
 static const uint32_t TX_MSG_ID_RESET = 0x0;
 
 /* Field: EXT_ID_EN */
@@ -156,11 +214,11 @@ static const uint32_t TX_MSG_ID_ARB_ID_A_RESET = 0x0;
 static const uint32_t TX_MSG_ID_ARB_ID_A_MASK = 0x7ff00000;
 
 /* Register: TX_PAYLOAD_LENGTH */
-static const uint32_t TX_PAYLOAD_LENGTH_OFFSET = 0x60;
+static const uint32_t TX_PAYLOAD_LENGTH_OFFSET = 0x64;
 static const uint32_t TX_PAYLOAD_LENGTH_RESET = 0x0;
 
 /* Register: TX_PAYLOAD_0 */
-static const uint32_t TX_PAYLOAD_0_OFFSET = 0x64;
+static const uint32_t TX_PAYLOAD_0_OFFSET = 0x68;
 static const uint32_t TX_PAYLOAD_0_RESET = 0x0;
 
 /* Field: PAYLOAD_BYTE_0 */
@@ -188,7 +246,7 @@ static const uint32_t TX_PAYLOAD_0_PAYLOAD_BYTE_3_RESET = 0x0;
 static const uint32_t TX_PAYLOAD_0_PAYLOAD_BYTE_3_MASK = 0xff000000;
 
 /* Register: TX_PAYLOAD_1 */
-static const uint32_t TX_PAYLOAD_1_OFFSET = 0x68;
+static const uint32_t TX_PAYLOAD_1_OFFSET = 0x6c;
 static const uint32_t TX_PAYLOAD_1_RESET = 0x0;
 
 /* Field: PAYLOAD_BYTE_4 */
@@ -216,7 +274,7 @@ static const uint32_t TX_PAYLOAD_1_PAYLOAD_BYTE_7_RESET = 0x0;
 static const uint32_t TX_PAYLOAD_1_PAYLOAD_BYTE_7_MASK = 0xff000000;
 
 /* Register: RX_MSG_ID */
-static const uint32_t RX_MSG_ID_OFFSET = 0x6c;
+static const uint32_t RX_MSG_ID_OFFSET = 0x70;
 static const uint32_t RX_MSG_ID_RESET = 0x0;
 
 /* Field: EXT_ID_EN */
@@ -244,11 +302,11 @@ static const uint32_t RX_MSG_ID_ARB_ID_A_RESET = 0x0;
 static const uint32_t RX_MSG_ID_ARB_ID_A_MASK = 0x7ff00000;
 
 /* Register: RX_PAYLOAD_LENGTH */
-static const uint32_t RX_PAYLOAD_LENGTH_OFFSET = 0x70;
+static const uint32_t RX_PAYLOAD_LENGTH_OFFSET = 0x74;
 static const uint32_t RX_PAYLOAD_LENGTH_RESET = 0x0;
 
 /* Register: RX_PAYLOAD_0 */
-static const uint32_t RX_PAYLOAD_0_OFFSET = 0x74;
+static const uint32_t RX_PAYLOAD_0_OFFSET = 0x78;
 static const uint32_t RX_PAYLOAD_0_RESET = 0x0;
 
 /* Field: PAYLOAD_BYTE_0 */
@@ -276,7 +334,7 @@ static const uint32_t RX_PAYLOAD_0_PAYLOAD_BYTE_3_RESET = 0x0;
 static const uint32_t RX_PAYLOAD_0_PAYLOAD_BYTE_3_MASK = 0xff000000;
 
 /* Register: RX_PAYLOAD_1 */
-static const uint32_t RX_PAYLOAD_1_OFFSET = 0x78;
+static const uint32_t RX_PAYLOAD_1_OFFSET = 0x7c;
 static const uint32_t RX_PAYLOAD_1_RESET = 0x0;
 
 /* Field: PAYLOAD_BYTE_4 */

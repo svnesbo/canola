@@ -1,0 +1,3 @@
+[submodule "extern/UVVM"]
+	path = extern/UVVM
+	url = https://github.com/UVVM/UVVM.git

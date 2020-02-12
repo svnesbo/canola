@@ -68,9 +68,9 @@ begin  -- architecture rtl
     -- Mismatch output - unregistered
     proc_unreg_mismatch: process (INPUT_A, INPUT_B, INPUT_C) is
     begin
-      if INPUT_A and INPUT_B and INPUT_C then
+      if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
         MISMATCH <= '0';
-      elsif INPUT_A or INPUT_B or INPUT_C then
+      elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
         MISMATCH <= '0';
       else
         MISMATCH <= '1';
@@ -84,9 +84,9 @@ begin  -- architecture rtl
     proc_reg_mismatch: process (CLK) is
     begin
       if rising_edge(clk) then
-        if INPUT_A and INPUT_B and INPUT_C then
+        if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
           MISMATCH <= '0';
-        elsif INPUT_A or INPUT_B or INPUT_C then
+        elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
           MISMATCH <= '0';
         else
           MISMATCH <= '1';

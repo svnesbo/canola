@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -26,29 +26,29 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity upcounter_core is
+entity upcounter is
   generic(
     BIT_WIDTH     : integer := 16;
     IS_SATURATING : boolean := false;
     VERBOSE       : boolean := false);
   port(
     CLK            : in  std_logic;     -- Clock
-    CLEAR          : in  std_logic;     -- global fpga reset
+    RESET          : in  std_logic;     -- global fpga reset
+    CLEAR          : in  std_logic;     -- clear counter
     COUNT_UP       : in  std_logic;     -- count up
     COUNT_OUT      : out std_logic_vector(BIT_WIDTH - 1 downto 0);
 
     -- Voted counter value input, the count is always increased from this input.
     -- Connect to COUNT_OUT externally when not using TMR.
     COUNT_VOTED_IN : in  std_logic_vector(BIT_WIDTH - 1 downto 0));
-end entity upcounter_core;
+end entity upcounter;
 
-architecture arch of upcounter_core is
+architecture arch of upcounter is
 
   subtype t_counter is unsigned(BIT_WIDTH - 1 downto 0);
   signal i_counter, i_counter_voted : t_counter;
-  constant C_COUNTER_ZERO     : t_counter := (others => '0');
-  constant C_COUNTER_MAX      : t_counter := (others => '1');
-  signal RESET_COUNT_reg      : std_logic;
+  constant C_COUNTER_ZERO           : t_counter := (others => '0');
+  constant C_COUNTER_MAX            : t_counter := (others => '1');
 
   -- purpose: updates the counter
   --          if is saturating is true the counter saturates,
@@ -71,7 +71,7 @@ architecture arch of upcounter_core is
       else
         i_next_value := C_COUNTER_ZERO;
         -- synthesis translate_off
-        if verbose = 1 then
+        if verbose then
           report "Counter overflow" severity NOTE;
         end if;
         -- synthesis translate_on
@@ -92,7 +92,7 @@ begin  -- architecture arch
   p_counter_update : process(CLK) is
   begin  -- process p_counter_update
     if rising_edge(CLK) then
-      if CLEAR = '1' then
+      if RESET = '1' or CLEAR = '1' then
         i_counter <= C_COUNTER_ZERO;
       elsif COUNT_UP = '1' then
         i_counter <= f_update_counter(IS_SATURATING, VERBOSE, i_counter_voted);

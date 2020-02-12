@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-01-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -44,6 +44,9 @@ use work.can_uvvm_bfm_pkg.all;
 
 -- test bench entity
 entity canola_axi_slave_tb is
+  generic (
+    G_TMR_TOP_MODULE_EN : boolean := false;  -- Use canola_axi_slave_tmr instead of canola_axi_slave
+    G_SEE_MITIGATION_EN : boolean := false); -- Enable TMR in canola_axi_slave_tmr
 end canola_axi_slave_tb;
 
 architecture tb of canola_axi_slave_tb is
@@ -151,6 +154,7 @@ architecture tb of canola_axi_slave_tb is
     clock_margin_severity      => NO_ALERT,
     setup_time                 => 1.5 ns,
     hold_time                  => 1.5 ns,
+    bfm_sync                   => SYNC_ON_CLOCK_ONLY,
     expected_response          => OKAY,
     expected_response_severity => TB_FAILURE,
     protection_setting         => UNPRIVILIGED_UNSECURE_DATA,
@@ -203,32 +207,75 @@ begin
   s_axi_bfm_if.write_data_channel.wstrb     <= (others => '0');
 
 
-  INST_canola_axi_slave : entity work.canola_axi_slave
-    port map (
-      CAN_RX            => s_can_ctrl_rx,
-      CAN_TX            => s_can_ctrl_tx,
-      CAN_RX_VALID_IRQ  => s_can_rx_valid_irq,
-      CAN_TX_DONE_IRQ   => s_can_tx_done_irq,
-      CAN_TX_FAILED_IRQ => s_can_tx_failed_irq,
-      axi_clk           => s_can_axi_clk,
-      axi_reset         => s_reset,
-      axi_aresetn       => s_can_axi_areset_n,
-      axi_awaddr        => s_can_axi_awaddr,
-      axi_awvalid       => s_can_axi_awvalid,
-      axi_awready       => s_can_axi_awready,
-      axi_wdata         => s_can_axi_wdata,
-      axi_wvalid        => s_can_axi_wvalid,
-      axi_wready        => s_can_axi_wready,
-      axi_bresp         => s_can_axi_bresp,
-      axi_bvalid        => s_can_axi_bvalid,
-      axi_bready        => s_can_axi_bready,
-      axi_araddr        => s_can_axi_araddr,
-      axi_arvalid       => s_can_axi_arvalid,
-      axi_arready       => s_can_axi_arready,
-      axi_rdata         => s_can_axi_rdata,
-      axi_rresp         => s_can_axi_rresp,
-      axi_rvalid        => s_can_axi_rvalid,
-      axi_rready        => s_can_axi_rready);
+  -----------------------------------------------------------------------------
+  -- Generate instances of canola_axi_slave when G_TMR_TOP_MODULE_EN is not set
+  -----------------------------------------------------------------------------
+  if_not_TMR_generate : if not G_TMR_TOP_MODULE_EN generate
+    INST_canola_axi_slave : entity work.canola_axi_slave
+      port map (
+        CAN_RX            => s_can_ctrl_rx,
+        CAN_TX            => s_can_ctrl_tx,
+        CAN_RX_VALID_IRQ  => s_can_rx_valid_irq,
+        CAN_TX_DONE_IRQ   => s_can_tx_done_irq,
+        CAN_TX_FAILED_IRQ => s_can_tx_failed_irq,
+        axi_clk           => s_can_axi_clk,
+        axi_reset         => s_reset,
+        axi_aresetn       => s_can_axi_areset_n,
+        axi_awaddr        => s_can_axi_awaddr,
+        axi_awvalid       => s_can_axi_awvalid,
+        axi_awready       => s_can_axi_awready,
+        axi_wdata         => s_can_axi_wdata,
+        axi_wvalid        => s_can_axi_wvalid,
+        axi_wready        => s_can_axi_wready,
+        axi_bresp         => s_can_axi_bresp,
+        axi_bvalid        => s_can_axi_bvalid,
+        axi_bready        => s_can_axi_bready,
+        axi_araddr        => s_can_axi_araddr,
+        axi_arvalid       => s_can_axi_arvalid,
+        axi_arready       => s_can_axi_arready,
+        axi_rdata         => s_can_axi_rdata,
+        axi_rresp         => s_can_axi_rresp,
+        axi_rvalid        => s_can_axi_rvalid,
+        axi_rready        => s_can_axi_rready);
+  end generate if_not_TMR_generate;
+
+  -----------------------------------------------------------------------------
+  -- Generate instances of canola_axi_slave_tmr when G_TMR_TOP_MODULE_EN is set
+  -----------------------------------------------------------------------------
+  if_TMR_generate : if G_TMR_TOP_MODULE_EN generate
+    INST_canola_axi_slave_tmr : entity work.canola_axi_slave_tmr
+      generic map (
+        G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
+        G_MISMATCH_OUTPUT_EN => false
+        )
+      port map (
+        CAN_RX                  => s_can_ctrl_rx,
+        CAN_TX                  => s_can_ctrl_tx,
+        CAN_RX_VALID_IRQ        => s_can_rx_valid_irq,
+        CAN_TX_DONE_IRQ         => s_can_tx_done_irq,
+        CAN_TX_FAILED_IRQ       => s_can_tx_failed_irq,
+        VOTER_MISMATCH_LOGIC    => open,
+        VOTER_MISMATCH_COUNTERS => open,
+        axi_clk                 => s_can_axi_clk,
+        axi_reset               => s_reset,
+        axi_aresetn             => s_can_axi_areset_n,
+        axi_awaddr              => s_can_axi_awaddr,
+        axi_awvalid             => s_can_axi_awvalid,
+        axi_awready             => s_can_axi_awready,
+        axi_wdata               => s_can_axi_wdata,
+        axi_wvalid              => s_can_axi_wvalid,
+        axi_wready              => s_can_axi_wready,
+        axi_bresp               => s_can_axi_bresp,
+        axi_bvalid              => s_can_axi_bvalid,
+        axi_bready              => s_can_axi_bready,
+        axi_araddr              => s_can_axi_araddr,
+        axi_arvalid             => s_can_axi_arvalid,
+        axi_arready             => s_can_axi_arready,
+        axi_rdata               => s_can_axi_rdata,
+        axi_rresp               => s_can_axi_rresp,
+        axi_rvalid              => s_can_axi_rvalid,
+        axi_rready              => s_can_axi_rready);
+  end generate if_TMR_generate;
 
 
   -- Monitor CAN controller interrupts and set persistent flags
@@ -612,17 +659,21 @@ begin
                   resize_data(c_canola_axi_slave_ro_regs.TX_MSG_SENT_COUNT),
                   "Check TX_MSG_SENT_COUNT register");
 
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT,
-                  resize_data(c_canola_axi_slave_ro_regs.TX_ACK_RECV_COUNT),
-                  "Check TX_ACK_RECV_COUNT register");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_ACK_ERROR_COUNT),
+                  "Check TX_ACK_ERROR_COUNT register");
 
     axilite_check(C_ADDR_TX_ARB_LOST_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.TX_ARB_LOST_COUNT),
                   "Check TX_ARB_LOST_COUNT register");
 
-    axilite_check(C_ADDR_TX_ERROR_COUNT,
-                  resize_data(c_canola_axi_slave_ro_regs.TX_ERROR_COUNT),
-                  "Check TX_ERROR_COUNT register");
+    axilite_check(C_ADDR_TX_BIT_ERROR_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_BIT_ERROR_COUNT),
+                  "Check TX_BIT_ERROR_COUNT register");
+
+    axilite_check(C_ADDR_TX_RETRANSMIT_COUNT,
+                  resize_data(c_canola_axi_slave_ro_regs.TX_RETRANSMIT_COUNT),
+                  "Check TX_RETRANSMIT_COUNT register");
 
     axilite_check(C_ADDR_RX_MSG_RECV_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.RX_MSG_RECV_COUNT),
@@ -746,7 +797,7 @@ begin
     end loop;
 
     axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS, "Check number of messages sent");
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS, "Check number of ACKs received");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT, 0, "Check ACK error count is zero");
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #4: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
@@ -854,7 +905,7 @@ begin
     end loop;
 
     axilite_check(C_ADDR_TX_MSG_SENT_COUNT, C_NUM_ITERATIONS*2, "Check number of messages sent");
-    axilite_check(C_ADDR_TX_ACK_RECV_COUNT, C_NUM_ITERATIONS*2, "Check number of ACKs received");
+    axilite_check(C_ADDR_TX_ACK_ERROR_COUNT, 0, "Check ACK error count is zero");
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete

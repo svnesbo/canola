@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
--- Title      : Top level entity for Canola CAN controller
+-- Title      : Top level entity for Canola CAN controller for TMR
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : canola_top.vhd
+-- File       : canola_top_tmr.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
--- Created    : 2019-07-10
--- Last update: 2020-02-10
+-- Created    : 2020-02-05
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -15,28 +15,31 @@
 --              of the module.
 --              To interact with the module via a bus interface, use one of the
 --              other top level entities for the desired bus interface.
+--              This version of the top level file uses the TMR wrappers
+--              for the submodules in the project, and allows TMR to be enabled
 -------------------------------------------------------------------------------
 -- Copyright (c) 2019
 -------------------------------------------------------------------------------
 -- Revisions  :
 -- Date        Version  Author  Description
--- 2019-07-10  1.0      svn     Created
--- 2019-09-19  1.1      svn     Add outputs for counter register, error
---                              counters and error state
+-- 2019-02-05  1.0      svn     Created
 -------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
 library work;
 use work.canola_pkg.all;
 
-entity canola_top is
+entity canola_top_tmr is
   generic (
     G_BUS_REG_WIDTH       : natural;
     G_ENABLE_EXT_ID       : boolean; -- Note: not implemented
-    G_SATURATING_COUNTERS : boolean  -- True: saturate, False: Wrap-around
+    G_SATURATING_COUNTERS : boolean; -- True: saturate, False: Wrap-around
+    G_SEE_MITIGATION_EN   : boolean := true; -- Enable TMR
+    G_MISMATCH_OUTPUT_EN  : boolean := true -- Enable TMR voter mismatch output
     );
   port (
     CLK   : in std_logic;
@@ -93,12 +96,15 @@ entity canola_top is
     CLEAR_RX_MSG_RECV_COUNT    : in std_logic;
     CLEAR_RX_CRC_ERROR_COUNT   : in std_logic;
     CLEAR_RX_FORM_ERROR_COUNT  : in std_logic;
-    CLEAR_RX_STUFF_ERROR_COUNT : in std_logic
+    CLEAR_RX_STUFF_ERROR_COUNT : in std_logic;
+
+    VOTER_MISMATCH_LOGIC     : out std_logic; -- Mismatch in main logic
+    VOTER_MISMATCH_COUNTERS  : out std_logic  -- Mismatch in status counters
     );
 
-end entity canola_top;
+end entity canola_top_tmr;
 
-architecture struct of canola_top is
+architecture struct of canola_top_tmr is
 
   -- Signals for Tx Frame FSM
   signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
@@ -138,6 +144,7 @@ architecture struct of canola_top is
   signal s_bsp_rx_passive_error_flag       : std_logic;
   signal s_bsp_error_flag_done             : std_logic;
   signal s_bsp_active_error_flag_bit_error : std_logic;
+  signal s_bsp_error_state                 : can_error_state_t;
 
   -- BTL signals
   signal s_btl_tx_bit_value    : std_logic;
@@ -169,14 +176,14 @@ architecture struct of canola_top is
   -- EML counter signals
   -- These counters are actively used by the EML
   -- to determine error state for the controller
-  signal s_eml_tec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_tec_count_value                  : t_eml_counter_tmr;
   signal s_eml_tec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
   signal s_eml_tec_count_up                     : std_logic;
   signal s_eml_tec_count_down                   : std_logic;
   signal s_eml_tec_clear                        : std_logic;
   signal s_eml_tec_set                          : std_logic;
   signal s_eml_tec_set_value                    : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
-  signal s_eml_rec_count_value                  : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
+  signal s_eml_rec_count_value                  : t_eml_counter_tmr;
   signal s_eml_rec_count_incr                   : std_logic_vector(C_ERROR_COUNT_INCR_LENGTH-1 downto 0);
   signal s_eml_rec_count_up                     : std_logic;
   signal s_eml_rec_count_down                   : std_logic;
@@ -187,26 +194,66 @@ architecture struct of canola_top is
   signal s_eml_recessive_bit_count_up           : std_logic;
   signal s_eml_recessive_bit_count_clear        : std_logic;
 
-  -- State registers
-  signal s_btl_sync_fsm_state : std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
-  signal s_bsp_rx_fsm_state   : std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
-  signal s_bsp_tx_fsm_state   : std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
-  signal s_frame_rx_fsm_state : std_logic_vector(C_FRAME_RX_FSM_STATE_BITSIZE-1 downto 0);
-  signal s_frame_tx_fsm_state : std_logic_vector(C_FRAME_TX_FSM_STATE_BITSIZE-1 downto 0);
+  -- Voter mismatch for main logic of the controller
+  constant C_mismatch_frame_tx        : integer := 0;
+  constant C_mismatch_frame_rx        : integer := 1;
+  constant C_mismatch_bsp             : integer := 2;
+  constant C_mismatch_btl             : integer := 3;
+  constant C_mismatch_eml             : integer := 4;
+  constant C_mismatch_rec             : integer := 5;
+  constant C_mismatch_tec             : integer := 6;
+  constant C_mismatch_recessive_count : integer := 7;
+  constant C_MISMATCH_LOGIC_WIDTH     : integer := 8;
+  signal s_mismatch_logic_vector      : std_logic_vector(C_MISMATCH_LOGIC_WIDTH-1 downto 0);
+
+  -- Voter mismatch for status counters
+  constant C_mismatch_tx_msg_sent_count    : integer := 0;
+  constant C_mismatch_tx_ack_error_count   : integer := 1;
+  constant C_mismatch_tx_arb_lost_count    : integer := 2;
+  constant C_mismatch_tx_bit_error_count   : integer := 3;
+  constant C_mismatch_tx_retransmit_count  : integer := 4;
+  constant C_mismatch_rx_msg_recv_count    : integer := 5;
+  constant C_mismatch_rx_crc_error_count   : integer := 6;
+  constant C_mismatch_rx_form_error_count  : integer := 7;
+  constant C_mismatch_rx_stuff_error_count : integer := 8;
+  constant C_MISMATCH_COUNTERS_WIDTH       : integer := 9;
+  signal s_mismatch_counters_vector        : std_logic_vector(C_MISMATCH_COUNTERS_WIDTH-1 downto 0);
+
+  -- Register mismatch outputs from counters
+  constant C_MISMATCH_OUTPUT_REG : boolean := true;
 
 begin  -- architecture struct
 
-  TRANSMIT_ERROR_COUNT <= unsigned(s_eml_tec_count_value);
-  RECEIVE_ERROR_COUNT  <= unsigned(s_eml_rec_count_value);
+  -- Register mismatch outputs when TMR is enabled
+  if_TMR_gen: if G_SEE_MITIGATION_EN generate
+    proc_mismatch_reg: process (CLK) is
+    begin
+      if rising_edge(CLK) then
+        VOTER_MISMATCH_LOGIC    <= or_reduce(s_mismatch_logic_vector);
+        VOTER_MISMATCH_COUNTERS <= or_reduce(s_mismatch_counters_vector);
+      end if;
+    end process proc_mismatch_reg;
+  end generate if_TMR_gen;
+
+  if_not_TMR_gen: if not G_SEE_MITIGATION_EN generate
+    VOTER_MISMATCH_LOGIC    <= '0';
+    VOTER_MISMATCH_COUNTERS <= '0';
+  end generate if_not_TMR_gen;
+
+
+  TRANSMIT_ERROR_COUNT <= unsigned(s_eml_tec_count_value(0));
+  RECEIVE_ERROR_COUNT  <= unsigned(s_eml_rec_count_value(0));
   ERROR_STATE          <= can_error_state_t'val(to_integer(unsigned(s_eml_error_state)));
 
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
   -- Transmit state machine
-  INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+  INST_canola_frame_tx_fsm_tmr : entity work.canola_frame_tx_fsm_tmr_wrapper
     generic map (
-      G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
+      G_BUS_REG_WIDTH       => G_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID       => G_ENABLE_EXT_ID,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
@@ -237,14 +284,15 @@ begin  -- architecture struct
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      FSM_STATE_O                        => s_frame_tx_fsm_state,
-      FSM_STATE_VOTED_I                  => s_frame_tx_fsm_state);
+      VOTER_MISMATCH                     => s_mismatch_logic_vector(C_mismatch_frame_tx));
 
   -- Receive state machine
-  INST_canola_frame_rx_fsm : entity work.canola_frame_rx_fsm
+  INST_canola_frame_rx_fsm_tmr : entity work.canola_frame_rx_fsm_tmr_wrapper
     generic map (
-      G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
+      G_BUS_REG_WIDTH      => G_BUS_REG_WIDTH,
+      G_ENABLE_EXT_ID      => G_ENABLE_EXT_ID,
+      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
@@ -273,14 +321,16 @@ begin  -- architecture struct
       EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
       EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      FSM_STATE_O                        => s_frame_rx_fsm_state,
-      FSM_STATE_VOTED_I                  => s_frame_rx_fsm_state);
+      VOTER_MISMATCH                     => s_mismatch_logic_vector(C_mismatch_frame_rx));
 
   -- Bit Stream Processor (BSP)
   -- Responsible for bit stuffing/destuffing and
   -- CRC calculation of larger stream of bits.
   -- Acts as a layer between the BTL and Tx/Rx state machines
-  INST_canola_bsp : entity work.canola_bsp
+  INST_canola_bsp_tmr : entity work.canola_bsp_tmr_wrapper
+    generic map (
+      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK                             => CLK,
       RESET                           => RESET,
@@ -291,7 +341,7 @@ begin  -- architecture struct
       BSP_TX_RX_MISMATCH              => s_bsp_tx_rx_mismatch,
       BSP_TX_RX_STUFF_MISMATCH        => s_bsp_tx_rx_stuff_mismatch,
       BSP_TX_DONE                     => s_bsp_tx_done,
-      BSP_TX_CRC_CALC_O               => s_bsp_tx_crc_calc,
+      BSP_TX_CRC_CALC                 => s_bsp_tx_crc_calc,
       BSP_TX_ACTIVE                   => s_bsp_tx_active,
       BSP_RX_ACTIVE                   => s_bsp_rx_active,
       BSP_RX_IFS                      => s_bsp_rx_ifs,
@@ -301,7 +351,7 @@ begin  -- architecture struct
       BSP_RX_DATA_OVERFLOW            => s_bsp_rx_data_overflow,
       BSP_RX_BIT_DESTUFF_EN           => s_bsp_rx_bit_destuff_en,
       BSP_RX_STOP                     => s_bsp_rx_stop,
-      BSP_RX_CRC_CALC_O               => s_bsp_rx_crc_calc,
+      BSP_RX_CRC_CALC                 => s_bsp_rx_crc_calc,
       BSP_RX_SEND_ACK                 => s_bsp_rx_send_ack,
       BSP_RX_ACTIVE_ERROR_FLAG        => s_bsp_rx_active_error_flag,
       BSP_RX_PASSIVE_ERROR_FLAG       => s_bsp_rx_passive_error_flag,
@@ -318,19 +368,17 @@ begin  -- architecture struct
       BTL_RX_BIT_VALID                => s_btl_rx_bit_valid,
       BTL_RX_SYNCED                   => s_btl_rx_synced,
       BTL_RX_STOP                     => s_btl_rx_stop,
-      RX_FSM_STATE_O                  => s_bsp_rx_fsm_state,
-      RX_FSM_STATE_VOTED_I            => s_bsp_rx_fsm_state,
-      TX_FSM_STATE_O                  => s_bsp_tx_fsm_state,
-      TX_FSM_STATE_VOTED_I            => s_bsp_tx_fsm_state,
-      BSP_TX_CRC_CALC_VOTED_I         => s_bsp_tx_crc_calc,
-      BSP_RX_CRC_CALC_VOTED_I         => s_bsp_rx_crc_calc);
+      VOTER_MISMATCH                  => s_mismatch_logic_vector(C_mismatch_bsp));
 
   s_btl_tx_active <= s_bsp_tx_active;
 
   -- Bit Timing Logic (BTL)
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
-  INST_canola_btl : entity work.canola_btl
+  INST_canola_btl_tmr : entity work.canola_btl_tmr_wrapper
+    generic map (
+      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK                     => CLK,
       RESET                   => RESET,
@@ -351,15 +399,17 @@ begin  -- architecture struct
       PHASE_SEG2              => BTL_PHASE_SEG2,
       SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
       TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE,
-      SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
-      SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
+      VOTER_MISMATCH          => s_mismatch_logic_vector(C_mismatch_btl));
 
   -- Error Management Logic (EML)
   -- Keeps track of errors occuring in other modules,
   -- and calculates an "error state" for the whole system,
   -- which determines to what degree the controller is allowed to interface
   -- with the BUS.
-  INST_canola_eml: entity work.canola_eml
+  INST_canola_eml_tmr: entity work.canola_eml_tmr_wrapper
+    generic map (
+      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK                              => CLK,
       RESET                            => RESET,
@@ -393,7 +443,8 @@ begin  -- architecture struct
       RECESSIVE_BIT_COUNT_VALUE        => s_eml_recessive_bit_count_value,
       RECESSIVE_BIT_COUNT_UP           => s_eml_recessive_bit_count_up,
       RECESSIVE_BIT_COUNT_CLEAR        => s_eml_recessive_bit_count_clear,
-      ERROR_STATE                      => s_eml_error_state);
+      ERROR_STATE                      => s_eml_error_state,
+      VOTER_MISMATCH                   => s_mismatch_logic_vector(C_mismatch_eml));
 
 
   -----------------------------------------------------------------------------
@@ -401,174 +452,214 @@ begin  -- architecture struct
   -----------------------------------------------------------------------------
 
   -- Receive Error Counter (REC) used by EML
-  INST_receive_error_counter: entity work.counter_saturating
+  INST_receive_error_counter : entity work.counter_saturating_tmr_wrapper_triplicated
     generic map (
-      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
-      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
-      VERBOSE    => false)
+      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH            => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
-      CLK            => CLK,
-      RESET          => RESET,
-      CLEAR          => s_eml_rec_clear,
-      SET            => s_eml_rec_set,
-      SET_VALUE      => s_eml_rec_set_value,
-      COUNT_UP       => s_eml_rec_count_up,
-      COUNT_DOWN     => s_eml_rec_count_down,
-      COUNT_INCR     => s_eml_rec_count_incr,
-      COUNT_OUT      => s_eml_rec_count_value,
-      COUNT_VOTED_IN => s_eml_rec_count_value);
+      CLK         => CLK,
+      RESET       => RESET,
+      CLEAR       => s_eml_rec_clear,
+      SET         => s_eml_rec_set,
+      SET_VALUE   => s_eml_rec_set_value,
+      COUNT_UP    => s_eml_rec_count_up,
+      COUNT_DOWN  => s_eml_rec_count_down,
+      COUNT_INCR  => s_eml_rec_count_incr,
+      COUNT_OUT_A => s_eml_rec_count_value(0),
+      COUNT_OUT_B => s_eml_rec_count_value(1),
+      COUNT_OUT_C => s_eml_rec_count_value(2),
+      MISMATCH    => s_mismatch_logic_vector(C_mismatch_rec));
 
   -- Transmit Error Counter (TEC) used by EML
-  INST_transmit_error_counter: entity work.counter_saturating
+  INST_transmit_error_counter : entity work.counter_saturating_tmr_wrapper_triplicated
     generic map (
-      BIT_WIDTH  => C_ERROR_COUNT_LENGTH,
-      INCR_WIDTH => C_ERROR_COUNT_INCR_LENGTH,
-      VERBOSE    => false)
+      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH            => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
-      CLK            => CLK,
-      RESET          => RESET,
-      CLEAR          => s_eml_tec_clear,
-      SET            => s_eml_tec_set,
-      SET_VALUE      => s_eml_tec_set_value,
-      COUNT_UP       => s_eml_tec_count_up,
-      COUNT_DOWN     => s_eml_tec_count_down,
-      COUNT_INCR     => s_eml_tec_count_incr,
-      COUNT_OUT      => s_eml_tec_count_value,
-      COUNT_VOTED_IN => s_eml_tec_count_value);
+      CLK         => CLK,
+      RESET       => RESET,
+      CLEAR       => s_eml_tec_clear,
+      SET         => s_eml_tec_set,
+      SET_VALUE   => s_eml_tec_set_value,
+      COUNT_UP    => s_eml_tec_count_up,
+      COUNT_DOWN  => s_eml_tec_count_down,
+      COUNT_INCR  => s_eml_tec_count_incr,
+      COUNT_OUT_A => s_eml_tec_count_value(0),
+      COUNT_OUT_B => s_eml_tec_count_value(1),
+      COUNT_OUT_C => s_eml_tec_count_value(2),
+      MISMATCH    => s_mismatch_logic_vector(C_mismatch_tec));
 
   -- Counter for sequences of 11 recessive bits used by EML
-  INST_recessive_bit_counter: entity work.upcounter
+  INST_recessive_bit_counter : entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => C_ERROR_COUNT_LENGTH,
-      IS_SATURATING => true,
-      VERBOSE       => false)
+      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
+      IS_SATURATING         => true,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
-      CLK            => CLK,
-      RESET          => RESET,
-      CLEAR          => s_eml_recessive_bit_count_clear,
-      COUNT_UP       => s_eml_recessive_bit_count_up,
-      COUNT_OUT      => s_eml_recessive_bit_count_value,
-      COUNT_VOTED_IN => s_eml_recessive_bit_count_value);
+      CLK       => CLK,
+      RESET     => RESET,
+      CLEAR     => s_eml_recessive_bit_count_clear,
+      COUNT_UP  => s_eml_recessive_bit_count_up,
+      COUNT_OUT => s_eml_recessive_bit_count_value,
+      MISMATCH  => s_mismatch_logic_vector(C_mismatch_recessive_count));
 
 
   -----------------------------------------------------------------------------
   -- Status counters (messages sent/received, error counts)
   -----------------------------------------------------------------------------
-  INST_tx_msg_sent_counter: entity work.upcounter
+  INST_tx_msg_sent_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_TX_MSG_SENT_COUNT,
       COUNT_UP       => TX_DONE,
       COUNT_OUT      => REG_TX_MSG_SENT_COUNT,
-      COUNT_VOTED_IN => REG_TX_MSG_SENT_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_msg_sent_count));
 
-  INST_tx_ack_error_counter: entity work.upcounter
+  INST_tx_ack_error_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_TX_ACK_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_ack_error,
       COUNT_OUT      => REG_TX_ACK_ERROR_COUNT,
-      COUNT_VOTED_IN => REG_TX_ACK_ERROR_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_ack_error_count));
 
-  INST_tx_arb_lost_counter: entity work.upcounter
+  INST_tx_arb_lost_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_TX_ARB_LOST_COUNT,
       COUNT_UP       => s_tx_fsm_arb_lost,
       COUNT_OUT      => REG_TX_ARB_LOST_COUNT,
-      COUNT_VOTED_IN => REG_TX_ARB_LOST_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_arb_lost_count));
 
-  INST_tx_bit_error_counter: entity work.upcounter
+  INST_tx_bit_error_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_TX_BIT_ERROR_COUNT,
       COUNT_UP       => s_eml_tx_bit_error,
       COUNT_OUT      => REG_TX_BIT_ERROR_COUNT,
-      COUNT_VOTED_IN => REG_TX_BIT_ERROR_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_bit_error_count));
 
-  INST_tx_retransmit_counter: entity work.upcounter
+  INST_tx_retransmit_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_TX_RETRANSMIT_COUNT,
       COUNT_UP       => s_tx_fsm_retransmitting,
       COUNT_OUT      => REG_TX_RETRANSMIT_COUNT,
-      COUNT_VOTED_IN => REG_TX_RETRANSMIT_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_tx_retransmit_count));
 
-  INST_rx_msg_recv_counter: entity work.upcounter
+  INST_rx_msg_recv_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_RX_MSG_RECV_COUNT,
       COUNT_UP       => RX_MSG_VALID,
       COUNT_OUT      => REG_RX_MSG_RECV_COUNT,
-      COUNT_VOTED_IN => REG_RX_MSG_RECV_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_msg_recv_count));
 
-  INST_rx_crc_error_counter: entity work.upcounter
+  INST_rx_crc_error_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_RX_CRC_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_crc_error,
       COUNT_OUT      => REG_RX_CRC_ERROR_COUNT,
-      COUNT_VOTED_IN => REG_RX_CRC_ERROR_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_crc_error_count));
 
-  INST_rx_form_error_counter: entity work.upcounter
+  INST_rx_form_error_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_RX_FORM_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_form_error,
       COUNT_OUT      => REG_RX_FORM_ERROR_COUNT,
-      COUNT_VOTED_IN => REG_RX_FORM_ERROR_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_form_error_count));
 
-  INST_rx_stuff_error_counter: entity work.upcounter
+  INST_rx_stuff_error_counter: entity work.upcounter_tmr_wrapper
     generic map (
-      BIT_WIDTH     => G_BUS_REG_WIDTH,
-      IS_SATURATING => G_SATURATING_COUNTERS,
-      VERBOSE       => false)
+      BIT_WIDTH             => G_BUS_REG_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
     port map (
       CLK            => CLK,
       RESET          => RESET,
       CLEAR          => CLEAR_RX_STUFF_ERROR_COUNT,
       COUNT_UP       => s_eml_rx_stuff_error,
       COUNT_OUT      => REG_RX_STUFF_ERROR_COUNT,
-      COUNT_VOTED_IN => REG_RX_STUFF_ERROR_COUNT);
+      MISMATCH       => s_mismatch_counters_vector(C_mismatch_rx_stuff_error_count));
 
 end architecture struct;

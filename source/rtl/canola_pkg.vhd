@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-01-29
+-- Last update: 2020-02-06
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -22,6 +22,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+
+library work;
+use work.tmr_pkg.all;
 
 package canola_pkg is
   -----------------------------------------------------------------------------
@@ -71,7 +74,8 @@ package canola_pkg is
                                                                                 C_PHASE_SEG2_WIDTH));
   -- Longest field that BSP will be transmitting/receiving is the payload,
   -- which is 8 bytes
-  constant C_BSP_DATA_LENGTH : natural := 8*8;
+  constant C_BSP_DATA_LENGTH      : natural := 8*8;
+  constant C_BSP_DATA_LEN_BITSIZE : natural := integer(ceil(log2(1.0+real(C_BSP_DATA_LENGTH))));
 
   constant C_STUFF_BIT_THRESHOLD : natural := 5;
 
@@ -107,9 +111,49 @@ package canola_pkg is
   -- Receive error counter will jump to this value when successfully receiving
   -- a message, but only in the case when the receive error counter is equal to
   -- or higher than 128 (C_ERROR_PASSIVE_THRESHOLD).
-  constant C_RECV_ERROR_COUNTER_SUCCES_JUMP_VALUE : natural := 120;
+  constant C_REC_SUCCES_ERROR_PASSIVE_JUMP_VALUE : natural := 120;
+
+  -- Receive Error Counter (REC) decrease on successful receive when in error passive
+  constant C_REC_SUCCES_ERROR_PASSIVE_DECREASE : natural := 8;
+
+  -- Receive Error Counter (REC) decrease on successful receive when in error active
+  constant C_REC_SUCCES_ERROR_ACTIVE_DECREASE : natural := 1;
+
+  -- Receive Error Counter (REC) increase on stuff error
+  constant C_REC_STUFF_ERROR_INCREASE : natural := 1;
+
+  -- Receive Error Counter (REC) increase on CRC error
+  constant C_REC_CRC_ERROR_INCREASE : natural := 1;
+
+  -- Receive Error Counter (REC) increase on form error
+  constant C_REC_FORM_ERROR_INCREASE : natural := 1;
+
+  -- Receive Error Counter (REC) increase on active error flag bit error
+  constant C_REC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE : natural := 8;
+
+  -- Receive Error Counter (REC) increase on overload flag bit error
+  constant C_REC_OVERLOAD_FLAG_BIT_ERROR_INCREASE : natural := 8;
+
+  -- Receive Error Counter (REC) increase on dominant bit after error flag
+  constant C_REC_DOMINANT_BIT_AFTER_ERR_FLAG_INCREASE : natural := 8;
+
+  -- Transmit Error Counter (TEC) decrease on successful transmit
+  constant C_TEC_SUCCESS_DECREASE : natural := 1;
+
+  -- Transmit Error Counter (TEC) increase on bit error
+  constant C_TEC_BIT_ERROR_INCREASE : natural := 8;
+
+  -- Transmit Error Counter (TEC) increase on ack error
+  constant C_TEC_ACK_ERROR_INCREASE : natural := 8;
+
+  -- Transmit Error Counter (TEC) increase on ack error
+  constant C_TEC_ACK_PASSIVE_ERROR_INCREASE : natural := 8;
+
+  -- Transmit Error Counter (TEC) increase on active error flag bit error
+  constant C_TEC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE : natural := 8;
 
   constant C_ERROR_COUNT_LENGTH      : natural := 9;
+  constant C_ERROR_COUNT_INCR_LENGTH : natural := 4;
 
   constant C_ACTIVE_ERROR_FLAG_DATA  : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "000000";
   constant C_PASSIVE_ERROR_FLAG_DATA : std_logic_vector(0 to C_ERROR_FLAG_LENGTH-1) := "111111";
@@ -219,6 +263,10 @@ package canola_pkg is
                               ST_RETRANSMIT,
                               ST_DONE);
 
+  -- Calculate number of bits needed to represent the error states
+  constant C_CAN_ERROR_STATE_BITSIZE : natural :=
+    integer(ceil(log2(1.0+real(can_error_state_t'pos(can_error_state_t'high)))));
+
   -- Calculate number of bits needed to represent states in BTL sync FSM state register
   constant C_BTL_SYNC_FSM_STATE_BITSIZE : natural :=
     integer(ceil(log2(1.0+real(btl_sync_fsm_state_t'pos(btl_sync_fsm_state_t'high)))));
@@ -238,5 +286,14 @@ package canola_pkg is
   -- Calculate number of bits needed to represent states in Tx Frame FSM state register
   constant C_FRAME_TX_FSM_STATE_BITSIZE : natural :=
     integer(ceil(log2(1.0+real(can_frame_tx_fsm_state_t'pos(can_frame_tx_fsm_state_t'high)))));
+
+
+
+  -----------------------------------------------------------------------------
+  -- Definitions for triplicated types for TMR
+  -----------------------------------------------------------------------------
+
+  -- Todo: Maybe this should go in tmr_pkg.vhd instead
+  type t_eml_counter_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
 
 end canola_pkg;

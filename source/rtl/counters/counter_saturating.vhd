@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -34,9 +34,11 @@ entity counter_saturating is
     INCR_WIDTH : natural := 16;
     VERBOSE    : boolean := false);
   port (
-    CLK        : in std_logic;          -- Clock
-    RESET      : in std_logic;          -- Global fpga reset
-    CLEAR      : in std_logic;          -- Counter clear
+    CLK        : in std_logic; -- Clock
+    RESET      : in std_logic; -- Global fpga reset
+    CLEAR      : in std_logic; -- Counter clear
+    SET        : in std_logic; -- Set counter to value
+    SET_VALUE  : in std_logic_vector(BIT_WIDTH-1 downto 0);
     COUNT_UP   : in std_logic;
     COUNT_DOWN : in std_logic;
 
@@ -44,7 +46,7 @@ entity counter_saturating is
     COUNT_INCR : in std_logic_vector(INCR_WIDTH-1 downto 0);
 
     -- Actual counter value output
-    COUNT_OUT : out std_logic_vector(BIT_WIDTH-1 downto 0);
+    COUNT_OUT  : out std_logic_vector(BIT_WIDTH-1 downto 0);
 
     -- Voted counter value input, the count is always increased or decreased
     -- from this input. Connect to COUNT_OUT externally when not using TMR.
@@ -72,7 +74,7 @@ architecture arch of counter_saturating is
     variable i_next_value : natural;
   begin  -- function f_update_counter
     if count_up = '1' then
-      i_next_value := i_count_value + i_increment;
+      i_next_value := i_count_current + i_increment;
 
       if i_next_value >= (2**C_bit_width) then
         i_next_value := (2**C_bit_width - 1);
@@ -84,7 +86,7 @@ architecture arch of counter_saturating is
       end if;
 
     elsif count_down = '1' then
-      if i_increment > i_count_value then
+      if i_increment > i_count_current then
         i_next_value := 0;
         -- synthesis translate_off
         if verbose then
@@ -92,11 +94,11 @@ architecture arch of counter_saturating is
         end if;
       -- synthesis translate_on
       else
-        i_next_value := i_count_value - i_increment;
+        i_next_value := i_count_current - i_increment;
       end if;
 
     else
-      i_next_value := i_count_value;
+      i_next_value := i_count_current;
     end if;
 
 
@@ -105,7 +107,7 @@ architecture arch of counter_saturating is
 
 begin  -- architecture arch
 
-  assert BIT_WIDTH > INCR_WIDTH report "Increment width larger than counter width" severity failure;
+  assert BIT_WIDTH >= INCR_WIDTH report "Increment width larger than counter width" severity failure;
 
   -- purpose: Updates the counter
   p_counter_update : process (CLK) is
@@ -122,6 +124,9 @@ begin  -- architecture arch
         end if;
         -- synthesis translate_on
 
+      elsif SET = '1' then
+        i_counter <= to_integer(unsigned(SET_VALUE));
+
       else
         i_increment     := to_integer(unsigned(COUNT_INCR));
         i_count_current := to_integer(unsigned(COUNT_VOTED_IN));
@@ -136,7 +141,6 @@ begin  -- architecture arch
   -----------------------------------------------------------------------------
   -- OUTPUT conversion
   -----------------------------------------------------------------------------
-
   COUNT_OUT <= std_logic_vector(to_unsigned(i_counter, BIT_WIDTH));
 
 end architecture arch;

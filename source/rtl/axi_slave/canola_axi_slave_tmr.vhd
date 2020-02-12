@@ -10,14 +10,17 @@ use work.axi_pkg.all;
 use work.canola_axi_slave_pif_pkg.all;
 use work.canola_pkg.all;
 
-entity canola_axi_slave is
+entity canola_axi_slave_tmr is
 
   generic (
     -- User Generics Start
 
     -- User Generics End
     -- AXI Bus Interface Generics
-    G_AXI_BASEADDR        : std_logic_vector(31 downto 0) := X"00000000");
+    G_AXI_BASEADDR       : std_logic_vector(31 downto 0) := X"00000000";
+    G_SEE_MITIGATION_EN  : boolean                       := true; -- Enable TMR
+    G_MISMATCH_OUTPUT_EN : boolean                       := true  -- Enable TMR voter mismatch output
+    );
   port (
     -- User Ports Start
     CAN_RX       : in  std_logic;
@@ -26,6 +29,9 @@ entity canola_axi_slave is
     CAN_RX_VALID_IRQ  : out std_logic;
     CAN_TX_DONE_IRQ   : out std_logic;
     CAN_TX_FAILED_IRQ : out std_logic;
+
+    VOTER_MISMATCH_LOGIC     : out std_logic; -- Mismatch in main logic
+    VOTER_MISMATCH_COUNTERS  : out std_logic; -- Mismatch in status counters
 
     -- User Ports End
     -- AXI Bus Interface Ports
@@ -50,9 +56,9 @@ entity canola_axi_slave is
     AXI_RREADY   : in  std_logic
     );
 
-end entity canola_axi_slave;
+end entity canola_axi_slave_tmr;
 
-architecture behavior of canola_axi_slave is
+architecture behavior of canola_axi_slave_tmr is
 
   -- User Architecture Start
   signal s_can_rx_msg      : can_msg_t;
@@ -112,11 +118,13 @@ begin
     2 when "10",
     2 when others;
 
-  INST_canola_top : entity work.canola_top
+  INST_canola_top_tmr : entity work.canola_top_tmr
     generic map (
       G_BUS_REG_WIDTH       => C_INTERNAL_REG_WIDTH,
       G_ENABLE_EXT_ID       => true,
-      G_SATURATING_COUNTERS => false)
+      G_SATURATING_COUNTERS => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN)
     port map (
       CLK   => AXI_CLK,
       RESET => AXI_RESET,
@@ -167,7 +175,9 @@ begin
       CLEAR_RX_MSG_RECV_COUNT    => axi_pulse_regs.CONTROL.RESET_RX_MSG_RECV_COUNTER,
       CLEAR_RX_CRC_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_RX_CRC_ERROR_COUNTER,
       CLEAR_RX_FORM_ERROR_COUNT  => axi_pulse_regs.CONTROL.RESET_RX_FORM_ERROR_COUNTER,
-      CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER
+      CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER,
+      VOTER_MISMATCH_LOGIC       => VOTER_MISMATCH_LOGIC,
+      VOTER_MISMATCH_COUNTERS    => VOTER_MISMATCH_COUNTERS
       );
 
   -- User Logic End

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-01-29
+-- Last update: 2020-02-06
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -38,6 +38,9 @@ use work.can_uvvm_bfm_pkg.all;
 
 -- test bench entity
 entity canola_top_tb is
+  generic (
+    G_TMR_TOP_MODULE_EN : boolean := false;  -- Use canola_top_tmr instead of canola_top
+    G_SEE_MITIGATION_EN : boolean := false); -- Enable TMR in canola_top_tmr
 end canola_top_tb;
 
 architecture tb of canola_top_tb is
@@ -90,16 +93,20 @@ architecture tb of canola_top_tb is
   ------------------------------------------------------------------------------
   -- Signals for CAN controller #1
   ------------------------------------------------------------------------------
-  signal s_can_ctrl1_reset            : std_logic;
-  signal s_can_ctrl1_tx               : std_logic;
-  signal s_can_ctrl1_rx               : std_logic;
-  signal s_can_ctrl1_rx_msg           : can_msg_t;
-  signal s_can_ctrl1_tx_msg           : can_msg_t;
-  signal s_can_ctrl1_rx_msg_valid     : std_logic;
-  signal s_can_ctrl1_tx_start         : std_logic := '0';
-  signal s_can_ctrl1_tx_retransmit_en : std_logic := '0';
-  signal s_can_ctrl1_tx_busy          : std_logic;
-  signal s_can_ctrl1_tx_done          : std_logic;
+  signal s_can_ctrl1_reset                : std_logic;
+  signal s_can_ctrl1_tx                   : std_logic;
+  signal s_can_ctrl1_rx                   : std_logic;
+  signal s_can_ctrl1_rx_msg               : can_msg_t;
+  signal s_can_ctrl1_tx_msg               : can_msg_t;
+  signal s_can_ctrl1_rx_msg_valid         : std_logic;
+  signal s_can_ctrl1_tx_start             : std_logic                                := '0';
+  signal s_can_ctrl1_tx_retransmit_en     : std_logic                                := '0';
+  signal s_can_ctrl1_tx_busy              : std_logic;
+  signal s_can_ctrl1_tx_done              : std_logic;
+  signal s_can_ctrl1_tx_failed            : std_logic;
+  signal s_can_ctrl1_sample_point_tx      : std_logic;
+  signal s_can_ctrl1_tx_fsm_state         : work.canola_pkg.can_frame_tx_fsm_state_t := ST_IDLE;
+  signal s_can_ctrl1_recessive_bits_count : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
   signal s_can_ctrl1_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -112,13 +119,15 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+
 
   ------------------------------------------------------------------------------
   -- Signals for CAN controller #2
@@ -133,6 +142,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl2_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl2_tx_busy          : std_logic;
   signal s_can_ctrl2_tx_done          : std_logic;
+  signal s_can_ctrl2_tx_failed        : std_logic;
 
   signal s_can_ctrl2_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl2_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -145,9 +155,10 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -166,6 +177,7 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl3_tx_retransmit_en : std_logic := '0';
   signal s_can_ctrl3_tx_busy          : std_logic;
   signal s_can_ctrl3_tx_done          : std_logic;
+  signal s_can_ctrl3_tx_failed        : std_logic;
 
   signal s_can_ctrl3_prop_seg        : std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0)   := "0111";
   signal s_can_ctrl3_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
@@ -178,9 +190,10 @@ architecture tb of canola_top_tb is
 
   -- Registers/counters
   signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_ack_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_error_count       : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
@@ -247,146 +260,458 @@ begin
   s_can_ctrl3_rx    <= '1' ?= s_can_bus_signal3;
 
 
-  INST_canola_top_1 : entity work.canola_top
-    generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
-    port map (
-      CLK   => s_clk,
-      RESET => s_can_ctrl1_reset,
+  -----------------------------------------------------------------------------
+  -- Generate instances of canola_top_tmr when G_TMR_TOP_MODULE_EN is set
+  -----------------------------------------------------------------------------
+  if_TMR_generate : if G_TMR_TOP_MODULE_EN generate
+    INST_canola_top_1 : entity work.canola_top_tmr
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false,
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl1_reset,
 
-      -- CAN bus interface signals
-      CAN_TX => s_can_ctrl1_tx,
-      CAN_RX => s_can_ctrl1_rx,
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl1_tx,
+        CAN_RX => s_can_ctrl1_rx,
 
-      -- Rx interface
-      RX_MSG       => s_can_ctrl1_rx_msg,
-      RX_MSG_VALID => s_can_ctrl1_rx_msg_valid,
+        -- Rx interface
+        RX_MSG       => s_can_ctrl1_rx_msg,
+        RX_MSG_VALID => s_can_ctrl1_rx_msg_valid,
 
-      -- Tx interface
-      TX_MSG           => s_can_ctrl1_tx_msg,
-      TX_START         => s_can_ctrl1_tx_start,
-      TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
-      TX_BUSY          => s_can_ctrl1_tx_busy,
-      TX_DONE          => s_can_ctrl1_tx_done,
+        -- Tx interface
+        TX_MSG           => s_can_ctrl1_tx_msg,
+        TX_START         => s_can_ctrl1_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl1_tx_busy,
+        TX_DONE          => s_can_ctrl1_tx_done,
+        TX_FAILED        => s_can_ctrl1_tx_failed,
 
-      BTL_TRIPLE_SAMPLING         => '0',
-      BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
-      BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
-      BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
-      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
-      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                                 C_TIME_QUANTA_WIDTH),
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
 
-      -- Error state and counters
-      TRANSMIT_ERROR_COUNT => s_can_ctrl1_transmit_error_count,
-      RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
-      ERROR_STATE          => s_can_ctrl1_error_state,
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl1_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
+        ERROR_STATE          => s_can_ctrl1_error_state,
 
-      -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => s_can_ctrl1_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl1_reg_tx_ack_recv_count,
-      REG_TX_ARB_LOST_COUNT    => s_can_ctrl1_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl1_reg_tx_error_count,
-      REG_RX_MSG_RECV_COUNT    => s_can_ctrl1_reg_rx_msg_recv_count,
-      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl1_reg_rx_crc_error_count,
-      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl1_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl1_reg_rx_stuff_error_count
-      );
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
+        );
 
-  INST_canola_top_2 : entity work.canola_top
-    generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
-    port map (
-      CLK   => s_clk,
-      RESET => s_can_ctrl2_reset,
+    INST_canola_top_2 : entity work.canola_top_tmr
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false,
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl2_reset,
 
-      -- CAN bus interface signals
-      CAN_TX => s_can_ctrl2_tx,
-      CAN_RX => s_can_ctrl2_rx,
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl2_tx,
+        CAN_RX => s_can_ctrl2_rx,
 
-      -- Rx interface
-      RX_MSG       => s_can_ctrl2_rx_msg,
-      RX_MSG_VALID => s_can_ctrl2_rx_msg_valid,
+        -- Rx interface
+        RX_MSG       => s_can_ctrl2_rx_msg,
+        RX_MSG_VALID => s_can_ctrl2_rx_msg_valid,
 
-      -- Tx interface
-      TX_MSG           => s_can_ctrl2_tx_msg,
-      TX_START         => s_can_ctrl2_tx_start,
-      TX_RETRANSMIT_EN => s_can_ctrl2_tx_retransmit_en,
-      TX_BUSY          => s_can_ctrl2_tx_busy,
-      TX_DONE          => s_can_ctrl2_tx_done,
+        -- Tx interface
+        TX_MSG           => s_can_ctrl2_tx_msg,
+        TX_START         => s_can_ctrl2_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl2_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl2_tx_busy,
+        TX_DONE          => s_can_ctrl2_tx_done,
+        TX_FAILED        => s_can_ctrl2_tx_failed,
 
-      BTL_TRIPLE_SAMPLING         => '0',
-      BTL_PROP_SEG                => s_can_ctrl2_prop_seg,
-      BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
-      BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
-      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
-      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                                 C_TIME_QUANTA_WIDTH),
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl2_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
 
-      -- Error state and counters
-      TRANSMIT_ERROR_COUNT => s_can_ctrl2_transmit_error_count,
-      RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
-      ERROR_STATE          => s_can_ctrl2_error_state,
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl2_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
+        ERROR_STATE          => s_can_ctrl2_error_state,
 
-      -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => s_can_ctrl2_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl2_reg_tx_ack_recv_count,
-      REG_TX_ARB_LOST_COUNT    => s_can_ctrl2_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl2_reg_tx_error_count,
-      REG_RX_MSG_RECV_COUNT    => s_can_ctrl2_reg_rx_msg_recv_count,
-      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl2_reg_rx_crc_error_count,
-      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl2_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl2_reg_rx_stuff_error_count
-      );
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
+        );
 
-  INST_canola_top_3 : entity work.canola_top
-    generic map (
-      G_BUS_REG_WIDTH => C_BUS_REG_WIDTH,
-      G_ENABLE_EXT_ID => true)
-    port map (
-      CLK   => s_clk,
-      RESET => s_can_ctrl3_reset,
+    INST_canola_top_3 : entity work.canola_top_tmr
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false,
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl3_reset,
 
-      -- CAN bus interface signals
-      CAN_TX => s_can_ctrl3_tx,
-      CAN_RX => s_can_ctrl3_rx,
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl3_tx,
+        CAN_RX => s_can_ctrl3_rx,
 
-      -- Rx interface
-      RX_MSG       => s_can_ctrl3_rx_msg,
-      RX_MSG_VALID => s_can_ctrl3_rx_msg_valid,
+        -- Rx interface
+        RX_MSG       => s_can_ctrl3_rx_msg,
+        RX_MSG_VALID => s_can_ctrl3_rx_msg_valid,
 
-      -- Tx interface
-      TX_MSG           => s_can_ctrl3_tx_msg,
-      TX_START         => s_can_ctrl3_tx_start,
-      TX_RETRANSMIT_EN => s_can_ctrl3_tx_retransmit_en,
-      TX_BUSY          => s_can_ctrl3_tx_busy,
-      TX_DONE          => s_can_ctrl3_tx_done,
+        -- Tx interface
+        TX_MSG           => s_can_ctrl3_tx_msg,
+        TX_START         => s_can_ctrl3_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl3_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl3_tx_busy,
+        TX_DONE          => s_can_ctrl3_tx_done,
+        TX_FAILED        => s_can_ctrl3_tx_failed,
 
-      BTL_TRIPLE_SAMPLING         => '0',
-      BTL_PROP_SEG                => s_can_ctrl3_prop_seg,
-      BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
-      BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
-      BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
-      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                                 C_TIME_QUANTA_WIDTH),
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl3_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
 
-      -- Error state and counters
-      TRANSMIT_ERROR_COUNT => s_can_ctrl3_transmit_error_count,
-      RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
-      ERROR_STATE          => s_can_ctrl3_error_state,
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl3_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
+        ERROR_STATE          => s_can_ctrl3_error_state,
 
-      -- Registers/counters
-      REG_TX_MSG_SENT_COUNT    => s_can_ctrl3_reg_tx_msg_sent_count,
-      REG_TX_ACK_RECV_COUNT    => s_can_ctrl3_reg_tx_ack_recv_count,
-      REG_TX_ARB_LOST_COUNT    => s_can_ctrl3_reg_tx_arb_lost_count,
-      REG_TX_ERROR_COUNT       => s_can_ctrl3_reg_tx_error_count,
-      REG_RX_MSG_RECV_COUNT    => s_can_ctrl3_reg_rx_msg_recv_count,
-      REG_RX_CRC_ERROR_COUNT   => s_can_ctrl3_reg_rx_crc_error_count,
-      REG_RX_FORM_ERROR_COUNT  => s_can_ctrl3_reg_rx_form_error_count,
-      REG_RX_STUFF_ERROR_COUNT => s_can_ctrl3_reg_rx_stuff_error_count
-      );
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+        VOTER_MISMATCH_LOGIC       => open,
+        VOTER_MISMATCH_COUNTERS    => open
+        );
+
+    if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
+      -- Aliases to some signals deep in the controller hierarchy
+      -- that the testbench needs access to.
+      -- Have to do this separately with/without G_SEE_MITIGATION_EN,
+      -- because the hierarchy differs based on that generic.
+      process is
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_btl.s_sample_point_tx : std_logic >>;
+
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+
+        alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
+      begin
+        while true loop
+          s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
+          s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
+          s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
+
+          -- Update on changes to any of these signals
+          wait on a_can_ctrl1_tx_fsm_state,
+            a_can_ctrl1_sample_point_tx,
+            a_can_ctrl1_recessive_bits_count;
+
+        end loop;
+      end process;
+    end generate if_NOMITIGATION_generate;
+
+
+    if_MITIGATION_generate : if G_SEE_MITIGATION_EN generate
+      -- Aliases to some signals deep in the controller hierarchy
+      -- that the testbench needs access to.
+      -- Have to do this separately with/without G_SEE_MITIGATION_EN,
+      -- because the hierarchy differs based on that generic.
+      process is
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_btl.s_sample_point_tx : std_logic >>;
+
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+
+        alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
+      begin
+        while true loop
+          s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
+          s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
+          s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
+
+          -- Update on changes to any of these signals
+          wait on a_can_ctrl1_tx_fsm_state,
+            a_can_ctrl1_sample_point_tx,
+            a_can_ctrl1_recessive_bits_count;
+
+        end loop;
+      end process;
+    end generate if_MITIGATION_generate;
+
+  end generate if_TMR_generate;
+
+
+  -----------------------------------------------------------------------------
+  -- Generate instances of canola_top when G_TMR_TOP_MODULE_EN is not set
+  -----------------------------------------------------------------------------
+  if_not_TMR_generate : if not G_TMR_TOP_MODULE_EN generate
+    INST_canola_top_1 : entity work.canola_top
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl1_reset,
+
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl1_tx,
+        CAN_RX => s_can_ctrl1_rx,
+
+        -- Rx interface
+        RX_MSG       => s_can_ctrl1_rx_msg,
+        RX_MSG_VALID => s_can_ctrl1_rx_msg_valid,
+
+        -- Tx interface
+        TX_MSG           => s_can_ctrl1_tx_msg,
+        TX_START         => s_can_ctrl1_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl1_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl1_tx_busy,
+        TX_DONE          => s_can_ctrl1_tx_done,
+        TX_FAILED        => s_can_ctrl1_tx_failed,
+
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl1_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
+
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl1_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
+        ERROR_STATE          => s_can_ctrl1_error_state,
+
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        );
+
+    INST_canola_top_2 : entity work.canola_top
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl2_reset,
+
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl2_tx,
+        CAN_RX => s_can_ctrl2_rx,
+
+        -- Rx interface
+        RX_MSG       => s_can_ctrl2_rx_msg,
+        RX_MSG_VALID => s_can_ctrl2_rx_msg_valid,
+
+        -- Tx interface
+        TX_MSG           => s_can_ctrl2_tx_msg,
+        TX_START         => s_can_ctrl2_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl2_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl2_tx_busy,
+        TX_DONE          => s_can_ctrl2_tx_done,
+        TX_FAILED        => s_can_ctrl2_tx_failed,
+
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl2_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
+
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl2_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
+        ERROR_STATE          => s_can_ctrl2_error_state,
+
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        );
+
+    INST_canola_top_3 : entity work.canola_top
+      generic map (
+        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
+        G_ENABLE_EXT_ID       => true,
+        G_SATURATING_COUNTERS => false)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl3_reset,
+
+        -- CAN bus interface signals
+        CAN_TX => s_can_ctrl3_tx,
+        CAN_RX => s_can_ctrl3_rx,
+
+        -- Rx interface
+        RX_MSG       => s_can_ctrl3_rx_msg,
+        RX_MSG_VALID => s_can_ctrl3_rx_msg_valid,
+
+        -- Tx interface
+        TX_MSG           => s_can_ctrl3_tx_msg,
+        TX_START         => s_can_ctrl3_tx_start,
+        TX_RETRANSMIT_EN => s_can_ctrl3_tx_retransmit_en,
+        TX_BUSY          => s_can_ctrl3_tx_busy,
+        TX_DONE          => s_can_ctrl3_tx_done,
+        TX_FAILED        => s_can_ctrl3_tx_failed,
+
+        BTL_TRIPLE_SAMPLING         => '0',
+        BTL_PROP_SEG                => s_can_ctrl3_prop_seg,
+        BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
+        BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
+        BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
+        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                                   C_TIME_QUANTA_WIDTH),
+
+        -- Error state and counters
+        TRANSMIT_ERROR_COUNT => s_can_ctrl3_transmit_error_count,
+        RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
+        ERROR_STATE          => s_can_ctrl3_error_state,
+
+        -- Registers/counters
+        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
+        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
+        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
+        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
+        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
+        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
+        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
+        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
+        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        );
+
+
+    -- Aliases to some signals deep in the controller hierarchy
+    -- that the testbench needs access to
+    process is
+      alias a_can_ctrl1_sample_point_tx is << signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic >>;
+
+      alias a_can_ctrl1_tx_fsm_state is << signal INST_canola_top_1.INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+
+      alias a_can_ctrl1_recessive_bits_count is << signal INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
+    begin
+      while true loop
+        s_can_ctrl1_sample_point_tx      <= a_can_ctrl1_sample_point_tx;
+        s_can_ctrl1_tx_fsm_state         <= a_can_ctrl1_tx_fsm_state;
+        s_can_ctrl1_recessive_bits_count <= unsigned(a_can_ctrl1_recessive_bits_count);
+
+        -- Update on changes to any of these signals
+        wait on a_can_ctrl1_tx_fsm_state,
+          a_can_ctrl1_sample_point_tx,
+          a_can_ctrl1_recessive_bits_count;
+
+      end loop;
+    end process;
+  end generate if_not_TMR_generate;
+
+
 
   -- Monitor CAN controller and indicate when it has received a message (rx_msg_valid is pulsed)
   p_can_ctrl_rx_msg: process (s_can_ctrl1_rx_msg_valid, s_can_ctrl2_rx_msg_valid,
@@ -547,19 +872,20 @@ begin
     variable v_can_tx_status    : can_tx_status_t;
     variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
 
+    variable v_tx_msg_sent_count               : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_arb_lost_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_recv_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_tx_error_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_ack_error_count                 : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_bit_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_msg_count                    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_crc_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_form_error_count             : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_rx_stuff_error_count            : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
     variable v_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
     variable v_11_recessive_bits_count_prev    : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
-    variable v_11_recessive_bits_count_current : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
     variable v_rand_baud_delay : natural;
     variable v_rand_real       : real;
+
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -704,8 +1030,8 @@ begin
 
     check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS,
-                error, "Check number of acknowledged messages in CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_error_count)), 0,
+                error, "Check number of acknowledge errors in CAN controller.");
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test #3: Extended ID msg from BFM to Canola CAN controller", C_SCOPE);
@@ -828,8 +1154,8 @@ begin
 
     check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_msg_sent_count)), C_NUM_ITERATIONS*2,
                 error, "Check number of transmitted messages from CAN controller.");
-    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_recv_count)), C_NUM_ITERATIONS*2,
-                error, "Check number of acknowledged messages in CAN controller.");
+    check_value(to_integer(unsigned(s_can_ctrl1_reg_tx_ack_error_count)), 0,
+                error, "Check number of acknowledge errors in CAN controller.");
 
 
     -----------------------------------------------------------------------------------------------
@@ -877,7 +1203,7 @@ begin
         v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) - 1);
       end if;
 
-      wait until rising_edge(<<signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(s_can_ctrl1_sample_point_tx);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -885,7 +1211,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge(<<signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic>>);
+      wait until rising_edge(s_can_ctrl1_sample_point_tx);
 
       -- Start transmitting from BFM
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -977,7 +1303,7 @@ begin
       wait until rising_edge(s_clk);
 
       v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_ack_error_count := s_can_ctrl1_reg_tx_ack_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1006,7 +1332,7 @@ begin
 
       v_xmit_arb_id := std_logic_vector(unsigned(v_xmit_arb_id) + 1);
 
-      wait until rising_edge( << signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge(s_can_ctrl1_sample_point_tx);
 
       -- Start transmitting from CAN controller
       wait until falling_edge(s_clk);
@@ -1014,7 +1340,7 @@ begin
       wait until falling_edge(s_clk);
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
-      wait until rising_edge( << signal INST_canola_top_1.INST_canola_btl.s_sample_point_tx : std_logic >> );
+      wait until rising_edge(s_can_ctrl1_sample_point_tx);
 
       -- Start transmitting from BFM. It should lose the arbitration
       can_uvvm_write(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
@@ -1044,10 +1370,11 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should not have increased, because when
+      -- Ack error count should have increased, because when
       -- can_uvvm_write() failed mid-transaction due to arbitration loss, there
       -- was no way for the BFM to receive the message and acknowledge it
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
+      check_value(unsigned(s_can_ctrl1_reg_tx_ack_error_count),
+                  unsigned(v_ack_error_count)+1,
                   error, "Check ACK received count in CAN controller.");
 
       wait until rising_edge(s_can_baud_clk);
@@ -1366,8 +1693,9 @@ begin
       s_msg_reset <= '0';
       wait until rising_edge(s_clk);
 
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_arb_lost_count    := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_error_count   := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_msg_sent_count := s_can_ctrl1_reg_tx_msg_sent_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1408,7 +1736,12 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
+      -- Message sent count should not increase when no ACK is received
+      check_value(s_can_ctrl1_reg_tx_msg_sent_count, v_tx_msg_sent_count,
+                  error, "Check msg sent count no increase in CAN controller.");
+
+      check_value(unsigned(s_can_ctrl1_reg_tx_ack_error_count),
+                  unsigned(v_ack_error_count)+1,
                   error, "Check ACK received count in CAN controller.");
 
       -- Error count should only increase while ERROR ACTIVE
@@ -1446,8 +1779,9 @@ begin
     v_test_num := 0;
 
     while v_test_num < C_ERROR_PASSIVE_THRESHOLD loop
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
+      v_arb_lost_count    := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_ack_error_count   := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_msg_sent_count := s_can_ctrl1_reg_tx_msg_sent_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1491,9 +1825,18 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should have increased now
-      check_value(unsigned(s_can_ctrl1_reg_tx_ack_recv_count), unsigned(v_ack_recv_count)+1,
-                  error, "Check ACK received count increased in CAN controller.");
+      -- Message sent count should increase when ACK is received
+      check_value(unsigned(s_can_ctrl1_reg_tx_msg_sent_count),
+                  unsigned(v_tx_msg_sent_count)+1,
+                  error, "Check msg sent count increase in CAN controller.");
+
+      -- Ack error count should not have increased
+      check_value(s_can_ctrl1_reg_tx_ack_error_count, v_ack_error_count,
+                  error, "Check ACK error count should not increase in CAN controller.");
+
+      -- Message should be successfully sent, which indicates ACK was received
+      check_value(unsigned(s_can_ctrl1_reg_tx_msg_sent_count), unsigned(v_tx_msg_sent_count)+1,
+                  error, "Check msg sent count increased in CAN controller.");
 
       check_value(to_integer(s_can_ctrl1_transmit_error_count), C_ERROR_PASSIVE_THRESHOLD-(v_test_num+1),
                   error, "Check that transmit error count decreased on successful transmit");
@@ -1510,19 +1853,22 @@ begin
     -----------------------------------------------------------------------------------------------
     pulse(s_can_ctrl1_reset, s_clk, 10, "Reset CAN controller to put it back in ACTIVE ERROR state");
 
-    -- In this test the CAN controller sends messages, but receives no ACK.
-    -- This should increase the transmit error counter to the error passive threshold,
-    -- causing the controller to become error passive. But the counter should not
-    -- increase further on missing ACK after that.
+    -- In this test the CAN controller sends messages, and the BFM is not listening.
+    -- After the controller is done with the arbitration field, a bit error is
+    -- generated on the bus signals, which should be interpreted as a Tx bit
+    -- error by the controller.
+    -- These bit errors should cause the Transmit Error Counter (TEC) to increase,
+    -- and the controller will go into error passive and eventually bus off state.
     v_test_num    := 0;
     v_xmit_ext_id := '1';
 
     v_can_bfm_config.ack_missing_severity := FAILURE;
 
     while s_can_ctrl1_error_state /= BUS_OFF loop
-      v_arb_lost_count := s_can_ctrl1_reg_tx_arb_lost_count;
-      v_ack_recv_count := s_can_ctrl1_reg_tx_ack_recv_count;
-      v_tx_error_count := s_can_ctrl1_reg_tx_error_count;
+      v_arb_lost_count     := s_can_ctrl1_reg_tx_arb_lost_count;
+      v_tx_msg_sent_count  := s_can_ctrl1_reg_tx_msg_sent_count;
+      v_ack_error_count    := s_can_ctrl1_reg_tx_ack_error_count;
+      v_tx_bit_error_count := s_can_ctrl1_reg_tx_bit_error_count;
 
       generate_random_can_message (v_xmit_arb_id,
                                    v_xmit_data,
@@ -1549,9 +1895,7 @@ begin
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
-      wait until << signal INST_canola_top_1.INST_canola_frame_tx_fsm.s_fsm_state_voted
-        : work.canola_pkg.can_frame_tx_fsm_state_t >>
-        = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
+      wait until s_can_ctrl1_tx_fsm_state = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
 
       uniform(seed1, seed2, v_rand_real);
 
@@ -1594,13 +1938,18 @@ begin
       check_value(s_can_ctrl1_reg_tx_arb_lost_count, v_arb_lost_count,
                   error, "Check arbitration loss count in CAN controller.");
 
-      -- Ack received count should not have increased
-      check_value(s_can_ctrl1_reg_tx_ack_recv_count, v_ack_recv_count,
-                  error, "Check ACK received count in CAN controller.");
+      -- Message sent count should not have increased when ACKs are not received
+      check_value(s_can_ctrl1_reg_tx_msg_sent_count, v_tx_msg_sent_count,
+                  error, "Check msg sent count no increase in CAN controller.");
 
-      -- Tx error should have increased
-      check_value(unsigned(s_can_ctrl1_reg_tx_error_count), unsigned(v_tx_error_count)+1,
-                  error, "Check Tx error increase in CAN controller.");
+      -- Ack error count should not have increased
+      check_value(s_can_ctrl1_reg_tx_ack_error_count, v_ack_error_count,
+                  error, "Check ACK error count no increase in CAN controller.");
+
+      -- Tx bit error count should have increased
+      check_value(unsigned(s_can_ctrl1_reg_tx_bit_error_count),
+                  unsigned(v_tx_bit_error_count)+1,
+                  error, "Check Tx bit error increase in CAN controller.");
 
       check_value(to_integer(s_can_ctrl1_transmit_error_count), (v_test_num+1)*8,
                   error, "Check that transmit error count increase by 8");
@@ -1639,21 +1988,13 @@ begin
     -- Wait for 128 counts of 11 consecutive recessive bits,
     -- which should bring the controller back into ERROR ACTIVE.
     ----------------------------------------------------------------------------
-    v_11_recessive_bits_count_current :=
-      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
+    v_11_recessive_bits_count_prev := s_can_ctrl1_recessive_bits_count;
 
-    v_11_recessive_bits_count_prev := v_11_recessive_bits_count_current;
-
-    while v_11_recessive_bits_count_current < C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD-1 loop
+    while s_can_ctrl1_recessive_bits_count < C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD-1 loop
       wait for 11*C_CAN_BAUD_PERIOD;
 
-      v_11_recessive_bits_count_current :=
-        <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-        unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
-
       check_value(v_11_recessive_bits_count_prev+1,
-                  v_11_recessive_bits_count_current,
+                  s_can_ctrl1_recessive_bits_count,
                   error, "Check count of 11 consecutive recess. bits increase");
 
       check_value_in_range(to_integer(s_can_ctrl1_transmit_error_count),
@@ -1664,7 +2005,7 @@ begin
 
       check_value(s_can_ctrl1_error_state, BUS_OFF, error, "Check error state is BUS OFF.");
 
-      v_11_recessive_bits_count_prev := v_11_recessive_bits_count_current;
+      v_11_recessive_bits_count_prev := s_can_ctrl1_recessive_bits_count;
     end loop;
 
     -- Next increase in count of 11 recessive bits should bring us out of BUS OFF
@@ -1673,11 +2014,7 @@ begin
     -- Wait an additional baud to ensure that the 11 bits have been processed
     wait for C_CAN_BAUD_PERIOD;
 
-    v_11_recessive_bits_count_current :=
-      <<signal INST_canola_top_1.INST_canola_eml.s_receive_11_recessive_bits_count :
-      unsigned(C_ERROR_COUNT_LENGTH-1 downto 0)>>;
-
-    check_value(to_integer(v_11_recessive_bits_count_current), 0, error,
+    check_value(to_integer(s_can_ctrl1_recessive_bits_count), 0, error,
                 "Check count of 11 consecutive recess. bits now zero.");
 
     check_value(s_can_ctrl1_error_state, ERROR_ACTIVE, error, "Check error state not bus off.");
@@ -1795,6 +2132,9 @@ begin
                     unsigned(v_rx_form_error_count)+1,
                     error, "Check received form error count in CAN controller.");
       end if;
+
+      -- Wait one clock cycle to allow error state to update
+      wait until rising_edge(s_clk);
 
       -- Check error state
       if unsigned(s_can_ctrl1_receive_error_count) >= C_ERROR_PASSIVE_THRESHOLD then

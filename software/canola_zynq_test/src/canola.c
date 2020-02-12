@@ -49,9 +49,10 @@ void canola_print_status_regs(unsigned int canola_dev_id)
   printf("TRANSMIT_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TRANSMIT_ERROR_COUNT_OFFSET));
   printf("RECEIVE_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+RECEIVE_ERROR_COUNT_OFFSET));
   printf("TX_MSG_SENT_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_MSG_SENT_COUNT_OFFSET));
-  printf("TX_ACK_RECV_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_ACK_RECV_COUNT_OFFSET));
+  printf("TX_ACK_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_ACK_ERROR_COUNT_OFFSET));
   printf("TX_ARB_LOST_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_ARB_LOST_COUNT_OFFSET));
-  printf("TX_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_ERROR_COUNT_OFFSET));
+  printf("TX_BIT_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_BIT_ERROR_COUNT_OFFSET));
+  printf("TX_RETRANSMIT_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+TX_RETRANSMIT_COUNT_OFFSET));
   printf("RX_MSG_RECV_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+RX_MSG_RECV_COUNT_OFFSET));
   printf("RX_CRC_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+RX_CRC_ERROR_COUNT_OFFSET));
   printf("RX_FORM_ERROR_COUNT: %d\n\r", (unsigned int)Xil_In32(canola_baseaddr+RX_FORM_ERROR_COUNT_OFFSET));

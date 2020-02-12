@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -32,15 +32,17 @@ use work.tmr_pkg.all;
 entity counter_saturating_tmr_wrapper_triplicated is
   generic (
     BIT_WIDTH             : integer := 16;
-    INCR_WIDTH            : natural := 16
+    INCR_WIDTH            : natural := 16;
     VERBOSE               : boolean := false;
     G_SEE_MITIGATION_EN   : boolean := false;
-    G_MISMATCH_EN         : boolean := false;
-    G_MISMATCH_REGISTERED : boolean := false);
+    G_MISMATCH_OUTPUT_EN  : boolean := false;
+    G_MISMATCH_OUTPUT_REG : boolean := false);
   port (
     CLK         : in  std_logic;        -- Clock
     RESET       : in  std_logic;        -- Global fpga reset
     CLEAR       : in  std_logic;        -- Counter clear
+    SET         : in  std_logic;        -- Set counter to value
+    SET_VALUE   : in  std_logic_vector(BIT_WIDTH-1 downto 0);
     COUNT_UP    : in  std_logic;
     COUNT_DOWN  : in  std_logic;
     COUNT_INCR  : in  std_logic_vector(INCR_WIDTH-1 downto 0);
@@ -48,8 +50,8 @@ entity counter_saturating_tmr_wrapper_triplicated is
     COUNT_OUT_B : out std_logic_vector(BIT_WIDTH-1 downto 0);
     COUNT_OUT_C : out std_logic_vector(BIT_WIDTH-1 downto 0);
     MISMATCH    : out std_logic);
-  attribute DONT_TOUCH                                   : string;
-  attribute DONT_TOUCH of counter_saturating_tmr_wrapper : entity is "true";
+  attribute DONT_TOUCH                                               : string;
+  attribute DONT_TOUCH of counter_saturating_tmr_wrapper_triplicated : entity is "true";
 end entity counter_saturating_tmr_wrapper_triplicated;
 
 -------------------------------------------------------------------------------
@@ -72,6 +74,8 @@ begin
           CLK            => CLK,
           RESET          => RESET,
           CLEAR          => CLEAR,
+          SET            => SET,
+          SET_VALUE      => SET_VALUE,
           COUNT_UP       => COUNT_UP,
           COUNT_DOWN     => COUNT_DOWN,
           COUNT_INCR     => COUNT_INCR,
@@ -91,8 +95,8 @@ begin
     tmr_block : block is
       type t_count_value_tmr is array (0 to C_K_TMR-1) of std_logic_vector(BIT_WIDTH-1 downto 0);
 
-      signal s_counter_out   : t_cnt_value_tmr;
-      signal s_counter_voted : t_cnt_value_tmr;
+      signal s_counter_out   : t_count_value_tmr;
+      signal s_counter_voted : t_count_value_tmr;
 
       attribute DONT_TOUCH                    : string;
       attribute DONT_TOUCH of s_counter_out   : signal is "TRUE";
@@ -110,6 +114,8 @@ begin
             CLK            => CLK,
             RESET          => RESET,
             CLEAR          => CLEAR,
+            SET            => SET,
+            SET_VALUE      => SET_VALUE,
             COUNT_UP       => COUNT_UP,
             COUNT_DOWN     => COUNT_DOWN,
             COUNT_INCR     => COUNT_INCR,

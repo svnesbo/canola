@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-01-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -35,10 +35,11 @@ entity upcounter_tmr_wrapper is
     IS_SATURATING         : boolean := false;
     VERBOSE               : boolean := false;
     G_SEE_MITIGATION_EN   : boolean := false;
-    G_MISMATCH_EN         : boolean := false;
-    G_MISMATCH_REGISTERED : boolean := false);
+    G_MISMATCH_OUTPUT_EN  : boolean := false;
+    G_MISMATCH_OUTPUT_REG : boolean := false);
   port (
     CLK         : in  std_logic;
+    RESET       : in  std_logic;
     CLEAR       : in  std_logic;
     COUNT_UP    : in  std_logic;
     COUNT_OUT   : out std_logic_vector(BIT_WIDTH-1 downto 0);
@@ -58,13 +59,14 @@ begin
       signal s_counter_nonvoted  : std_logic_vector(BIT_WIDTH-1 downto 0);
     begin
 
-      INST_upcounter : entity work.upcounter_core
+      INST_upcounter : entity work.upcounter
         generic map (
           BIT_WIDTH     => BIT_WIDTH,
           IS_SATURATING => IS_SATURATING,
           VERBOSE       => VERBOSE)
         port map (
           CLK            => CLK,
+          RESET          => RESET,
           CLEAR          => CLEAR,
           COUNT_UP       => COUNT_UP,
           COUNT_OUT      => s_counter_nonvoted,
@@ -81,7 +83,7 @@ begin
     tmr_block : block is
       type t_count_value_tmr is array (0 to C_K_TMR-1) of std_logic_vector(BIT_WIDTH-1 downto 0);
 
-      signal s_counter_out   : t_cnt_value_tmr;
+      signal s_counter_out   : t_count_value_tmr;
       signal s_counter_voted : std_logic_vector(BIT_WIDTH-1 downto 0);
 
       attribute DONT_TOUCH                    : string;
@@ -92,13 +94,14 @@ begin
 
       -- for generate
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
-        INST_upcounter : entity work.upcounter_core
+        INST_upcounter : entity work.upcounter
           generic map (
             BIT_WIDTH     => BIT_WIDTH,
             IS_SATURATING => IS_SATURATING,
             VERBOSE       => VERBOSE)
           port map (
             CLK            => CLK,
+            RESET          => RESET,
             CLEAR          => CLEAR,
             COUNT_UP       => COUNT_UP,
             COUNT_OUT      => s_counter_out(i),

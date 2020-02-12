@@ -5,7 +5,9 @@
 quietly set lib_name "work"
 quietly set part_name "can_controller"
 # path from mpf-file in sim
-quietly set util_part_path "../contrib//$part_name"
+quietly set util_part_path "../extern/$part_name"
+quietly set current_path [pwd]/../sim
+quietly set run_path [pwd]/
 
 # (Re-)Generate library and Compile source files
 #--------------------------------------------------
@@ -15,14 +17,14 @@ quietly set util_part_path "../contrib//$part_name"
 #  file delete -force $util_part_path/sim/$lib_name
 #}
 
-vlib $lib_name
-vmap $lib_name $lib_name
+vlib $run_path/$lib_name
+vmap $lib_name $run_path/$lib_name
 
 quietly set compdirectives_vhdl "-quiet -nologo -nostats -O5 -2008 -lint -work $lib_name"
 
 quietly set compdirectives_vlog "-mixedsvvh s -93 -suppress 1346,1236 -quiet -work $lib_name +incdir+$util_part_path/source/rtl/can_controller/"
 
-echo "\n\n\n=== Compiling $lib_name source\n"
+echo "\n\n\n=== Compiling OpenCores CAN source\n"
 
 eval vlog  $compdirectives_vlog   $util_part_path/timescale.v
 eval vlog  $compdirectives_vlog   $util_part_path/can_defines.v

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-01-29
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -80,27 +80,27 @@ entity canola_bsp is
 
     -- Interface to Tx FSM
     BSP_TX_DATA              : in  std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_TX_DATA_COUNT        : in  natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_TX_DATA_COUNT        : in  std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_TX_WRITE_EN          : in  std_logic;
     BSP_TX_BIT_STUFF_EN      : in  std_logic;  -- Enable bit stuffing on current data
     BSP_TX_RX_MISMATCH       : out std_logic;  -- Mismatch Tx and Rx. Also used
                                                -- for ACK detection
     BSP_TX_RX_STUFF_MISMATCH : out std_logic;  -- Mismatch Tx and Rx for stuff bit
     BSP_TX_DONE              : out std_logic;
-    BSP_TX_CRC_CALC          : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_TX_CRC_CALC_O        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_TX_ACTIVE            : in  std_logic;  -- Resets bit stuff counter and CRC
 
     -- Interface to Rx FSM
     BSP_RX_ACTIVE          : out std_logic;
     BSP_RX_IFS             : out std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
-    BSP_RX_DATA_COUNT      : out natural range 0 to C_BSP_DATA_LENGTH;
+    BSP_RX_DATA_COUNT      : out std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_RX_DATA_CLEAR      : in  std_logic;
     BSP_RX_DATA_OVERFLOW   : out std_logic;
     BSP_RX_BIT_DESTUFF_EN  : in  std_logic;  -- Enable bit destuffing on data
                                              -- that is currently being received
     BSP_RX_STOP            : in std_logic;   -- Tell BSP to stop when we've got EOF
-    BSP_RX_CRC_CALC        : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_CRC_CALC_O      : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_RX_SEND_ACK        : in  std_logic;  -- Pulsed input
 
     BSP_RX_ACTIVE_ERROR_FLAG  : out std_logic;  -- Active error flag received
@@ -115,9 +115,7 @@ entity canola_bsp is
 
     -- Interface to EML
     EML_RECV_11_RECESSIVE_BITS : out std_logic;
-    EML_ERROR_STATE            : in  can_error_state_t;  -- Indicates if the CAN controller
-                                                         -- is in active or passive error
-                                                         -- state,   or bus off state
+    EML_ERROR_STATE            : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
     -- Interface to BTL
     BTL_TX_BIT_VALUE           : out std_logic;
@@ -133,9 +131,11 @@ entity canola_bsp is
     RX_FSM_STATE_O       : out std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
     RX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_RX_FSM_STATE_BITSIZE-1 downto 0);
     TX_FSM_STATE_O       : out std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
-    TX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0)
+    TX_FSM_STATE_VOTED_I : in  std_logic_vector(C_BSP_TX_FSM_STATE_BITSIZE-1 downto 0);
 
-    -- Todo: Output and vote CRC register as well?
+    -- Voted CRC input
+    BSP_TX_CRC_CALC_VOTED_I : in std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
+    BSP_RX_CRC_CALC_VOTED_I : in std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0)
     );
 
 end entity canola_bsp;
@@ -146,10 +146,12 @@ architecture rtl of canola_bsp is
   -----------------------------------------------------------------------------
   signal s_rx_fsm_state_out   : bsp_rx_fsm_state_t := ST_IDLE;
   signal s_rx_fsm_state_voted : bsp_rx_fsm_state_t := ST_IDLE;
+  signal s_eml_error_state    : can_error_state_t;
 
   attribute fsm_encoding                         : string;
   attribute fsm_encoding of s_rx_fsm_state_out   : signal is "sequential";
   attribute fsm_encoding of s_rx_fsm_state_voted : signal is "sequential";
+  attribute fsm_encoding of s_eml_error_state    : signal is "sequential";
 
   signal s_rx_bit               : std_logic;
   signal s_rx_bit_stream_window : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
@@ -178,6 +180,7 @@ architecture rtl of canola_bsp is
 
   signal s_tx_restart_crc_pulse    : std_logic;
   signal s_tx_stuff_bit            : std_logic;
+  signal s_tx_data_count           : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_tx_write_counter        : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_tx_bit_stream_window    : std_logic_vector(C_STUFF_BIT_THRESHOLD-1 downto 0);
   signal s_tx_error_flag_shift_reg : std_logic_vector(C_ERROR_FLAG_LENGTH-1 downto 0);
@@ -199,44 +202,41 @@ begin  -- architecture rtl
   -- Convert voted Rx FSM state register input from std_logic_vector to bsp_rx_fsm_state_t
   s_rx_fsm_state_voted <= bsp_rx_fsm_state_t'val(to_integer(unsigned(RX_FSM_STATE_VOTED_I)));
 
+  s_eml_error_state <= can_error_state_t'val(to_integer(unsigned(EML_ERROR_STATE)));
+
 
   proc_bsp_rx_fsm : process(CLK) is
     variable v_rx_stuff_counter  : natural range 0 to C_STUFF_BIT_THRESHOLD+1;
 
   begin  -- process proc_rx_fsm
     if rising_edge(CLK) then
+      -- Default values
+      BTL_RX_STOP               <= '0';
+      BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
+      BSP_RX_PASSIVE_ERROR_FLAG <= '0';
+      BSP_RX_IFS                <= '0';
+      s_rx_update_crc_pulse     <= '0';
+      s_rx_restart_crc_pulse    <= '0';
+
       if RESET = '1' then
         BSP_RX_DATA               <= (others => '0');
-        BSP_RX_DATA_COUNT         <= 0;
+        BSP_RX_DATA_COUNT         <= (others => '0');
         s_rx_data_counter         <= 0;
         s_rx_stop_reg             <= '0';
         s_rx_start_of_frame       <= '0';
-        BTL_RX_STOP               <= '0';
+
         BSP_RX_DATA_OVERFLOW      <= '0';
         BSP_RX_ACTIVE             <= '0';
-        BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
-        BSP_RX_PASSIVE_ERROR_FLAG <= '0';
-        BSP_RX_IFS                <= '0';
-        s_rx_update_crc_pulse     <= '0';
-        s_rx_restart_crc_pulse    <= '0';
       else
-        -- Default values
-        BTL_RX_STOP               <= '0';
-        BSP_RX_ACTIVE_ERROR_FLAG  <= '0';
-        BSP_RX_PASSIVE_ERROR_FLAG <= '0';
-        BSP_RX_IFS                <= '0';
-        s_rx_update_crc_pulse     <= '0';
-        s_rx_restart_crc_pulse    <= '0';
-
         -- The Rx FSM for CAN frames uses this signal to indicate it has processed the BSP data
         if BSP_RX_DATA_CLEAR = '1' then
-          BSP_RX_DATA_COUNT      <= 0;
+          BSP_RX_DATA_COUNT      <= (others => '0');
           s_rx_data_counter      <= 0;
           BSP_RX_DATA_OVERFLOW   <= '0';
         else
           -- This delays data count output by one cycle,
           -- which allows data count output to be in sync with CRC output
-          BSP_RX_DATA_COUNT      <= s_rx_data_counter;
+          BSP_RX_DATA_COUNT      <= std_logic_vector(to_unsigned(s_rx_data_counter, C_BSP_DATA_LEN_BITSIZE));
         end if;
 
         if BSP_RX_STOP = '1' then
@@ -356,6 +356,9 @@ begin  -- architecture rtl
   -- Convert voted Tx FSM state register input from std_logic_vector to bsp_tx_fsm_state_t
   s_tx_fsm_state_voted <= bsp_tx_fsm_state_t'val(to_integer(unsigned(TX_FSM_STATE_VOTED_I)));
 
+  s_tx_data_count <= to_integer(unsigned(BSP_TX_DATA_COUNT));
+
+
   proc_bsp_tx_fsm : process(CLK) is
   begin  -- process proc_tx_fsm
     if rising_edge(CLK) then
@@ -417,7 +420,7 @@ begin  -- architecture rtl
             if BSP_TX_ACTIVE = '0' then
               s_tx_fsm_state_out <= ST_IDLE;
 
-            elsif s_tx_write_counter = BSP_TX_DATA_COUNT then
+            elsif s_tx_write_counter = s_tx_data_count then
               BSP_TX_DONE <= '1';
 
               -- Wait for more data
@@ -508,7 +511,7 @@ begin  -- architecture rtl
                 -- Return to idle if we were just sending ACK
                 s_tx_fsm_state_out <= ST_IDLE;
               elsif BSP_TX_ACTIVE = '1' then
-                if s_tx_write_counter = BSP_TX_DATA_COUNT then
+                if s_tx_write_counter = s_tx_data_count then
                   BSP_TX_DONE <= '1';
 
                   -- Wait for more data
@@ -539,7 +542,7 @@ begin  -- architecture rtl
         -- If case the BSP is requested to send an error flag,
         -- ignore any other state assignments and go directly to ST_NEXT_ERROR_FLAG_BIT
         if BSP_SEND_ERROR_FLAG = '1' then
-          if EML_ERROR_STATE = ERROR_ACTIVE then
+          if s_eml_error_state = ERROR_ACTIVE then
             BTL_TX_BIT_VALUE <= C_ACTIVE_ERROR_FLAG_VALUE;
           else
             BTL_TX_BIT_VALUE <= C_PASSIVE_ERROR_FLAG_VALUE;
@@ -598,7 +601,8 @@ begin  -- architecture rtl
       RESET     => RESET or s_rx_restart_crc_pulse,
       BIT_IN    => s_rx_bit,
       BIT_VALID => s_rx_update_crc_pulse,
-      CRC_OUT   => BSP_RX_CRC_CALC);
+      CRC_IN    => BSP_RX_CRC_CALC_VOTED_I,
+      CRC_OUT   => BSP_RX_CRC_CALC_O);
 
   INST_canola_crc_tx: entity work.canola_crc
     port map (
@@ -606,7 +610,8 @@ begin  -- architecture rtl
       RESET     => RESET or s_tx_restart_crc_pulse,
       BIT_IN    => BTL_TX_BIT_VALUE,
       BIT_VALID => BTL_TX_BIT_VALID and not s_tx_stuff_bit,
-      CRC_OUT   => BSP_TX_CRC_CALC);
+      CRC_IN    => BSP_TX_CRC_CALC_VOTED_I,
+      CRC_OUT   => BSP_TX_CRC_CALC_O);
 
 
 end architecture rtl;

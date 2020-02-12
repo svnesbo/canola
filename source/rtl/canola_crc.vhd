@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-05
--- Last update: 2020-01-06
+-- Last update: 2020-02-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -35,6 +35,7 @@ entity canola_crc is
     RESET     : in  std_logic;
     BIT_IN    : in  std_logic;
     BIT_VALID : in  std_logic;
+    CRC_IN    : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     CRC_OUT   : out std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0));
 end entity canola_crc;
 
@@ -56,21 +57,18 @@ begin  -- architecture rtl
   begin  -- process proc_crc_calc
     if rising_edge(CLK) then
       if RESET = '1' then
-        s_crc <= (others => '0');
+        v_crc := (others => '0');
       elsif BIT_VALID = '1' then
-        v_crc := s_crc;
+        v_crc      := CRC_IN;
         v_crc_next := BIT_IN xor v_crc(14);
-        v_crc := v_crc(13 downto 0) & '0';
+        v_crc      := v_crc(13 downto 0) & '0';
 
         if v_crc_next = '1' then
           v_crc := v_crc xor c_polynomial(C_CAN_CRC_WIDTH-1 downto 0);
         end if;
-
-        s_crc <= v_crc;
       end if;
+      CRC_OUT <= v_crc;
     end if;
   end process proc_crc_calc;
-
-  CRC_OUT <= s_crc;
 
 end architecture rtl;

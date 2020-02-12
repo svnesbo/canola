@@ -31,7 +31,9 @@ else
         mv temp/canola_axi_slave/hdl/canola_axi_slave.vhd ../rtl/axi_slave/
     fi
 
-    mv temp/canola_axi_slave/header/* ../../software
+    mv temp/canola_axi_slave/header/canola_axi_slave.py ../../software/py
+    mv temp/canola_axi_slave/header/canola_axi_slave.h ../../software/cpp
+    mv temp/canola_axi_slave/header/canola_axi_slave.hpp ../../software/cpp
     mv temp/canola_axi_slave/hdl/axi_pkg.vhd ../rtl/axi_slave/
 
     mv temp/canola_axi_slave/hdl/canola_axi_slave_axi_pif.vhd ../rtl/axi_slave/
