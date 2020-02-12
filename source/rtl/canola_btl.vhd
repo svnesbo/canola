@@ -231,7 +231,7 @@ begin  -- architecture rtl
 
           -- Hard sync is not allowed when we are transmitting,
           -- however because of the fixed phase between rx and tx sample point,
-                      -- we should already be in sync with what is being transmitted
+          -- we should already be in sync with what is being transmitted
 
         -----------------------------------------------------------------------
         -- FSM logic for bit synchronization within a CAN frame
