@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-02-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -65,7 +65,7 @@ architecture tb of canola_top_tb is
   constant C_DATA_LENGTH_MAX : natural := 1000;
   constant C_NUM_ITERATIONS  : natural := 100;
 
-  constant C_BUS_REG_WIDTH : natural := 16;
+  constant C_COUNTER_WIDTH : natural := 16;
 
   -- Generate a clock with a given period,
   -- based on clock_gen from Bitvis IRQC testbench
@@ -117,16 +117,27 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl1_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_can_ctrl1_error_state          : can_error_state_t;
 
-  -- Registers/counters
-  signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  -- Count up signals
+  signal s_can_ctrl1_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl1_tx_ack_error_count_up   : std_logic;
+  signal s_can_ctrl1_tx_arb_lost_count_up    : std_logic;
+  signal s_can_ctrl1_tx_bit_error_count_up   : std_logic;
+  signal s_can_ctrl1_tx_retransmit_count_up  : std_logic;
+  signal s_can_ctrl1_rx_msg_recv_count_up    : std_logic;
+  signal s_can_ctrl1_rx_crc_error_count_up   : std_logic;
+  signal s_can_ctrl1_rx_form_error_count_up  : std_logic;
+  signal s_can_ctrl1_rx_stuff_error_count_up : std_logic;
+
+  -- Counters
+  signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_retransmit_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_msg_recv_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_crc_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_form_error_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_rx_stuff_error_count : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
 
 
   ------------------------------------------------------------------------------
@@ -153,16 +164,27 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl2_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_can_ctrl2_error_state          : can_error_state_t;
 
-  -- Registers/counters
-  signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl2_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  -- Count up signals
+  signal s_can_ctrl2_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl2_tx_ack_error_count_up   : std_logic;
+  signal s_can_ctrl2_tx_arb_lost_count_up    : std_logic;
+  signal s_can_ctrl2_tx_bit_error_count_up   : std_logic;
+  signal s_can_ctrl2_tx_retransmit_count_up  : std_logic;
+  signal s_can_ctrl2_rx_msg_recv_count_up    : std_logic;
+  signal s_can_ctrl2_rx_crc_error_count_up   : std_logic;
+  signal s_can_ctrl2_rx_form_error_count_up  : std_logic;
+  signal s_can_ctrl2_rx_stuff_error_count_up : std_logic;
+
+  -- Counters
+  signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_retransmit_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_msg_recv_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_crc_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_form_error_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_rx_stuff_error_count : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
 
   ------------------------------------------------------------------------------
   -- Signals for CAN controller #3
@@ -188,16 +210,27 @@ architecture tb of canola_top_tb is
   signal s_can_ctrl3_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
   signal s_can_ctrl3_error_state          : can_error_state_t;
 
-  -- Registers/counters
-  signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_ack_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_bit_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_tx_retransmit_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_rx_msg_recv_count    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_rx_crc_error_count   : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_rx_form_error_count  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-  signal s_can_ctrl3_reg_rx_stuff_error_count : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+  -- Count up signals
+  signal s_can_ctrl3_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl3_tx_ack_error_count_up   : std_logic;
+  signal s_can_ctrl3_tx_arb_lost_count_up    : std_logic;
+  signal s_can_ctrl3_tx_bit_error_count_up   : std_logic;
+  signal s_can_ctrl3_tx_retransmit_count_up  : std_logic;
+  signal s_can_ctrl3_rx_msg_recv_count_up    : std_logic;
+  signal s_can_ctrl3_rx_crc_error_count_up   : std_logic;
+  signal s_can_ctrl3_rx_form_error_count_up  : std_logic;
+  signal s_can_ctrl3_rx_stuff_error_count_up : std_logic;
+
+  -- Counters
+  signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_retransmit_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_msg_recv_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_crc_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_form_error_count  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_rx_stuff_error_count : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
 
   ------------------------------------------------------------------------------
   -- Other signals
@@ -266,9 +299,6 @@ begin
   if_TMR_generate : if G_TMR_TOP_MODULE_EN generate
     INST_canola_top_1 : entity work.canola_top_tmr
       generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false,
         G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
       port map (
         CLK   => s_clk,
@@ -303,34 +333,22 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
         ERROR_STATE          => s_can_ctrl1_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
-        CLEAR_TX_MSG_SENT_COUNT    => '0',
-        CLEAR_TX_ACK_ERROR_COUNT   => '0',
-        CLEAR_TX_ARB_LOST_COUNT    => '0',
-        CLEAR_TX_BIT_ERROR_COUNT   => '0',
-        CLEAR_TX_RETRANSMIT_COUNT  => '0',
-        CLEAR_RX_MSG_RECV_COUNT    => '0',
-        CLEAR_RX_CRC_ERROR_COUNT   => '0',
-        CLEAR_RX_FORM_ERROR_COUNT  => '0',
-        CLEAR_RX_STUFF_ERROR_COUNT => '0',
-        VOTER_MISMATCH_LOGIC       => open,
-        VOTER_MISMATCH_COUNTERS    => open
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl1_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl1_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl1_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl1_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl1_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl1_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl1_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl1_rx_stuff_error_count_up,
+
+        VOTER_MISMATCH => open
         );
 
     INST_canola_top_2 : entity work.canola_top_tmr
       generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false,
         G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
       port map (
         CLK   => s_clk,
@@ -365,34 +383,22 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
         ERROR_STATE          => s_can_ctrl2_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
-        CLEAR_TX_MSG_SENT_COUNT    => '0',
-        CLEAR_TX_ACK_ERROR_COUNT   => '0',
-        CLEAR_TX_ARB_LOST_COUNT    => '0',
-        CLEAR_TX_BIT_ERROR_COUNT   => '0',
-        CLEAR_TX_RETRANSMIT_COUNT  => '0',
-        CLEAR_RX_MSG_RECV_COUNT    => '0',
-        CLEAR_RX_CRC_ERROR_COUNT   => '0',
-        CLEAR_RX_FORM_ERROR_COUNT  => '0',
-        CLEAR_RX_STUFF_ERROR_COUNT => '0',
-        VOTER_MISMATCH_LOGIC       => open,
-        VOTER_MISMATCH_COUNTERS    => open
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl2_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl2_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl2_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl2_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl2_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl2_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl2_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl2_rx_stuff_error_count_up,
+
+        VOTER_MISMATCH => open
         );
 
     INST_canola_top_3 : entity work.canola_top_tmr
       generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false,
         G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN)
       port map (
         CLK   => s_clk,
@@ -427,16 +433,29 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
         ERROR_STATE          => s_can_ctrl3_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl3_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl3_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl3_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl3_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl3_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl3_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl3_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl3_rx_stuff_error_count_up,
+
+        VOTER_MISMATCH => open
+        );
+
+    INST_canola_counters_1 : entity work.canola_counters_tmr
+      generic map (
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl1_reset,
+
         CLEAR_TX_MSG_SENT_COUNT    => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
@@ -446,8 +465,112 @@ begin
         CLEAR_RX_CRC_ERROR_COUNT   => '0',
         CLEAR_RX_FORM_ERROR_COUNT  => '0',
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
-        VOTER_MISMATCH_LOGIC       => open,
-        VOTER_MISMATCH_COUNTERS    => open
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl1_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl1_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl1_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl1_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl1_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl1_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl1_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl1_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl1_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl1_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl1_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl1_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl1_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl1_reg_rx_stuff_error_count,
+
+        VOTER_MISMATCH => open
+        );
+
+    INST_canola_counters_2 : entity work.canola_counters_tmr
+      generic map (
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl2_reset,
+
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl2_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl2_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl2_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl2_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl2_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl2_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl2_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl2_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl2_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl2_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl2_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl2_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl2_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl2_reg_rx_stuff_error_count,
+
+        VOTER_MISMATCH => open
+        );
+
+    INST_canola_counters_3 : entity work.canola_counters_tmr
+      generic map (
+        G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl3_reset,
+
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl3_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl3_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl3_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl3_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl3_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl3_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl3_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl3_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl3_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl3_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl3_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl3_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl3_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl3_reg_rx_stuff_error_count,
+
+        VOTER_MISMATCH => open
         );
 
     if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
@@ -511,10 +634,6 @@ begin
   -----------------------------------------------------------------------------
   if_not_TMR_generate : if not G_TMR_TOP_MODULE_EN generate
     INST_canola_top_1 : entity work.canola_top
-      generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false)
       port map (
         CLK   => s_clk,
         RESET => s_can_ctrl1_reset,
@@ -548,32 +667,19 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl1_receive_error_count,
         ERROR_STATE          => s_can_ctrl1_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl1_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl1_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl1_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl1_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl1_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl1_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl1_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl1_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl1_reg_rx_stuff_error_count,
-        CLEAR_TX_MSG_SENT_COUNT    => '0',
-        CLEAR_TX_ACK_ERROR_COUNT   => '0',
-        CLEAR_TX_ARB_LOST_COUNT    => '0',
-        CLEAR_TX_BIT_ERROR_COUNT   => '0',
-        CLEAR_TX_RETRANSMIT_COUNT  => '0',
-        CLEAR_RX_MSG_RECV_COUNT    => '0',
-        CLEAR_RX_CRC_ERROR_COUNT   => '0',
-        CLEAR_RX_FORM_ERROR_COUNT  => '0',
-        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl1_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl1_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl1_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl1_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl1_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl1_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl1_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl1_rx_stuff_error_count_up
         );
 
     INST_canola_top_2 : entity work.canola_top
-      generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false)
       port map (
         CLK   => s_clk,
         RESET => s_can_ctrl2_reset,
@@ -607,32 +713,19 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl2_receive_error_count,
         ERROR_STATE          => s_can_ctrl2_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl2_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl2_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl2_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl2_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl2_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl2_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl2_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl2_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl2_reg_rx_stuff_error_count,
-        CLEAR_TX_MSG_SENT_COUNT    => '0',
-        CLEAR_TX_ACK_ERROR_COUNT   => '0',
-        CLEAR_TX_ARB_LOST_COUNT    => '0',
-        CLEAR_TX_BIT_ERROR_COUNT   => '0',
-        CLEAR_TX_RETRANSMIT_COUNT  => '0',
-        CLEAR_RX_MSG_RECV_COUNT    => '0',
-        CLEAR_RX_CRC_ERROR_COUNT   => '0',
-        CLEAR_RX_FORM_ERROR_COUNT  => '0',
-        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl2_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl2_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl2_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl2_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl2_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl2_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl2_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl2_rx_stuff_error_count_up
         );
 
     INST_canola_top_3 : entity work.canola_top
-      generic map (
-        G_BUS_REG_WIDTH       => C_BUS_REG_WIDTH,
-        G_ENABLE_EXT_ID       => true,
-        G_SATURATING_COUNTERS => false)
       port map (
         CLK   => s_clk,
         RESET => s_can_ctrl3_reset,
@@ -666,16 +759,26 @@ begin
         RECEIVE_ERROR_COUNT  => s_can_ctrl3_receive_error_count,
         ERROR_STATE          => s_can_ctrl3_error_state,
 
-        -- Registers/counters
-        REG_TX_MSG_SENT_COUNT      => s_can_ctrl3_reg_tx_msg_sent_count,
-        REG_TX_ACK_ERROR_COUNT     => s_can_ctrl3_reg_tx_ack_error_count,
-        REG_TX_ARB_LOST_COUNT      => s_can_ctrl3_reg_tx_arb_lost_count,
-        REG_TX_BIT_ERROR_COUNT     => s_can_ctrl3_reg_tx_bit_error_count,
-        REG_TX_RETRANSMIT_COUNT    => s_can_ctrl3_reg_tx_retransmit_count,
-        REG_RX_MSG_RECV_COUNT      => s_can_ctrl3_reg_rx_msg_recv_count,
-        REG_RX_CRC_ERROR_COUNT     => s_can_ctrl3_reg_rx_crc_error_count,
-        REG_RX_FORM_ERROR_COUNT    => s_can_ctrl3_reg_rx_form_error_count,
-        REG_RX_STUFF_ERROR_COUNT   => s_can_ctrl3_reg_rx_stuff_error_count,
+        -- Counter signals
+        TX_MSG_SENT_COUNT_UP       => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP      => s_can_ctrl3_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP       => s_can_ctrl3_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP      => s_can_ctrl3_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP     => s_can_ctrl3_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP       => s_can_ctrl3_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP      => s_can_ctrl3_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP     => s_can_ctrl3_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl3_rx_stuff_error_count_up
+        );
+
+    INST_canola_counters_1 : entity work.canola_counters
+      generic map (
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl1_reset,
+
         CLEAR_TX_MSG_SENT_COUNT    => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
@@ -684,7 +787,105 @@ begin
         CLEAR_RX_MSG_RECV_COUNT    => '0',
         CLEAR_RX_CRC_ERROR_COUNT   => '0',
         CLEAR_RX_FORM_ERROR_COUNT  => '0',
-        CLEAR_RX_STUFF_ERROR_COUNT => '0'
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl1_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl1_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl1_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl1_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl1_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl1_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl1_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl1_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl1_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl1_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl1_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl1_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl1_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl1_reg_rx_stuff_error_count
+        );
+
+    INST_canola_counters_2 : entity work.canola_counters
+      generic map (
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl2_reset,
+
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl2_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl2_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl2_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl2_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl2_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl2_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl2_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl2_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl2_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl2_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl2_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl2_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl2_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl2_reg_rx_stuff_error_count
+        );
+
+    INST_canola_counters_3 : entity work.canola_counters
+      generic map (
+        G_COUNTER_WIDTH       => C_COUNTER_WIDTH,
+        G_SATURATING_COUNTERS => true)
+      port map (
+        CLK   => s_clk,
+        RESET => s_can_ctrl3_reset,
+
+        CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_ACK_ERROR_COUNT   => '0',
+        CLEAR_TX_ARB_LOST_COUNT    => '0',
+        CLEAR_TX_BIT_ERROR_COUNT   => '0',
+        CLEAR_TX_RETRANSMIT_COUNT  => '0',
+        CLEAR_RX_MSG_RECV_COUNT    => '0',
+        CLEAR_RX_CRC_ERROR_COUNT   => '0',
+        CLEAR_RX_FORM_ERROR_COUNT  => '0',
+        CLEAR_RX_STUFF_ERROR_COUNT => '0',
+
+        TX_MSG_SENT_COUNT_UP    => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_ACK_ERROR_COUNT_UP   => s_can_ctrl3_tx_ack_error_count_up,
+        TX_ARB_LOST_COUNT_UP    => s_can_ctrl3_tx_arb_lost_count_up,
+        TX_BIT_ERROR_COUNT_UP   => s_can_ctrl3_tx_bit_error_count_up,
+        TX_RETRANSMIT_COUNT_UP  => s_can_ctrl3_tx_retransmit_count_up,
+        RX_MSG_RECV_COUNT_UP    => s_can_ctrl3_rx_msg_recv_count_up,
+        RX_CRC_ERROR_COUNT_UP   => s_can_ctrl3_rx_crc_error_count_up,
+        RX_FORM_ERROR_COUNT_UP  => s_can_ctrl3_rx_form_error_count_up,
+        RX_STUFF_ERROR_COUNT_UP => s_can_ctrl3_rx_stuff_error_count_up,
+
+        TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl3_reg_tx_msg_sent_count,
+        TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_ack_error_count,
+        TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl3_reg_tx_arb_lost_count,
+        TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_bit_error_count,
+        TX_RETRANSMIT_COUNT_VALUE  => s_can_ctrl3_reg_tx_retransmit_count,
+        RX_MSG_RECV_COUNT_VALUE    => s_can_ctrl3_reg_rx_msg_recv_count,
+        RX_CRC_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_rx_crc_error_count,
+        RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl3_reg_rx_form_error_count,
+        RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl3_reg_rx_stuff_error_count
         );
 
 
@@ -872,14 +1073,14 @@ begin
     variable v_can_tx_status    : can_tx_status_t;
     variable v_can_rx_error_gen : can_rx_error_gen_t := C_CAN_RX_NO_ERROR_GEN;
 
-    variable v_tx_msg_sent_count               : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_arb_lost_count                  : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_ack_error_count                 : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_tx_bit_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_msg_count                    : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_crc_error_count              : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_form_error_count             : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
-    variable v_rx_stuff_error_count            : std_logic_vector(C_BUS_REG_WIDTH-1 downto 0);
+    variable v_tx_msg_sent_count               : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_arb_lost_count                  : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_ack_error_count                 : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_tx_bit_error_count              : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_rx_msg_count                    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_rx_crc_error_count              : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_rx_form_error_count             : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+    variable v_rx_stuff_error_count            : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
     variable v_receive_error_count             : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
     variable v_11_recessive_bits_count_prev    : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 

@@ -61,6 +61,17 @@ architecture behavior of canola_axi_slave is
   signal s_btl_sync_jump_width : natural range 1 to C_SYNC_JUMP_WIDTH_MAX;
 
   constant C_INTERNAL_REG_WIDTH : natural := 16;
+
+  signal s_tx_msg_sent_count_up    : std_logic;
+  signal s_tx_ack_error_count_up   : std_logic;
+  signal s_tx_arb_lost_count_up    : std_logic;
+  signal s_tx_bit_error_count_up   : std_logic;
+  signal s_tx_retransmit_count_up  : std_logic;
+  signal s_rx_msg_recv_count_up    : std_logic;
+  signal s_rx_crc_error_count_up   : std_logic;
+  signal s_rx_form_error_count_up  : std_logic;
+  signal s_rx_stuff_error_count_up : std_logic;
+
   -- User Architecture End
 
   -- Register Signals
@@ -113,10 +124,6 @@ begin
     2 when others;
 
   INST_canola_top : entity work.canola_top
-    generic map (
-      G_BUS_REG_WIDTH       => C_INTERNAL_REG_WIDTH,
-      G_ENABLE_EXT_ID       => true,
-      G_SATURATING_COUNTERS => false)
     port map (
       CLK   => AXI_CLK,
       RESET => AXI_RESET,
@@ -149,16 +156,26 @@ begin
       std_logic_vector(RECEIVE_ERROR_COUNT)  => axi_ro_regs.RECEIVE_ERROR_COUNT(C_ERROR_COUNT_LENGTH-1 downto 0),
       ERROR_STATE                            => s_can_error_state,
 
-      -- Registers/counters
-      REG_TX_MSG_SENT_COUNT      => axi_ro_regs.TX_MSG_SENT_COUNT,
-      REG_TX_ACK_ERROR_COUNT     => axi_ro_regs.TX_ACK_ERROR_COUNT,
-      REG_TX_ARB_LOST_COUNT      => axi_ro_regs.TX_ARB_LOST_COUNT,
-      REG_TX_BIT_ERROR_COUNT     => axi_ro_regs.TX_BIT_ERROR_COUNT,
-      REG_TX_RETRANSMIT_COUNT    => axi_ro_regs.TX_RETRANSMIT_COUNT,
-      REG_RX_MSG_RECV_COUNT      => axi_ro_regs.RX_MSG_RECV_COUNT,
-      REG_RX_CRC_ERROR_COUNT     => axi_ro_regs.RX_CRC_ERROR_COUNT,
-      REG_RX_FORM_ERROR_COUNT    => axi_ro_regs.RX_FORM_ERROR_COUNT,
-      REG_RX_STUFF_ERROR_COUNT   => axi_ro_regs.RX_STUFF_ERROR_COUNT,
+      -- Counter signals
+      TX_MSG_SENT_COUNT_UP       => s_tx_msg_sent_count_up,
+      TX_ACK_ERROR_COUNT_UP      => s_tx_ack_error_count_up,
+      TX_ARB_LOST_COUNT_UP       => s_tx_arb_lost_count_up,
+      TX_BIT_ERROR_COUNT_UP      => s_tx_bit_error_count_up,
+      TX_RETRANSMIT_COUNT_UP     => s_tx_retransmit_count_up,
+      RX_MSG_RECV_COUNT_UP       => s_rx_msg_recv_count_up,
+      RX_CRC_ERROR_COUNT_UP      => s_rx_crc_error_count_up,
+      RX_FORM_ERROR_COUNT_UP     => s_rx_form_error_count_up,
+      RX_STUFF_ERROR_COUNT_UP    => s_rx_stuff_error_count_up
+      );
+
+  INST_canola_counters : entity work.canola_counters
+    generic map (
+      G_COUNTER_WIDTH       => C_INTERNAL_REG_WIDTH,
+      G_SATURATING_COUNTERS => true)
+    port map (
+      CLK   => AXI_CLK,
+      RESET => AXI_RESET,
+
       CLEAR_TX_MSG_SENT_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_MSG_SENT_COUNTER,
       CLEAR_TX_ACK_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_TX_ACK_ERROR_COUNTER,
       CLEAR_TX_ARB_LOST_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_ARB_LOST_COUNTER,
@@ -167,7 +184,27 @@ begin
       CLEAR_RX_MSG_RECV_COUNT    => axi_pulse_regs.CONTROL.RESET_RX_MSG_RECV_COUNTER,
       CLEAR_RX_CRC_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_RX_CRC_ERROR_COUNTER,
       CLEAR_RX_FORM_ERROR_COUNT  => axi_pulse_regs.CONTROL.RESET_RX_FORM_ERROR_COUNTER,
-      CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER
+      CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER,
+
+      TX_MSG_SENT_COUNT_UP    => s_tx_msg_sent_count_up,
+      TX_ACK_ERROR_COUNT_UP   => s_tx_ack_error_count_up,
+      TX_ARB_LOST_COUNT_UP    => s_tx_arb_lost_count_up,
+      TX_BIT_ERROR_COUNT_UP   => s_tx_bit_error_count_up,
+      TX_RETRANSMIT_COUNT_UP  => s_tx_retransmit_count_up,
+      RX_MSG_RECV_COUNT_UP    => s_rx_msg_recv_count_up,
+      RX_CRC_ERROR_COUNT_UP   => s_rx_crc_error_count_up,
+      RX_FORM_ERROR_COUNT_UP  => s_rx_form_error_count_up,
+      RX_STUFF_ERROR_COUNT_UP => s_rx_stuff_error_count_up,
+
+      TX_MSG_SENT_COUNT_VALUE    => axi_ro_regs.TX_MSG_SENT_COUNT,
+      TX_ACK_ERROR_COUNT_VALUE   => axi_ro_regs.TX_ACK_ERROR_COUNT,
+      TX_ARB_LOST_COUNT_VALUE    => axi_ro_regs.TX_ARB_LOST_COUNT,
+      TX_BIT_ERROR_COUNT_VALUE   => axi_ro_regs.TX_BIT_ERROR_COUNT,
+      TX_RETRANSMIT_COUNT_VALUE  => axi_ro_regs.TX_RETRANSMIT_COUNT,
+      RX_MSG_RECV_COUNT_VALUE    => axi_ro_regs.RX_MSG_RECV_COUNT,
+      RX_CRC_ERROR_COUNT_VALUE   => axi_ro_regs.RX_CRC_ERROR_COUNT,
+      RX_FORM_ERROR_COUNT_VALUE  => axi_ro_regs.RX_FORM_ERROR_COUNT,
+      RX_STUFF_ERROR_COUNT_VALUE => axi_ro_regs.RX_STUFF_ERROR_COUNT
       );
 
   -- User Logic End

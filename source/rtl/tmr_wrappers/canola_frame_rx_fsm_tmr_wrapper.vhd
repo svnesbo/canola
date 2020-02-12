@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-28
--- Last update: 2020-02-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -32,8 +32,6 @@ use work.tmr_pkg.all;
 
 entity canola_frame_rx_fsm_tmr_wrapper is
   generic (
-    G_BUS_REG_WIDTH       : natural;
-    G_ENABLE_EXT_ID       : boolean;
     G_SEE_MITIGATION_EN   : boolean := false;
     G_MISMATCH_OUTPUT_EN  : boolean := false);
   port (
@@ -74,12 +72,6 @@ entity canola_frame_rx_fsm_tmr_wrapper is
     EML_RX_FORM_ERROR                  : out std_logic;
     EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR : out std_logic;
     EML_ERROR_STATE                    : in  std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
-
-    -- Counter registers for FSM
-    REG_MSG_RECV_COUNT    : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_CRC_ERROR_COUNT   : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_FORM_ERROR_COUNT  : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
-    REG_STUFF_ERROR_COUNT : out std_logic_vector(G_BUS_REG_WIDTH-1 downto 0);
 
     -- Indicates mismatch in any of the TMR voters
     VOTER_MISMATCH        : out std_logic

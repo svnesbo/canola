@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-02-06
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,9 +42,6 @@ library work;
 use work.canola_pkg.all;
 
 entity canola_frame_rx_fsm is
-  generic (
-    G_BUS_REG_WIDTH : natural;
-    G_ENABLE_EXT_ID : boolean);
   port (
     CLK               : in  std_logic;
     RESET             : in  std_logic;
