@@ -3,13 +3,9 @@
 #Paths
 RUN_DIR = run/
 
-MODELSIM_CMD = vsim -do "../sim/05-compile_and_run_canola.do"
-
 #targets
 main: main_no_tmr
 
-console:
-	(cd $(RUN_DIR) && $(MODELSIM_CMD) -c)
 
 batch_all:
 	(cd $(RUN_DIR) && vsim -do "do ../sim/05-compile_and_run_canola.do all_tb" -c)
