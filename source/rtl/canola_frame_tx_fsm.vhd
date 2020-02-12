@@ -135,6 +135,7 @@ begin  -- architecture rtl
       TX_ARB_WON                         <= '0';
       TX_ARB_LOST                        <= '0';
       TX_DONE                            <= '0';
+      TX_RETRANSMITTING                  <= '0';
       EML_TX_BIT_ERROR                   <= '0';
       EML_TX_ACK_ERROR                   <= '0';
       EML_TX_ARB_STUFF_ERROR             <= '0';
