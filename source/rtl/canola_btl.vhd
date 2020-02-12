@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-02-10
+-- Last update: 2020-02-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ architecture rtl of canola_btl is
   -- Actual bit sampled at the Rx sample point, will be processed as part of
   -- CANbus frame (In the case of triple sampling, this is the majority voted
   -- value of the 3 most recent CAN_RX samples)
-  signal s_sampled_bit       : std_logic;
+  signal s_sampled_bit : std_logic;
 
   -- Previous 2 bit values - for triple sampling and for falling edge detection
   signal s_quanta_sampled_bits : std_logic_vector(1 downto 0);
@@ -150,7 +150,7 @@ architecture rtl of canola_btl is
   signal s_bus_idle_count : integer range 0 to C_EOF_LENGTH;
 
   -- Number of bits in a row that has been dominant (0) or recessive (1)
-  signal s_dominant_bit_count : unsigned(3 downto 0);
+  signal s_dominant_bit_count  : unsigned(3 downto 0);
   signal s_recessive_bit_count : unsigned(3 downto 0);
 
   -- BTL_TX_BIT_VALUE registered when BTL_TX_BIT_VALID is high,
@@ -183,7 +183,7 @@ begin  -- architecture rtl
     if rising_edge(CLK) then
       -- Synchronous reset
       if RESET = '1' then
-        BTL_RX_SYNCED               <= '0';
+        BTL_RX_SYNCED             <= '0';
         s_frame_hard_sync         <= '0';
         s_resync_allowed          <= '0';
         s_resync_done             <= '0';
@@ -222,7 +222,7 @@ begin  -- architecture rtl
           -- BTL_RX_SYNCED and s_got_rx_bit_falling_edge should both be '1' by then,
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
-            s_frame_hard_sync <= '1';
+            s_frame_hard_sync     <= '1';
             s_sync_fsm_state_out  <= ST_SYNC_SEG;
 
           -- Hard sync is not allowed when we are transmitting,
@@ -247,7 +247,7 @@ begin  -- architecture rtl
               s_phase_error             <= 0;
               s_segment                 <= (others => '0');
               s_segment(PROP_SEG'range) <= PROP_SEG;
-              s_sync_fsm_state_out          <= ST_PROP_SEG;
+              s_sync_fsm_state_out      <= ST_PROP_SEG;
 
             when ST_PROP_SEG =>
               v_phase_error := s_phase_error;
@@ -270,7 +270,7 @@ begin  -- architecture rtl
                 -- Setup segment for PHASE1_SEG
                 v_segment                   := (others => '0');
                 v_segment(PHASE_SEG1'range) := PHASE_SEG1;
-                s_sync_fsm_state_out            <= ST_PHASE_SEG1;
+                s_sync_fsm_state_out        <= ST_PHASE_SEG1;
               end if;
 
               s_phase_error <= v_phase_error;
@@ -309,10 +309,10 @@ begin  -- architecture rtl
                 -- Phase error for PHASE_SEG2 becomes shorter the longer into PHASE_SEG2
                 -- we are, so start with maximum value for v_phase_error and
                 -- decrease it each time quanta in PHASE_SEG2
-                v_phase_error               := C_SYNC_JUMP_WIDTH_MAX;
+                v_phase_error        := C_SYNC_JUMP_WIDTH_MAX;
 
-                s_resync_done               <= '0';
-                s_sync_fsm_state_out            <= ST_PHASE_SEG2;
+                s_resync_done        <= '0';
+                s_sync_fsm_state_out <= ST_PHASE_SEG2;
               end if;
 
               s_segment                 <= v_segment;
@@ -341,14 +341,14 @@ begin  -- architecture rtl
                 v_segment                 := (others => '0');
                 v_phase_error             := 0;
                 s_got_rx_bit_falling_edge <= '0';
-                s_sync_fsm_state_out          <= ST_SYNC_SEG;
+                s_sync_fsm_state_out      <= ST_SYNC_SEG;
               end if;
 
-              s_segment                 <= v_segment;
-              s_phase_error             <= v_phase_error;
+              s_segment     <= v_segment;
+              s_phase_error <= v_phase_error;
 
             when others =>
-              s_sync_fsm_state_out      <= ST_SYNC_SEG;
+              s_sync_fsm_state_out  <= ST_SYNC_SEG;
 
           end case;
 
