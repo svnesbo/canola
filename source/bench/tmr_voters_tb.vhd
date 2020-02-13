@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-30
+-- Last update: 2020-02-13
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -116,7 +116,7 @@ begin
   -----------------------------------------------------------------------------
   -- Voters with 3x single inputs and one voted output
   -----------------------------------------------------------------------------
-  INST_majority_voter_no_mismatch: entity work.majority_voter
+  INST_tmr_voter_no_mismatch: entity work.tmr_voter
     generic map (
       G_MISMATCH_OUTPUT_EN  => false,
       G_MISMATCH_OUTPUT_REG => false)
@@ -128,7 +128,7 @@ begin
       VOTER_OUT => s_single_voter_no_mismatch_output,
       MISMATCH  => open);
 
-  INST_majority_voter_mismatch_unreg : entity work.majority_voter
+  INST_tmr_voter_mismatch_unreg : entity work.tmr_voter
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => false)
@@ -140,7 +140,7 @@ begin
       VOTER_OUT => s_single_voter_mismatch_unreg_output,
       MISMATCH  => s_single_voter_mismatch_unreg_val);
 
-  INST_majority_voter_mismatch_reg : entity work.majority_voter
+  INST_tmr_voter_mismatch_reg : entity work.tmr_voter
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => true)
@@ -156,7 +156,7 @@ begin
   -----------------------------------------------------------------------------
   -- Voters with 3x single inputs and 3x voted outputs
   -----------------------------------------------------------------------------
-  INST_majority_voter_triplicated_no_mismatch: entity work.majority_voter_triplicated
+  INST_tmr_voter_triplicated_no_mismatch: entity work.tmr_voter_triplicated
     generic map (
       G_MISMATCH_OUTPUT_EN  => false,
       G_MISMATCH_OUTPUT_REG => false)
@@ -170,7 +170,7 @@ begin
       VOTER_OUT_C => s_single_voter_tri_no_mismatch_output(2),
       MISMATCH    => open);
 
-  INST_majority_voter_triplicated_mismatch_unreg: entity work.majority_voter_triplicated
+  INST_tmr_voter_triplicated_mismatch_unreg: entity work.tmr_voter_triplicated
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => false)
@@ -184,7 +184,7 @@ begin
       VOTER_OUT_C => s_single_voter_tri_mismatch_unreg_output(2),
       MISMATCH    => s_single_voter_tri_mismatch_unreg_val);
 
-  INST_majority_voter_triplicated_mismatch_reg: entity work.majority_voter_triplicated
+  INST_tmr_voter_triplicated_mismatch_reg: entity work.tmr_voter_triplicated
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => true)
@@ -202,7 +202,7 @@ begin
   -----------------------------------------------------------------------------
   -- Voters with 3x array inputs and one voted array output
   -----------------------------------------------------------------------------
-  INST_majority_voter_array_no_mismatch: entity work.majority_voter_array
+  INST_tmr_voter_array_no_mismatch: entity work.tmr_voter_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => false,
       G_MISMATCH_OUTPUT_REG => false)
@@ -214,7 +214,7 @@ begin
       VOTER_OUT => s_array_voter_no_mismatch_output,
       MISMATCH  => open);
 
-  INST_majority_voter_array_mismatch_unreg: entity work.majority_voter_array
+  INST_tmr_voter_array_mismatch_unreg: entity work.tmr_voter_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => false)
@@ -226,7 +226,7 @@ begin
       VOTER_OUT => s_array_voter_mismatch_unreg_output,
       MISMATCH  => s_array_voter_mismatch_unreg_val);
 
-  INST_majority_voter_array_mismatch_reg: entity work.majority_voter_array
+  INST_tmr_voter_array_mismatch_reg: entity work.tmr_voter_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => true)
@@ -242,7 +242,7 @@ begin
   -----------------------------------------------------------------------------
   -- Voters with 3x array inputs and 3x voted array outputs
   -----------------------------------------------------------------------------
-  INST_majority_voter_triplicated_array_no_mismatch: entity work.majority_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_no_mismatch: entity work.tmr_voter_triplicated_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => false,
       G_MISMATCH_OUTPUT_REG => false)
@@ -256,7 +256,7 @@ begin
       VOTER_OUT_C => s_array_voter_tri_no_mismatch_output(2),
       MISMATCH    => open);
 
-  INST_majority_voter_triplicated_array_mismatch_unreg: entity work.majority_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_mismatch_unreg: entity work.tmr_voter_triplicated_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => false)
@@ -270,7 +270,7 @@ begin
       VOTER_OUT_C => s_array_voter_tri_mismatch_unreg_output(2),
       MISMATCH    => s_array_voter_tri_mismatch_unreg_val);
 
-  INST_majority_voter_triplicated_array_mismatch_reg: entity work.majority_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_mismatch_reg: entity work.tmr_voter_triplicated_array
     generic map (
       G_MISMATCH_OUTPUT_EN  => true,
       G_MISMATCH_OUTPUT_REG => true)

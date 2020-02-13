@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-31
+-- Last update: 2020-02-13
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -108,8 +108,7 @@ begin
             COUNT_VOTED_IN => s_counter_voted);
       end generate for_TMR_generate;
 
-
-      INST_upcount_voter : entity work.majority_voter_array
+      INST_upcount_voter : entity work.tmr_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)

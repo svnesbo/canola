@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-29
--- Last update: 2020-02-12
+-- Last update: 2020-02-13
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -260,7 +260,7 @@ begin  -- architecture structural
       -- -----------------------------------------------------------------------
       -- TMR voters
       -- -----------------------------------------------------------------------
-      INST_fsm_state_voter : entity work.majority_voter_triplicated_array
+      INST_fsm_state_voter : entity work.tmr_voter_triplicated_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -274,7 +274,7 @@ begin  -- architecture structural
           VOTER_OUT_C => s_fsm_state_voted(2),
           MISMATCH    => s_mismatch_vector(C_mismatch_fsm_state));
 
-      INST_tx_busy_voter : entity work.majority_voter
+      INST_tx_busy_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -286,7 +286,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_BUSY,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_busy));
 
-      INST_tx_done_voter : entity work.majority_voter
+      INST_tx_done_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -298,7 +298,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_DONE,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_done));
 
-      INST_tx_arb_lost_voter : entity work.majority_voter
+      INST_tx_arb_lost_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -310,7 +310,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_ARB_LOST,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_arb_lost));
 
-      INST_tx_arb_won_voter : entity work.majority_voter
+      INST_tx_arb_won_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -322,7 +322,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_ARB_WON,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_arb_won));
 
-      INST_tx_failed_voter : entity work.majority_voter
+      INST_tx_failed_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -334,7 +334,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_FAILED,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_failed));
 
-      INST_tx_retransmitting_voter : entity work.majority_voter
+      INST_tx_retransmitting_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -346,7 +346,7 @@ begin  -- architecture structural
           VOTER_OUT => TX_RETRANSMITTING,
           MISMATCH  => s_mismatch_vector(C_mismatch_tx_retransmitting));
 
-      INST_bsp_tx_data_voter : entity work.majority_voter_array
+      INST_bsp_tx_data_voter : entity work.tmr_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -358,7 +358,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_TX_DATA,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_data));
 
-      INST_bsp_tx_data_count_voter : entity work.majority_voter_array
+      INST_bsp_tx_data_count_voter : entity work.tmr_voter_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -370,7 +370,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_TX_DATA_COUNT,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_data_count));
 
-      INST_bsp_tx_write_en_voter : entity work.majority_voter
+      INST_bsp_tx_write_en_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -382,7 +382,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_TX_WRITE_EN,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_write_en));
 
-      INST_bsp_tx_bit_stuff_en_voter : entity work.majority_voter
+      INST_bsp_tx_bit_stuff_en_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -394,7 +394,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_TX_BIT_STUFF_EN,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_bit_stuff_en));
 
-      INST_bsp_tx_active_voter : entity work.majority_voter
+      INST_bsp_tx_active_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -406,7 +406,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_TX_ACTIVE,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_tx_active));
 
-      INST_bsp_send_error_flag_voter : entity work.majority_voter
+      INST_bsp_send_error_flag_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -418,7 +418,7 @@ begin  -- architecture structural
           VOTER_OUT => BSP_SEND_ERROR_FLAG,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_send_error_flag));
 
-      INST_eml_tx_bit_error_voter : entity work.majority_voter
+      INST_eml_tx_bit_error_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -430,7 +430,7 @@ begin  -- architecture structural
           VOTER_OUT => EML_TX_BIT_ERROR,
           MISMATCH  => s_mismatch_vector(C_mismatch_eml_tx_bit_error));
 
-      INST_eml_tx_ack_error_voter : entity work.majority_voter
+      INST_eml_tx_ack_error_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -442,7 +442,7 @@ begin  -- architecture structural
           VOTER_OUT => EML_TX_ACK_ERROR,
           MISMATCH  => s_mismatch_vector(C_mismatch_eml_tx_ack_error));
 
-      INST_eml_tx_arb_stuff_error_voter : entity work.majority_voter
+      INST_eml_tx_arb_stuff_error_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
@@ -454,7 +454,7 @@ begin  -- architecture structural
           VOTER_OUT => EML_TX_ARB_STUFF_ERROR,
           MISMATCH  => s_mismatch_vector(C_mismatch_eml_tx_arb_stuff_error));
 
-      INST_eml_tx_active_error_flag_bit_error_voter : entity work.majority_voter
+      INST_eml_tx_active_error_flag_bit_error_voter : entity work.tmr_voter
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
