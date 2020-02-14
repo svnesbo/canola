@@ -1,17 +1,17 @@
 -------------------------------------------------------------------------------
--- Title      : Upcounter tmr wrapper
+-- Title      : Up counter tmr wrapper
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : upcounter_tmr_wrapper.vhd
+-- File       : up_counter_tmr_wrapper.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-02-13
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
--- Description: TMR wrapper for upcounter.
---              Creates three instances of the upcounter,
+-- Description: TMR wrapper for up_counter.
+--              Creates three instances of the up_counter,
 --              and has one voted output of the counter value.
 --              Heavily based on upcounter_tmr_wrapper written for the
 --              ALICE ITS upgrade by Matteo Lupi.
@@ -29,7 +29,7 @@ use ieee.numeric_std.all;
 library work;
 use work.tmr_pkg.all;
 
-entity upcounter_tmr_wrapper is
+entity up_counter_tmr_wrapper is
   generic (
     BIT_WIDTH             : integer := 16;
     IS_SATURATING         : boolean := false;
@@ -38,20 +38,20 @@ entity upcounter_tmr_wrapper is
     G_MISMATCH_OUTPUT_EN  : boolean := false;
     G_MISMATCH_OUTPUT_REG : boolean := false);
   port (
-    CLK         : in  std_logic;
-    RESET       : in  std_logic;
-    CLEAR       : in  std_logic;
-    COUNT_UP    : in  std_logic;
-    COUNT_OUT   : out std_logic_vector(BIT_WIDTH-1 downto 0);
-    MISMATCH    : out std_logic);
-  attribute DONT_TOUCH                          : string;
-  attribute DONT_TOUCH of upcounter_tmr_wrapper : entity is "true";
-end entity upcounter_tmr_wrapper;
+    CLK       : in  std_logic;
+    RESET     : in  std_logic;
+    CLEAR     : in  std_logic;
+    COUNT_UP  : in  std_logic;
+    COUNT_OUT : out std_logic_vector(BIT_WIDTH-1 downto 0);
+    MISMATCH  : out std_logic);
+  attribute DONT_TOUCH                           : string;
+  attribute DONT_TOUCH of up_counter_tmr_wrapper : entity is "true";
+end entity up_counter_tmr_wrapper;
 
 -------------------------------------------------------------------------------
 -- Architecture
 -------------------------------------------------------------------------------
-architecture structural of upcounter_tmr_wrapper is
+architecture structural of up_counter_tmr_wrapper is
 begin
 
   if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
@@ -59,7 +59,7 @@ begin
       signal s_counter_nonvoted  : std_logic_vector(BIT_WIDTH-1 downto 0);
     begin
 
-      INST_upcounter : entity work.upcounter
+      INST_up_counter : entity work.up_counter
         generic map (
           BIT_WIDTH     => BIT_WIDTH,
           IS_SATURATING => IS_SATURATING,
@@ -94,7 +94,7 @@ begin
 
       -- for generate
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
-        INST_upcounter : entity work.upcounter
+        INST_up_counter : entity work.up_counter
           generic map (
             BIT_WIDTH     => BIT_WIDTH,
             IS_SATURATING => IS_SATURATING,

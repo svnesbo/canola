@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-05
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ entity canola_eml is
     REC_SET                   : out std_logic;
     REC_SET_VALUE             : out std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
 
-    -- Interface to upcounter module for counter for
+    -- Interface to up_counter module for counter for
     -- received sequences of 11 consecutive recessive bits
     RECESSIVE_BIT_COUNT_VALUE : in  std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
     RECESSIVE_BIT_COUNT_UP    : out std_logic;

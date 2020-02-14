@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2020-02-05
+-- Last update: 2020-02-14
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -279,7 +279,7 @@ begin
       COUNT_VOTED_IN => s_eml_tec_count_value);
 
   -- Counter for sequences of 11 recessive bits used by EML
-  INST_recessive_bit_counter: entity work.upcounter
+  INST_recessive_bit_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => C_ERROR_COUNT_LENGTH,
       IS_SATURATING => true,

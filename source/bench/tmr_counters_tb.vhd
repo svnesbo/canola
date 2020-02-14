@@ -6,12 +6,12 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-31
--- Last update: 2020-01-31
+-- Last update: 2020-02-14
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
--- Description: UVVM testbench for upcounter and counter for, with and
+-- Description: UVVM testbench for up_counter and counter for, with and
 --              without Triple Modular Redundancy (TMR).
 --              The test bench only tests the functionality of the counters,
 --              the TMR voters are tested in a separate test bench and are
@@ -97,7 +97,7 @@ begin
   clock_gen(s_clk, C_CLK_PERIOD);
 
 
-  INST_upcounter_non_saturating_no_tmr : entity work.upcounter_tmr_wrapper
+  INST_up_counter_non_saturating_no_tmr : entity work.up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => false,
@@ -113,7 +113,7 @@ begin
       COUNT_OUT => s_upcounter_non_saturating_no_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_non_saturating_tmr : entity work.upcounter_tmr_wrapper
+  INST_up_counter_non_saturating_tmr : entity work.up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => false,
@@ -129,7 +129,7 @@ begin
       COUNT_OUT => s_upcounter_non_saturating_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_saturating_no_tmr : entity work.upcounter_tmr_wrapper
+  INST_up_counter_saturating_no_tmr : entity work.up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => true,
@@ -145,7 +145,7 @@ begin
       COUNT_OUT => s_upcounter_saturating_no_tmr_out,
       MISMATCH  => open);
 
-  INST_upcounter_saturating_tmr : entity work.upcounter_tmr_wrapper
+  INST_up_counter_saturating_tmr : entity work.up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_BIT_WIDTH,
       IS_SATURATING         => true,
@@ -235,7 +235,7 @@ begin
 
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test upcounter - COUNT_UP continuously high", C_SCOPE);
+    log(ID_LOG_HDR, "Test up_counter - COUNT_UP continuously high", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     s_reset <= '1';
     wait until rising_edge(s_clk);
@@ -272,7 +272,7 @@ begin
     s_count_up <= '0';
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Test upcounter - COUNT_UP pulsed", C_SCOPE);
+    log(ID_LOG_HDR, "Test up_counter - COUNT_UP pulsed", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     s_clear <= '1';
     wait until rising_edge(s_clk);

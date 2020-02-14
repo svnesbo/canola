@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-02-12
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -481,7 +481,7 @@ begin  -- architecture struct
       MISMATCH    => s_mismatch_vector(C_mismatch_tec));
 
   -- Counter for sequences of 11 recessive bits used by EML
-  INST_recessive_bit_counter : entity work.upcounter_tmr_wrapper
+  INST_recessive_bit_counter : entity work.up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
       IS_SATURATING         => true,

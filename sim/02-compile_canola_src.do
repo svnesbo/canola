@@ -32,7 +32,7 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/tmr_vote
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/tmr_voter_array.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_voters/tmr_voter_triplicated_array.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/counters/counter_saturating.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/counters/upcounter.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/counters/up_counter.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_pkg.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_time_quanta_gen.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/canola_crc.vhd
@@ -48,7 +48,7 @@ eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_ax
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave_axi_pif.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/axi_slave/canola_axi_slave.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/counter_saturating_tmr_wrapper_triplicated.vhd
-eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/upcounter_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/up_counter_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_bsp_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_btl_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl   $util_part_path/source/rtl/tmr_wrappers/canola_eml_tmr_wrapper.vhd

@@ -6,12 +6,12 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-12
--- Last update: 2020-02-12
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
 -- Description: Status counters for Canola CAN controller
---              Uses upcounter instances directly without TMR wrapper
+--              Uses up_counter instances directly without TMR wrapper
 -------------------------------------------------------------------------------
 -- Copyright (c) 2019
 -------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ begin  -- architecture struct
   -----------------------------------------------------------------------------
   -- Status counters (messages sent/received, error counts)
   -----------------------------------------------------------------------------
-  INST_tx_msg_sent_counter: entity work.upcounter
+  INST_tx_msg_sent_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -92,7 +92,7 @@ begin  -- architecture struct
       COUNT_OUT      => TX_MSG_SENT_COUNT_VALUE,
       COUNT_VOTED_IN => TX_MSG_SENT_COUNT_VALUE);
 
-  INST_tx_ack_error_counter: entity work.upcounter
+  INST_tx_ack_error_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -105,7 +105,7 @@ begin  -- architecture struct
       COUNT_OUT      => TX_ACK_ERROR_COUNT_VALUE,
       COUNT_VOTED_IN => TX_ACK_ERROR_COUNT_VALUE);
 
-  INST_tx_arb_lost_counter: entity work.upcounter
+  INST_tx_arb_lost_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -118,7 +118,7 @@ begin  -- architecture struct
       COUNT_OUT      => TX_ARB_LOST_COUNT_VALUE,
       COUNT_VOTED_IN => TX_ARB_LOST_COUNT_VALUE);
 
-  INST_tx_bit_error_counter: entity work.upcounter
+  INST_tx_bit_error_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -131,7 +131,7 @@ begin  -- architecture struct
       COUNT_OUT      => TX_BIT_ERROR_COUNT_VALUE,
       COUNT_VOTED_IN => TX_BIT_ERROR_COUNT_VALUE);
 
-  INST_tx_retransmit_counter: entity work.upcounter
+  INST_tx_retransmit_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -144,7 +144,7 @@ begin  -- architecture struct
       COUNT_OUT      => TX_RETRANSMIT_COUNT_VALUE,
       COUNT_VOTED_IN => TX_RETRANSMIT_COUNT_VALUE);
 
-  INST_rx_msg_recv_counter: entity work.upcounter
+  INST_rx_msg_recv_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -157,7 +157,7 @@ begin  -- architecture struct
       COUNT_OUT      => RX_MSG_RECV_COUNT_VALUE,
       COUNT_VOTED_IN => RX_MSG_RECV_COUNT_VALUE);
 
-  INST_rx_crc_error_counter: entity work.upcounter
+  INST_rx_crc_error_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -170,7 +170,7 @@ begin  -- architecture struct
       COUNT_OUT      => RX_CRC_ERROR_COUNT_VALUE,
       COUNT_VOTED_IN => RX_CRC_ERROR_COUNT_VALUE);
 
-  INST_rx_form_error_counter: entity work.upcounter
+  INST_rx_form_error_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,
@@ -183,7 +183,7 @@ begin  -- architecture struct
       COUNT_OUT      => RX_FORM_ERROR_COUNT_VALUE,
       COUNT_VOTED_IN => RX_FORM_ERROR_COUNT_VALUE);
 
-  INST_rx_stuff_error_counter: entity work.upcounter
+  INST_rx_stuff_error_counter: entity work.up_counter
     generic map (
       BIT_WIDTH     => G_COUNTER_WIDTH,
       IS_SATURATING => G_SATURATING_COUNTERS,

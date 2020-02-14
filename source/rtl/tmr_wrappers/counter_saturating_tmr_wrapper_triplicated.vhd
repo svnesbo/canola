@@ -1,20 +1,20 @@
 -------------------------------------------------------------------------------
--- Title      : Upcounter tmr wrapper
+-- Title      : Saturating counter TMR wrapper
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
 -- File       : counter_tmr_wrapper_triplicated.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-02-13
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
 -- Description: TMR wrapper for the saturating counter.
 --              Creates three instances of the saturating counter,
 --              and has three voted output of the counter value.
---              Based on upcounter_tmr_wrapper written for the
---              ALICE ITS upgrade by Matteo Lupi.
+--              The code is based on counter_n written for the
+--              ALICE ITS upgrade by Matteo Lupi and Matthias Bonora
 -------------------------------------------------------------------------------
 -- Copyright (c) 2020
 -------------------------------------------------------------------------------

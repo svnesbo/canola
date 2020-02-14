@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
--- Title      : Upcounter
+-- Title      : Up counter
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : upcounter.vhd
+-- File       : up_counter.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-01-31
+-- Last update: 2020-02-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity upcounter is
+entity up_counter is
   generic(
     BIT_WIDTH     : integer := 16;
     IS_SATURATING : boolean := false;
@@ -41,9 +41,9 @@ entity upcounter is
     -- Voted counter value input, the count is always increased from this input.
     -- Connect to COUNT_OUT externally when not using TMR.
     COUNT_VOTED_IN : in  std_logic_vector(BIT_WIDTH - 1 downto 0));
-end entity upcounter;
+end entity up_counter;
 
-architecture arch of upcounter is
+architecture arch of up_counter is
 
   subtype t_counter is unsigned(BIT_WIDTH - 1 downto 0);
   signal i_counter, i_counter_voted : t_counter;
