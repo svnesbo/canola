@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-14
+-- Last update: 2020-02-17
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -227,6 +227,7 @@ begin  -- architecture struct
       BSP_TX_CRC_CALC                    => s_bsp_tx_crc_calc,
       BSP_TX_ACTIVE                      => s_bsp_tx_active,
       BSP_RX_ACTIVE                      => s_bsp_rx_active,
+      BSP_RX_IFS                         => s_bsp_rx_ifs,
       BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE                => s_bsp_error_flag_done,
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,

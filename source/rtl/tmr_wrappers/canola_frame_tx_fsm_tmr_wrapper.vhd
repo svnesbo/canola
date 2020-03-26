@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-29
--- Last update: 2020-02-13
+-- Last update: 2020-03-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -58,6 +58,7 @@ entity canola_frame_tx_fsm_tmr_wrapper is
     BSP_TX_CRC_CALC                 : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_TX_ACTIVE                   : out std_logic;
     BSP_RX_ACTIVE                   : in  std_logic;
+    BSP_RX_IFS                      : in  std_logic;
     BSP_SEND_ERROR_FLAG             : out std_logic;
     BSP_ERROR_FLAG_DONE             : in  std_logic;
     BSP_ACTIVE_ERROR_FLAG_BIT_ERROR : in  std_logic;
@@ -90,10 +91,7 @@ begin  -- architecture structural
 
       VOTER_MISMATCH <= '0';
 
-      INST_canola_frame_tx_fsm: entity work.canola_frame_tx_fsm
-        generic map (
-          G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-          G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
+      INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
         port map (
           CLK                                => CLK,
           RESET                              => RESET,
@@ -116,6 +114,7 @@ begin  -- architecture structural
           BSP_TX_CRC_CALC                    => BSP_TX_CRC_CALC,
           BSP_TX_ACTIVE                      => BSP_TX_ACTIVE,
           BSP_RX_ACTIVE                      => BSP_RX_ACTIVE,
+          BSP_RX_IFS                         => BSP_RX_IFS,
           BSP_SEND_ERROR_FLAG                => BSP_SEND_ERROR_FLAG,
           BSP_ERROR_FLAG_DONE                => BSP_ERROR_FLAG_DONE,
           BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
@@ -218,42 +217,40 @@ begin  -- architecture structural
 
 
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
-        INST_canola_frame_tx_fsm: entity work.canola_frame_tx_fsm
-        generic map (
-          G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-          G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
-        port map (
-          CLK                                => CLK,
-          RESET                              => RESET,
-          TX_MSG_IN                          => TX_MSG_IN,
-          TX_START                           => TX_START,
-          TX_RETRANSMIT_EN                   => TX_RETRANSMIT_EN,
-          TX_BUSY                            => s_tx_busy_tmr(i),
-          TX_DONE                            => s_tx_done_tmr(i),
-          TX_ARB_LOST                        => s_tx_arb_lost_tmr(i),
-          TX_ARB_WON                         => s_tx_arb_won_tmr(i),
-          TX_FAILED                          => s_tx_failed_tmr(i),
-          TX_RETRANSMITTING                  => s_tx_retransmitting_tmr(i),
-          BSP_TX_DATA                        => s_bsp_tx_data_tmr(i),
-          BSP_TX_DATA_COUNT                  => s_bsp_tx_data_count_tmr(i),
-          BSP_TX_WRITE_EN                    => s_bsp_tx_write_en_tmr(i),
-          BSP_TX_BIT_STUFF_EN                => s_bsp_tx_bit_stuff_en_tmr(i),
-          BSP_TX_RX_MISMATCH                 => BSP_TX_RX_MISMATCH,
-          BSP_TX_RX_STUFF_MISMATCH           => BSP_TX_RX_STUFF_MISMATCH,
-          BSP_TX_DONE                        => BSP_TX_DONE,
-          BSP_TX_CRC_CALC                    => BSP_TX_CRC_CALC,
-          BSP_TX_ACTIVE                      => s_bsp_tx_active_tmr(i),
-          BSP_RX_ACTIVE                      => BSP_RX_ACTIVE,
-          BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tmr(i),
-          BSP_ERROR_FLAG_DONE                => BSP_ERROR_FLAG_DONE,
-          BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
-          EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_tmr(i),
-          EML_TX_ACK_ERROR                   => s_eml_tx_ack_error_tmr(i),
-          EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error_tmr(i),
-          EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error_tmr(i),
-          EML_ERROR_STATE                    => EML_ERROR_STATE,
-          FSM_STATE_O                        => s_fsm_state_out(i),
-          FSM_STATE_VOTED_I                  => s_fsm_state_voted(i));
+        INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+          port map (
+            CLK                                => CLK,
+            RESET                              => RESET,
+            TX_MSG_IN                          => TX_MSG_IN,
+            TX_START                           => TX_START,
+            TX_RETRANSMIT_EN                   => TX_RETRANSMIT_EN,
+            TX_BUSY                            => s_tx_busy_tmr(i),
+            TX_DONE                            => s_tx_done_tmr(i),
+            TX_ARB_LOST                        => s_tx_arb_lost_tmr(i),
+            TX_ARB_WON                         => s_tx_arb_won_tmr(i),
+            TX_FAILED                          => s_tx_failed_tmr(i),
+            TX_RETRANSMITTING                  => s_tx_retransmitting_tmr(i),
+            BSP_TX_DATA                        => s_bsp_tx_data_tmr(i),
+            BSP_TX_DATA_COUNT                  => s_bsp_tx_data_count_tmr(i),
+            BSP_TX_WRITE_EN                    => s_bsp_tx_write_en_tmr(i),
+            BSP_TX_BIT_STUFF_EN                => s_bsp_tx_bit_stuff_en_tmr(i),
+            BSP_TX_RX_MISMATCH                 => BSP_TX_RX_MISMATCH,
+            BSP_TX_RX_STUFF_MISMATCH           => BSP_TX_RX_STUFF_MISMATCH,
+            BSP_TX_DONE                        => BSP_TX_DONE,
+            BSP_TX_CRC_CALC                    => BSP_TX_CRC_CALC,
+            BSP_TX_ACTIVE                      => s_bsp_tx_active_tmr(i),
+            BSP_RX_ACTIVE                      => BSP_RX_ACTIVE,
+            BSP_RX_IFS                         => BSP_RX_IFS,
+            BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tmr(i),
+            BSP_ERROR_FLAG_DONE                => BSP_ERROR_FLAG_DONE,
+            BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
+            EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_tmr(i),
+            EML_TX_ACK_ERROR                   => s_eml_tx_ack_error_tmr(i),
+            EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error_tmr(i),
+            EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error_tmr(i),
+            EML_ERROR_STATE                    => EML_ERROR_STATE,
+            FSM_STATE_O                        => s_fsm_state_out(i),
+            FSM_STATE_VOTED_I                  => s_fsm_state_voted(i));
 
       end generate for_TMR_generate;
 

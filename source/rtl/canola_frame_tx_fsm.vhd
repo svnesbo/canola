@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-12
+-- Last update: 2020-02-17
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -70,6 +70,7 @@ entity canola_frame_tx_fsm is
     BSP_TX_CRC_CALC                 : in  std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
     BSP_TX_ACTIVE                   : out std_logic;
     BSP_RX_ACTIVE                   : in  std_logic;
+    BSP_RX_IFS                      : in  std_logic;
     BSP_SEND_ERROR_FLAG             : out std_logic;
     BSP_ERROR_FLAG_DONE             : in  std_logic;
     BSP_ACTIVE_ERROR_FLAG_BIT_ERROR : in  std_logic;
@@ -175,7 +176,7 @@ begin  -- architecture rtl
             -- TODO:
             -- Should there be a timeout here?
             -- Can we wait forever?
-            if BSP_RX_ACTIVE = '0' then
+            if BSP_RX_ACTIVE = '0' and BSP_RX_IFS = '0' then
               BSP_TX_ACTIVE   <= '1';
               s_fsm_state_out <= ST_SETUP_SOF;
             end if;

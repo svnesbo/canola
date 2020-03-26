@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-02-10
+-- Last update: 2020-03-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ entity canola_bsp is
 
     -- Interface to Rx FSM
     BSP_RX_ACTIVE          : out std_logic;
-    BSP_RX_IFS             : out std_logic;  -- High in inter frame spacing period
+    BSP_RX_IFS             : out std_logic;  -- High during inter frame spacing period
     BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
     BSP_RX_DATA_COUNT      : out std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_RX_DATA_CLEAR      : in  std_logic;
@@ -272,18 +272,21 @@ begin  -- architecture rtl
             if s_rx_bit_stream_window = C_ACTIVE_ERROR_FLAG_DATA then
               -- Always indicate active error flags and go to idle
               BSP_RX_ACTIVE_ERROR_FLAG <= '1';
-              s_rx_fsm_state_out           <= ST_WAIT_BUS_IDLE;
+              s_rx_bit_stream_window   <= (others => '0');
+              s_rx_fsm_state_out       <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_stop_reg = '1' then
               -- Rx Frame FSM has told us to stop receiving
-              s_rx_fsm_state_out           <= ST_WAIT_BUS_IDLE;
+              s_rx_bit_stream_window <= (others => '0');
+              s_rx_fsm_state_out     <= ST_WAIT_BUS_IDLE;
 
             elsif s_rx_bit_stream_window = C_PASSIVE_ERROR_FLAG_DATA and BSP_RX_BIT_DESTUFF_EN = '1' then
               -- A passive error flag is just 6 recessive bits, which can
               -- occur during a normal frame. Only an error if we are
               -- expecting bit stuffed data
               BSP_RX_PASSIVE_ERROR_FLAG <= '1';
-              s_rx_fsm_state_out            <= ST_WAIT_BUS_IDLE;
+              s_rx_bit_stream_window    <= (others => '0');
+              s_rx_fsm_state_out        <= ST_WAIT_BUS_IDLE;
 
             elsif BSP_RX_BIT_DESTUFF_EN = '1' then
               s_rx_fsm_state_out            <= ST_BIT_DESTUFF;

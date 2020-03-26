@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2020-01-06
+-- Last update: 2020-02-28
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -365,7 +365,7 @@ package body can_bfm_pkg is
       -- Generate a random form error if requested to
       if can_rx_error_gen.form_error then
         uniform(rand_seed1, rand_seed2, rand_real);
-        -- 9 bits that can have form error in standard frame:
+        -- 9 bits that can have form error in extended frame:
         -- SRR
         -- CRC delimiter
         -- ACK delimiter
