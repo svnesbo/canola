@@ -17,11 +17,14 @@
 
 # Default argument
 quietly set sim_test_bench "main_tb_no_tmr"
+quietly set coverage "false"
 
 echo "argc: $argc\n"
 
 if { [info exists 1] } {
-    if {$argc == 1} {
+    if {$argc == 0} {
+        error "Testbench not specified."
+    } elseif {$argc <= 2} {
         quietly set sim_test_bench "$1"
 
         if {$1 != "all_tb" &&
@@ -39,7 +42,15 @@ if { [info exists 1] } {
             $1 != "tmr_counters_tb"} {
             error "Unknown testbench type $1."
         }
-    } elseif {$argc > 1} {
+
+        if {$argc == 2} {
+            if {$2 != "coverage"} {
+                error "Unknown option $2."
+            } else {
+                quietly set coverage "true"
+            }
+        }
+    } else {
         error "I take one argument only"
     }
 }
@@ -92,7 +103,7 @@ if {$sim_test_bench == "all_tb"} {
 echo "\n\nCompile Bitvis UVVM..."
 do 01-compile_bitvis_uvvm.do $wishbone_vip_present
 echo "\n\nCompile Canola sources..."
-do 02-compile_canola_src.do
+do 02-compile_canola_src.do $coverage
 
 if {[string is true -strict $simulate_opencores_tb]} {
     echo "\n\nCompile OpenCores CAN sources..."
@@ -104,4 +115,4 @@ echo "\n\nCompile Canola testbench..."
 do 04-compile_canola_tb.do $sim_test_bench $simulate_opencores_tb
 
 echo "\n\nRun simulation..."
-do 00-sim_can_ctrl.do $sim_test_bench $simulate_opencores_tb
+do 00-sim_can_ctrl.do $sim_test_bench $simulate_opencores_tb $coverage

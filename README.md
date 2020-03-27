@@ -17,6 +17,34 @@ git submodule init
 
 Assuming that `vsim` is in your path, running `make` from the top-level directory of the repository will run the testbench.
 
+### Simulation options
+
+There are several testbenches for the different top-level entities for Canola, as well as the different submodules. When make is invoked without parameters, the default (main_no_tmr) testbench is simulated. The possible make targets are listed in the table below.
+Coverage can also be simulated by setting the environment variable COVERAGE to 1. E.g.:
+
+``
+make batch_all COVERAGE=1
+``
+
+Will run all testbenches, simulate coverage, and generate a coverage report. The report can be found in run/covhtmlreport.
+
+
+| TB option              | Description                                                                                                     |
+|------------------------|-----------------------------------------------------------------------------------------------------------------|
+| main_no_tmr            | Simulate main testbench for Canola CAN controller using canola_top.vhd. No TMR.                                 |
+| main_tmr_wrap_no_tmr   | Simulate main testbench for Canola CAN controller using canola_top_tmr.vhd, but with TMR disabled.              |
+| main_tmr_wrap_tmr      | Simulate main testbench for Canola CAN controller using canola_top_tmr.vhd, with TMR enabled.                   |
+| btl                    | Simulate testbench for Bit Timing Logic (BTL)                                                                   |
+| bsp                    | Simulate testbench for Bit Stream Processor (BSP)                                                               |
+| eml                    | Simulate testbench for Error Management Logic (EML)                                                             |
+| axi_tb_no_tmr          | Simulate testbench for Canola CAN controller AXI slave using canola_axi_slave.vhd. No TMR.                      |
+| axi_tb_tmr_wrap_no_tmr | Simulate testbench for Canola CAN controller AXI slave using canola_axi_slave_tmr.vhd, but with TMR disabled.   |
+| axi_tb_tmr_wrap_tmr    | Simulate testbench for Canola CAN controller AXI slave using canola_axi_slave_tmr.vhd, with TMR enabled.        |
+| opencores              | Simulate testbench with an instance of Canola CAN Controller, and an instance of CAN controller from opencores. |
+| tmr_voters             | Simulate testbench for TMR voters.                                                                              |
+| tmr_counters           | Simulate testbench for upcounter and saturating counter. Simulates the counters both with and without TMR.      |
+| batch_all              | Simulate all the testbenches (batch mode, no gui)                                                               |
+
 
 ### Simulating Canola CAN with CAN controller available at opencores.org
 
