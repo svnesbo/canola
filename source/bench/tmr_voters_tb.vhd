@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-02-13
+-- Last update: 2020-05-29
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -315,8 +315,8 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    --disable_log_msg(ALL_MESSAGES);
-    --enable_log_msg(ID_LOG_HDR);
+    set_log_file_name("log/tmr_voters_tb_log.txt");
+
 
     s_single_voter_input       <= (others => '0');
     s_single_voter_tri_input   <= (others => '0');

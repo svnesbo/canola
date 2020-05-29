@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-02-12
+-- Last update: 2020-05-29
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -1099,8 +1099,15 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    --disable_log_msg(ALL_MESSAGES);
-    --enable_log_msg(ID_LOG_HDR);
+
+    if G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN then
+      set_log_file_name("log/canola_top_tb_tmr_wrap_tmr_log.txt");
+    elsif G_TMR_TOP_MODULE_EN and not G_SEE_MITIGATION_EN then
+      set_log_file_name("log/canola_top_tb_tmr_wrap_no_tmr_log.txt");
+    else
+      set_log_file_name("log/canola_top_tb_no_tmr_log.txt");
+    end if;
+
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Start simulation of CAN controller", C_SCOPE);

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2020-02-14
+-- Last update: 2020-05-29
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -359,8 +359,8 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    --disable_log_msg(ALL_MESSAGES);
-    --enable_log_msg(ID_LOG_HDR);
+    set_log_file_name("log/canola_eml_tb_log.txt");
+
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Start simulation of Error Management Logic (EML) for CAN controller", C_SCOPE);

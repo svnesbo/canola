@@ -66,6 +66,11 @@ https://github.com/UVVM/UVVM_Community_VIPs/tree/3a8ec8a82a50bcef1fcd291a885cfd4
 Unfortunately the compile scripts in the UVVM framework expects the VIPs to be located in the UVVM directory, so I was not able to add the Community VIPs as a submodule in a reasonable manner. Instead, copy the bitvis_vip_wishbone_BETA directory from the Community VIP to the extern/UVVM directory, and rename it bitvis_vip_wishbone.
 
 
+### Simulation logs
+
+Simulation logs for each testbench and configuration are stored in run/log.
+
+
 ## Configuration of CAN controller
 
 A summary of the configurable quantities in the Canola CAN controller follows. Exactly how to configure them depends on which top-level entity for Canola is used, which is either the AXI-slave (`source/rtl/axi_slave/canola_axi_slave.vhd`), or one of the top-level entities with a direct interface (`source/rtl/canola_top.vhd` or `source/rtl/canola_top_tmr.vhd`).

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-02-12
+-- Last update: 2020-05-29
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -714,8 +714,8 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    --disable_log_msg(ALL_MESSAGES);
-    --enable_log_msg(ID_LOG_HDR);
+    set_log_file_name("log/canola_vs_opencores_can_tb_log.txt");
+
 
     -----------------------------------------------------------------------------------------------
     log(ID_LOG_HDR, "Start simulation of CAN controller", C_SCOPE);
