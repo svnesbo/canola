@@ -91,7 +91,7 @@ begin  -- architecture structural
 
       VOTER_MISMATCH <= '0';
 
-      INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+      INST_canola_frame_tx_fsm: entity work.canola_frame_tx_fsm
         port map (
           CLK                                => CLK,
           RESET                              => RESET,

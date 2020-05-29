@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-03-26
+-- Last update: 2020-02-17
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ entity canola_bsp is
 
     -- Interface to Rx FSM
     BSP_RX_ACTIVE          : out std_logic;
-    BSP_RX_IFS             : out std_logic;  -- High during inter frame spacing period
+    BSP_RX_IFS             : out std_logic;  -- High in inter frame spacing period
     BSP_RX_DATA            : out std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
     BSP_RX_DATA_COUNT      : out std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
     BSP_RX_DATA_CLEAR      : in  std_logic;
