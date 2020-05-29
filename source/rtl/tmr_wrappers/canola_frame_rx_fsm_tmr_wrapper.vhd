@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-28
--- Last update: 2020-02-13
+-- Last update: 2020-03-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -99,9 +99,6 @@ begin  -- architecture structural
       -- The state register output from the Rx Frame FSM is routed directly back to its
       -- state register input without voting.
       INST_canola_frame_rx_fsm : entity work.canola_frame_rx_fsm
-        generic map (
-          G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-          G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
         port map (
           CLK                                => CLK,
           RESET                              => RESET,
@@ -220,39 +217,36 @@ begin  -- architecture structural
 
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
         INST_canola_frame_rx_fsm : entity work.canola_frame_rx_fsm
-        generic map (
-          G_BUS_REG_WIDTH => G_BUS_REG_WIDTH,
-          G_ENABLE_EXT_ID => G_ENABLE_EXT_ID)
-        port map (
-          CLK                                => CLK,
-          RESET                              => RESET,
-          RX_MSG_OUT                         => s_rx_msg_out_tmr(i),
-          RX_MSG_VALID                       => s_rx_msg_valid_tmr(i),
-          TX_ARB_WON                         => TX_ARB_WON,
-          BSP_RX_ACTIVE                      => BSP_RX_ACTIVE,
-          BSP_RX_IFS                         => BSP_RX_IFS,
-          BSP_RX_DATA                        => BSP_RX_DATA,
-          BSP_RX_DATA_COUNT                  => BSP_RX_DATA_COUNT,
-          BSP_RX_DATA_CLEAR                  => s_bsp_rx_data_clear_tmr(i),
-          BSP_RX_DATA_OVERFLOW               => BSP_RX_DATA_OVERFLOW,
-          BSP_RX_BIT_DESTUFF_EN              => s_bsp_rx_bit_destuff_en_tmr(i),
-          BSP_RX_STOP                        => s_bsp_rx_stop_tmr(i),
-          BSP_RX_CRC_CALC                    => BSP_RX_CRC_CALC,
-          BSP_RX_SEND_ACK                    => s_bsp_rx_send_ack_tmr(i),
-          BSP_RX_ACTIVE_ERROR_FLAG           => BSP_RX_ACTIVE_ERROR_FLAG,
-          BSP_RX_PASSIVE_ERROR_FLAG          => BSP_RX_PASSIVE_ERROR_FLAG,
-          BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tmr(i),
-          BSP_ERROR_FLAG_DONE                => BSP_ERROR_FLAG_DONE,
-          BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
-          BTL_RX_BIT_VALID                   => BTL_RX_BIT_VALID,
-          BTL_RX_BIT_VALUE                   => BTL_RX_BIT_VALUE,
-          EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error_tmr(i),
-          EML_RX_CRC_ERROR                   => s_eml_rx_crc_error_tmr(i),
-          EML_RX_FORM_ERROR                  => s_eml_rx_form_error_tmr(i),
-          EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error_tmr(i),
-          EML_ERROR_STATE                    => EML_ERROR_STATE,
-          FSM_STATE_O                        => s_fsm_state_out(i),
-          FSM_STATE_VOTED_I                  => s_fsm_state_voted(i));
+          port map (
+            CLK                                => CLK,
+            RESET                              => RESET,
+            RX_MSG_OUT                         => s_rx_msg_out_tmr(i),
+            RX_MSG_VALID                       => s_rx_msg_valid_tmr(i),
+            TX_ARB_WON                         => TX_ARB_WON,
+            BSP_RX_ACTIVE                      => BSP_RX_ACTIVE,
+            BSP_RX_IFS                         => BSP_RX_IFS,
+            BSP_RX_DATA                        => BSP_RX_DATA,
+            BSP_RX_DATA_COUNT                  => BSP_RX_DATA_COUNT,
+            BSP_RX_DATA_CLEAR                  => s_bsp_rx_data_clear_tmr(i),
+            BSP_RX_DATA_OVERFLOW               => BSP_RX_DATA_OVERFLOW,
+            BSP_RX_BIT_DESTUFF_EN              => s_bsp_rx_bit_destuff_en_tmr(i),
+            BSP_RX_STOP                        => s_bsp_rx_stop_tmr(i),
+            BSP_RX_CRC_CALC                    => BSP_RX_CRC_CALC,
+            BSP_RX_SEND_ACK                    => s_bsp_rx_send_ack_tmr(i),
+            BSP_RX_ACTIVE_ERROR_FLAG           => BSP_RX_ACTIVE_ERROR_FLAG,
+            BSP_RX_PASSIVE_ERROR_FLAG          => BSP_RX_PASSIVE_ERROR_FLAG,
+            BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tmr(i),
+            BSP_ERROR_FLAG_DONE                => BSP_ERROR_FLAG_DONE,
+            BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
+            BTL_RX_BIT_VALID                   => BTL_RX_BIT_VALID,
+            BTL_RX_BIT_VALUE                   => BTL_RX_BIT_VALUE,
+            EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error_tmr(i),
+            EML_RX_CRC_ERROR                   => s_eml_rx_crc_error_tmr(i),
+            EML_RX_FORM_ERROR                  => s_eml_rx_form_error_tmr(i),
+            EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error_tmr(i),
+            EML_ERROR_STATE                    => EML_ERROR_STATE,
+            FSM_STATE_O                        => s_fsm_state_out(i),
+            FSM_STATE_VOTED_I                  => s_fsm_state_voted(i));
 
       end generate for_TMR_generate;
 
