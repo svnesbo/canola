@@ -113,6 +113,7 @@ architecture tb of canola_bsp_tb is
   signal s_bsp_tx_crc_calc            : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   signal s_bsp_tx_active              : std_logic         := '0';
   signal s_bsp_rx_active              : std_logic;
+  signal s_bsp_rx_ifs                 : std_logic;
   signal s_bsp_rx_data                : std_logic_vector(0 to C_BSP_DATA_LENGTH-1);
   signal s_bsp_rx_data_count          : natural range 0 to C_BSP_DATA_LENGTH;
   signal s_bsp_rx_data_count_bits     : std_logic_vector(C_BSP_DATA_LEN_BITSIZE-1 downto 0);
@@ -189,6 +190,7 @@ begin
       BSP_TX_CRC_CALC_O          => s_bsp_tx_crc_calc,
       BSP_TX_ACTIVE              => s_bsp_tx_active,
       BSP_RX_ACTIVE              => s_bsp_rx_active,
+      BSP_RX_IFS                 => s_bsp_rx_ifs,
       BSP_RX_DATA                => s_bsp_rx_data,
       BSP_RX_DATA_COUNT          => s_bsp_rx_data_count_bits,
       BSP_RX_DATA_CLEAR          => s_bsp_rx_data_clear,
@@ -395,12 +397,6 @@ begin
       wait until s_bsp_rx_data_count = v_data_length
         for C_CAN_BAUD_PERIOD;
 
-      s_bsp_tx_active <= '0';
-      s_bsp_rx_stop   <= '1';
-      wait until rising_edge(s_clk);
-      s_bsp_rx_stop   <= '0';
-      wait until rising_edge(s_clk);
-
       check_value(s_got_rx_tx_mismatch, '0', error, "Check if there was Rx/Tx mismatch.");
       check_value(s_got_rx_tx_stuff_mismatch, '0', error, "Check if there was Rx/Tx bit stuff mismatch.");
 
@@ -411,8 +407,17 @@ begin
       check_value(s_bsp_tx_crc_calc, s_crc_exp, error, "Check that BSP Tx CRC matches expected");
       check_value(s_bsp_rx_crc_calc, s_crc_exp, error, "Check that BSP Rx CRC matches expected");
 
-      wait until rising_edge(s_can_baud_clk);
-      wait until rising_edge(s_can_baud_clk);
+      s_bsp_tx_active <= '0';
+      s_bsp_rx_stop   <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_stop   <= '0';
+      wait until rising_edge(s_clk);
+
+      wait until s_bsp_rx_ifs = '0' for C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '1', error, "Check that BSP is waiting for Inter Frame Space (IFS)");
+
+      wait until s_bsp_rx_ifs = '0' for C_IFS_LENGTH*C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '0', error, "Check that BSP is done waiting for Inter Frame Space (IFS)");
 
       v_test_num := v_test_num + 1;
     end loop;
@@ -489,11 +494,7 @@ begin
       wait until s_bsp_rx_data_count = v_data_length
         for C_CAN_BAUD_PERIOD;
 
-      s_bsp_tx_active <= '0';
-      s_bsp_rx_stop   <= '1';
-      wait until rising_edge(s_clk);
-      s_bsp_rx_stop   <= '0';
-      wait until rising_edge(s_clk);
+
 
       check_value(s_got_rx_tx_mismatch, '0', error, "Check if there was Rx/Tx mismatch.");
       check_value(s_got_rx_tx_stuff_mismatch, '0', error, "Check if there was Rx/Tx bit stuff mismatch.");
@@ -505,8 +506,17 @@ begin
       check_value(s_bsp_tx_crc_calc, s_crc_exp, error, "Check that BSP Tx CRC matches expected");
       check_value(s_bsp_rx_crc_calc, s_crc_exp, error, "Check that BSP Rx CRC matches expected");
 
-      wait until rising_edge(s_can_baud_clk);
-      wait until rising_edge(s_can_baud_clk);
+      s_bsp_tx_active <= '0';
+      s_bsp_rx_stop   <= '1';
+      wait until rising_edge(s_clk);
+      s_bsp_rx_stop   <= '0';
+      wait until rising_edge(s_clk);
+
+      wait until s_bsp_rx_ifs = '0' for C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '1', error, "Check that BSP is waiting for Inter Frame Space (IFS)");
+
+      wait until s_bsp_rx_ifs = '0' for C_IFS_LENGTH*C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '0', error, "Check that BSP is done waiting for Inter Frame Space (IFS)");
 
       v_test_num := v_test_num + 1;
     end loop;
@@ -561,6 +571,12 @@ begin
       s_bsp_rx_stop       <= '0';
       s_bsp_rx_data_clear <= '0';
       wait until rising_edge(s_clk);
+
+      wait until s_bsp_rx_ifs = '0' for C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '1', error, "Check that BSP is waiting for Inter Frame Space (IFS)");
+
+      wait until s_bsp_rx_ifs = '0' for C_IFS_LENGTH*C_CAN_BAUD_PERIOD;
+      check_value(s_bsp_rx_ifs, '0', error, "Check that BSP is done waiting for Inter Frame Space (IFS)");
 
       v_test_num := v_test_num + 1;
     end loop;
