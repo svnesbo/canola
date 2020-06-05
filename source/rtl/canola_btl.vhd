@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-02-12
+-- Last update: 2020-06-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -341,7 +341,7 @@ begin  -- architecture rtl
               -- Detected Rx falling edge during PHASE_SEG2, which is too early,
               -- we expect it during SYNC_SEG. Shorten by PHASE_SEG2 by phase error
               if s_got_rx_bit_falling_edge = '1' and s_resync_allowed = '1' and s_resync_done = '0' then
-                v_segment     := v_segment srl v_phase_error;
+                v_segment     := std_logic_vector(shift_right(unsigned(v_segment), v_phase_error));
                 s_resync_done <= '1';
               end if;
 
