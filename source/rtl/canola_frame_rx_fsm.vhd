@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-02-12
+-- Last update: 2020-08-25
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -257,6 +257,9 @@ begin  -- architecture rtl
               BSP_RX_DATA_CLEAR <= '1';
 
               -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
+              -- Todo: Should we accept messages that have different R0/R1 value
+              -- than what is expected? Yes it's not an error, but maybe we
+              -- shouldn't accept messages with the wrong value..
               s_fsm_state_out   <= ST_RECV_R0;
             end if;
 
@@ -447,14 +450,11 @@ begin  -- architecture rtl
             --  ACK Delimiter, unless an Error flag for another error condition has already been started."
             if s_reg_tx_arb_won = '0' then
               -- Send error flag on CRC error when receiving from a different node.
-              -- But we don't want to do that if we are transmitting this message
-              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
               EML_RX_CRC_ERROR <= '1';
               s_fsm_state_out  <= ST_WAIT_ERROR_FLAG;
             else
-              -- Todo:
-              -- What if Tx frame FSM is sending error flag?
-              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              -- Don't send error flag if we are transmitting this message ourselves
+              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
               s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
@@ -463,14 +463,11 @@ begin  -- architecture rtl
 
             if s_reg_tx_arb_won = '0' then
               -- Send error flag on form error when receiving from a different node.
-              -- But we don't want to do that if we are transmitting this message
-              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
               EML_RX_FORM_ERROR <= '1';
               s_fsm_state_out   <= ST_WAIT_ERROR_FLAG;
             else
-              -- Todo:
-              -- What if Tx frame FSM is sending error flag?
-              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              -- Don't send error flag if we are transmitting this message ourselves
+              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
               s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
@@ -479,14 +476,11 @@ begin  -- architecture rtl
 
             if s_reg_tx_arb_won = '0' then
               -- Send error flag on stuff error when receiving from a different node.
-              -- But we don't want to do that if we are transmitting this message
-              -- ourselves (ie. arb was won). Let the Tx FSM handle errors in that case.
               EML_RX_STUFF_ERROR <= '1';
               s_fsm_state_out    <= ST_WAIT_ERROR_FLAG;
             else
-              -- Todo:
-              -- What if Tx frame FSM is sending error flag?
-              -- We have to wait for it somehow, shouldn't go back into Rx then...
+              -- Don't send error flag if we are transmitting this message ourselves
+              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
               s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 

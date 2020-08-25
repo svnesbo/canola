@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-17
+-- Last update: 2020-08-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -490,6 +490,11 @@ begin  -- architecture rtl
               -- Bit errors while sending active error flag should be detected,
               -- and leads to an increase in transmit error count by 8 in the EML
               EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= not s_tx_active_error_flag_bit_error;
+
+
+              -- NOTE: Should we go to some other state here?
+              --       Can we end up getting stuck here if there are error flag
+              --       bit errors?????
 
               -- Send only one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR per
               -- error flag, even if there are more than 1 bit errors
