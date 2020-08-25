@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-02-17
+-- Last update: 2020-08-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -510,9 +510,7 @@ begin  -- architecture rtl
 
               if s_tx_send_error_flag = '1' then
                 s_tx_fsm_state_out <= ST_SEND_ERROR_FLAG;
-              elsif s_send_ack = '1' then
-                -- Return to idle if we were just sending ACK
-                s_tx_fsm_state_out <= ST_IDLE;
+
               elsif BSP_TX_ACTIVE = '1' then
                 if s_tx_write_counter = s_tx_data_count then
                   BSP_TX_DONE <= '1';

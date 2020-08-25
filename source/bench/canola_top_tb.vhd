@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-05-29
+-- Last update: 2020-08-26
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -48,6 +48,7 @@ architecture tb of canola_top_tb is
   constant C_CLK_PERIOD : time       := 25 ns; -- 40 Mhz
   constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
 
+  -- Note: C_TIME_QUANTA_CLOCK_SCALE_VAL needs to reflect the value of C_CAN_BAUD_PERIOD
   constant C_CAN_BAUD_PERIOD  : time    := 1000 ns;  -- 1 MHz
   constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
 
@@ -60,6 +61,7 @@ architecture tb of canola_top_tb is
   -- Real value from 0.0 to 1.0.
   constant C_CAN_SAMPLE_POINT : real    := 0.7;
 
+  -- Note: C_TIME_QUANTA_CLOCK_SCALE_VAL needs to reflect the value of C_CAN_BAUD_PERIOD
   constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
@@ -2136,11 +2138,11 @@ begin
         can_uvvm_recv_active_error_flag(0, -- Expect error active flag immediately in ERROR ACTIVE
                                         "Expect active error flag when controller is error active",
                                         s_can_bfm_rx);
-      elsif s_can_ctrl1_error_state = ERROR_PASSIVE then
 
+      elsif s_can_ctrl1_error_state = ERROR_PASSIVE then
         can_uvvm_recv_passive_error_flag(0, -- Expect error passive flag immediately in ERROR PASSIVE
-                                        "Expect passive error flag when controller is error passive",
-                                        s_can_bfm_rx);
+                                         "Expect passive error flag when controller is error passive",
+                                         s_can_bfm_rx);
       end if;
 
       -- Wait beyond IFS after error flag
@@ -2207,8 +2209,8 @@ begin
     while s_can_ctrl1_recessive_bits_count < C_11_RECESSIVE_EXIT_BUS_OFF_THRESHOLD-1 loop
       wait for 11*C_CAN_BAUD_PERIOD;
 
-      check_value(v_11_recessive_bits_count_prev+1,
-                  s_can_ctrl1_recessive_bits_count,
+      check_value(s_can_ctrl1_recessive_bits_count,
+                  v_11_recessive_bits_count_prev+1,
                   error, "Check count of 11 consecutive recess. bits increase");
 
       check_value_in_range(to_integer(s_can_ctrl1_transmit_error_count),

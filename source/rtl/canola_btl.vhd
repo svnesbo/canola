@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-06-05
+-- Last update: 2020-08-25
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -127,17 +127,11 @@ architecture rtl of canola_btl is
   signal s_sample_point_tx      : std_logic;
   signal s_sample_point_rx_done : std_logic;
   signal s_sample_point_tx_done : std_logic;
-  signal s_output_rx_bit_pulse  : std_logic;
   signal s_time_quanta_pulse    : std_logic;
 
   -- Indicates that we detected a falling edge transition on CAN_RX
   -- for the bit that is currently being processed
   signal s_got_rx_bit_falling_edge : std_logic;
-
-  -- Actual bit sampled at the Rx sample point, will be processed as part of
-  -- CANbus frame (In the case of triple sampling, this is the majority voted
-  -- value of the 3 most recent CAN_RX samples)
-  signal s_sampled_bit : std_logic;
 
   -- Previous 2 bit values - for triple sampling and for falling edge detection
   signal s_quanta_sampled_bits : std_logic_vector(1 downto 0);
@@ -147,9 +141,6 @@ architecture rtl of canola_btl is
   signal s_clk_sampled_bit   : std_logic_vector(1 downto 0);
 
   signal s_sync_jump_width : natural;
-
-  -- Number of bauds that the bus has been "idle" (no transitions)
-  signal s_bus_idle_count : integer range 0 to C_EOF_LENGTH;
 
   -- Number of bits in a row that has been dominant (0) or recessive (1)
   signal s_dominant_bit_count  : unsigned(3 downto 0);
@@ -435,39 +426,21 @@ begin  -- architecture rtl
   end process proc_sample_points;
 
 
-  -- Detect if there are no transitions when we are receiving frame
-  -- If we detect too many bits with no transitions in a row we end
-  -- the frame
-  proc_bus_idle_counter : process(CLK) is
-  begin
-    if rising_edge(CLK) then
-      -- Synchronize to time quantas
-      if s_time_quanta_pulse = '1' then
-        if CAN_RX /= s_quanta_sampled_bits(0) then
-          s_bus_idle_count <= 0;
-        elsif s_bus_idle_count < C_EOF_LENGTH then
-          s_bus_idle_count <= s_bus_idle_count + 1;
-        end if;
-      end if;
-    end if;
-  end process proc_bus_idle_counter;
-
-
   -- purpose: Sample received bits
   -- type   : sequential
-  -- inputs : CLK, RESET, CAN_RX
-  -- outputs: s_quanta_sampled_bits
+  -- inputs : CLK, RESET, CAN_RX, s_time_quanta_pulse
+  -- outputs: CAN_RX_BIT_VALUE, CAN_RX_BIT_VALID, s_quanta_sampled_bits
   proc_sample_rx_bit : process (CLK, RESET) is
     variable v_sampled_bit : std_logic;
   begin  -- process proc_sample_rx_bit
     if rising_edge(CLK) then
+      BTL_RX_BIT_VALID <= '0';
+
       if RESET = '1' then
         s_quanta_sampled_bits <= (others => '0');
         s_dominant_bit_count  <= (others => '0');
         s_recessive_bit_count <= (others => '0');
-        s_output_rx_bit_pulse <= '0';
       else
-        s_output_rx_bit_pulse <= '0';
         -----------------------------------------------------------------------
         -- Sample bits @ system clock
         -- Used to detect falling edge transition when we are not in sync
@@ -498,7 +471,7 @@ begin  -- architecture rtl
             v_sampled_bit := CAN_RX;
           end if;
 
-          if v_sampled_bit /= s_sampled_bit then
+          if v_sampled_bit /= BTL_RX_BIT_VALUE then
             s_recessive_bit_count <= (others => '0');
             s_dominant_bit_count  <= (others => '0');
           end if;
@@ -509,34 +482,11 @@ begin  -- architecture rtl
             s_dominant_bit_count <= s_dominant_bit_count + 1;
           end if;
 
-          s_sampled_bit         <= v_sampled_bit;
-          s_output_rx_bit_pulse <= '1';
+          BTL_RX_BIT_VALUE <= v_sampled_bit;
+          BTL_RX_BIT_VALID <= '1';
         end if;
       end if;
     end if;
   end process proc_sample_rx_bit;
-
-
-  -- purpose: Output received bit value output from BTL (this module)
-  -- type   : sequential
-  -- inputs : CLK, RESET, s_sampled_bit, s_output_rx_bit_pulse
-  -- outputs: BTL_RX_BIT_VALUE, BTL_RX_BIT_VALID
-  proc_rx_bit_output : process(CLK) is
-  begin
-    if rising_edge(CLK) then
-      if RESET = '1' then
-        BTL_RX_BIT_VALID <= '0';
-        BTL_RX_BIT_VALUE <= '0';
-      else
-        BTL_RX_BIT_VALID <= '0';
-
-        if s_output_rx_bit_pulse = '1' then
-          BTL_RX_BIT_VALID <= '1';
-          BTL_RX_BIT_VALUE <= s_sampled_bit;
-        end if;
-      end if;
-    end if;
-  end process proc_rx_bit_output;
-
 
 end architecture rtl;
