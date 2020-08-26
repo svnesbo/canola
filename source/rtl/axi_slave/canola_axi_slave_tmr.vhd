@@ -151,7 +151,7 @@ begin
       BTL_PHASE_SEG1          => axi_rw_regs.BTL_PHASE_SEG1(C_PHASE_SEG1_WIDTH-1 downto 0),
       BTL_PHASE_SEG2          => axi_rw_regs.BTL_PHASE_SEG2(C_PHASE_SEG2_WIDTH-1 downto 0),
       BTL_SYNC_JUMP_WIDTH     => unsigned(axi_rw_regs.BTL_SYNC_JUMP_WIDTH),
-      TIME_QUANTA_CLOCK_SCALE => unsigned(axi_rw_regs.BTL_TIME_QUANTA_CLOCK_SCALE(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0)),
+      TIME_QUANTA_CLOCK_SCALE => unsigned(axi_rw_regs.TIME_QUANTA_CLOCK_SCALE(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0)),
 
       -- Error state and counters
       std_logic_vector(TRANSMIT_ERROR_COUNT) => axi_ro_regs.TRANSMIT_ERROR_COUNT(C_ERROR_COUNT_LENGTH-1 downto 0),
