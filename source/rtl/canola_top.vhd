@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-17
+-- Last update: 2020-08-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -57,12 +57,14 @@ entity canola_top is
     TX_FAILED        : out std_logic;
 
     -- BTL configuration
-    BTL_TRIPLE_SAMPLING         : in std_logic;
-    BTL_PROP_SEG                : in std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
-    BTL_PHASE_SEG1              : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
-    BTL_PHASE_SEG2              : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
-    BTL_SYNC_JUMP_WIDTH         : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+    BTL_TRIPLE_SAMPLING : in std_logic;
+    BTL_PROP_SEG        : in std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
+    BTL_PHASE_SEG1      : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
+    BTL_PHASE_SEG2      : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
+    BTL_SYNC_JUMP_WIDTH : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
+
+    -- Clock scale value to divide system CLK by to generate time quantas
+    TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Error state and counters
     -- Note: transmit/receive error counters do not hold absolute of the
@@ -138,6 +140,11 @@ architecture struct of canola_top is
   signal s_btl_rx_bit_valid    : std_logic;
   signal s_btl_rx_synced       : std_logic;
   signal s_btl_rx_stop         : std_logic;
+
+  -- Time Quanta Generator signals
+  signal s_time_quanta_pulse   : std_logic;
+  signal s_time_quanta_restart : std_logic;
+  signal s_time_quanta_count   : std_logic_vector(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
   -- EML signals
   signal s_eml_rx_stuff_error                   : std_logic;
@@ -348,9 +355,23 @@ begin  -- architecture struct
       PHASE_SEG1              => BTL_PHASE_SEG1,
       PHASE_SEG2              => BTL_PHASE_SEG2,
       SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
-      TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE,
+      TIME_QUANTA_PULSE       => s_time_quanta_pulse,
+      TIME_QUANTA_RESTART     => s_time_quanta_restart,
       SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
       SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
+
+  -- Generates a 1 (system) clock cycle pulse for each time quanta
+  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
+    port map (
+      CLK               => CLK,
+      RESET             => RESET,
+      RESTART           => s_time_quanta_restart,
+      CLK_SCALE         => TIME_QUANTA_CLOCK_SCALE,
+      TIME_QUANTA_PULSE => s_time_quanta_pulse,
+      COUNT_OUT         => s_time_quanta_count,
+      COUNT_IN          => s_time_quanta_count);
 
   -- Error Management Logic (EML)
   -- Keeps track of errors occuring in other modules,

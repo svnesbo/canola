@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-02-13
+-- Last update: 2020-08-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -61,7 +61,9 @@ entity canola_btl_tmr_wrapper is
     PHASE_SEG1              : in  std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+
+    TIME_QUANTA_PULSE       : in  std_logic;
+    TIME_QUANTA_RESTART     : out std_logic;
 
     -- Indicates mismatch in any of the TMR voters
     VOTER_MISMATCH          : out std_logic
@@ -90,27 +92,28 @@ begin  -- architecture structural
         generic map (
           G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
         port map (
-          CLK                     => CLK,
-          RESET                   => RESET,
-          CAN_TX                  => CAN_TX,
-          CAN_RX                  => CAN_RX,
-          BTL_TX_BIT_VALUE        => BTL_TX_BIT_VALUE,
-          BTL_TX_BIT_VALID        => BTL_TX_BIT_VALID,
-          BTL_TX_RDY              => BTL_TX_RDY,
-          BTL_TX_DONE             => BTL_TX_DONE,
-          BTL_TX_ACTIVE           => BTL_TX_ACTIVE,
-          BTL_RX_BIT_VALUE        => BTL_RX_BIT_VALUE,
-          BTL_RX_BIT_VALID        => BTL_RX_BIT_VALID,
-          BTL_RX_SYNCED           => BTL_RX_SYNCED,
-          BTL_RX_STOP             => BTL_RX_STOP,
-          TRIPLE_SAMPLING         => TRIPLE_SAMPLING,
-          PROP_SEG                => PROP_SEG,
-          PHASE_SEG1              => PHASE_SEG1,
-          PHASE_SEG2              => PHASE_SEG2,
-          SYNC_JUMP_WIDTH         => SYNC_JUMP_WIDTH,
-          TIME_QUANTA_CLOCK_SCALE => TIME_QUANTA_CLOCK_SCALE,
-          SYNC_FSM_STATE_O        => s_sync_fsm_state_no_tmr,
-          SYNC_FSM_STATE_VOTED_I  => s_sync_fsm_state_no_tmr);
+          CLK                    => CLK,
+          RESET                  => RESET,
+          CAN_TX                 => CAN_TX,
+          CAN_RX                 => CAN_RX,
+          BTL_TX_BIT_VALUE       => BTL_TX_BIT_VALUE,
+          BTL_TX_BIT_VALID       => BTL_TX_BIT_VALID,
+          BTL_TX_RDY             => BTL_TX_RDY,
+          BTL_TX_DONE            => BTL_TX_DONE,
+          BTL_TX_ACTIVE          => BTL_TX_ACTIVE,
+          BTL_RX_BIT_VALUE       => BTL_RX_BIT_VALUE,
+          BTL_RX_BIT_VALID       => BTL_RX_BIT_VALID,
+          BTL_RX_SYNCED          => BTL_RX_SYNCED,
+          BTL_RX_STOP            => BTL_RX_STOP,
+          TRIPLE_SAMPLING        => TRIPLE_SAMPLING,
+          PROP_SEG               => PROP_SEG,
+          PHASE_SEG1             => PHASE_SEG1,
+          PHASE_SEG2             => PHASE_SEG2,
+          SYNC_JUMP_WIDTH        => SYNC_JUMP_WIDTH,
+          TIME_QUANTA_PULSE      => TIME_QUANTA_PULSE,
+          TIME_QUANTA_RESTART    => TIME_QUANTA_RESTART,
+          SYNC_FSM_STATE_O       => s_sync_fsm_state_no_tmr,
+          SYNC_FSM_STATE_VOTED_I => s_sync_fsm_state_no_tmr);
     end block no_tmr_block;
   end generate if_NOMITIGATION_generate;
 
@@ -123,31 +126,34 @@ begin  -- architecture structural
       type t_sync_fsm_state_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
       signal s_sync_fsm_state_out, s_sync_fsm_state_voted : t_sync_fsm_state_tmr;
 
-      signal s_can_tx_tmr           : std_logic_vector(0 to C_K_TMR-1);
-      signal s_btl_tx_rdy_tmr       : std_logic_vector(0 to C_K_TMR-1);
-      signal s_btl_tx_done_tmr      : std_logic_vector(0 to C_K_TMR-1);
-      signal s_btl_rx_bit_value_tmr : std_logic_vector(0 to C_K_TMR-1);
-      signal s_btl_rx_bit_valid_tmr : std_logic_vector(0 to C_K_TMR-1);
-      signal s_btl_rx_synced_tmr    : std_logic_vector(0 to C_K_TMR-1);
+      signal s_can_tx_tmr              : std_logic_vector(0 to C_K_TMR-1);
+      signal s_btl_tx_rdy_tmr          : std_logic_vector(0 to C_K_TMR-1);
+      signal s_btl_tx_done_tmr         : std_logic_vector(0 to C_K_TMR-1);
+      signal s_btl_rx_bit_value_tmr    : std_logic_vector(0 to C_K_TMR-1);
+      signal s_btl_rx_bit_valid_tmr    : std_logic_vector(0 to C_K_TMR-1);
+      signal s_btl_rx_synced_tmr       : std_logic_vector(0 to C_K_TMR-1);
+      signal s_time_quanta_restart_tmr : std_logic_vector(0 to C_K_TMR-1);
 
-      attribute DONT_TOUCH                           : string;
-      attribute DONT_TOUCH of s_sync_fsm_state_out   : signal is "TRUE";
-      attribute DONT_TOUCH of s_sync_fsm_state_voted : signal is "TRUE";
-      attribute DONT_TOUCH of s_can_tx_tmr           : signal is "TRUE";
-      attribute DONT_TOUCH of s_btl_tx_rdy_tmr       : signal is "TRUE";
-      attribute DONT_TOUCH of s_btl_tx_done_tmr      : signal is "TRUE";
-      attribute DONT_TOUCH of s_btl_rx_bit_value_tmr : signal is "TRUE";
-      attribute DONT_TOUCH of s_btl_rx_bit_valid_tmr : signal is "TRUE";
-      attribute DONT_TOUCH of s_btl_rx_synced_tmr    : signal is "TRUE";
+      attribute DONT_TOUCH                              : string;
+      attribute DONT_TOUCH of s_sync_fsm_state_out      : signal is "TRUE";
+      attribute DONT_TOUCH of s_sync_fsm_state_voted    : signal is "TRUE";
+      attribute DONT_TOUCH of s_can_tx_tmr              : signal is "TRUE";
+      attribute DONT_TOUCH of s_btl_tx_rdy_tmr          : signal is "TRUE";
+      attribute DONT_TOUCH of s_btl_tx_done_tmr         : signal is "TRUE";
+      attribute DONT_TOUCH of s_btl_rx_bit_value_tmr    : signal is "TRUE";
+      attribute DONT_TOUCH of s_btl_rx_bit_valid_tmr    : signal is "TRUE";
+      attribute DONT_TOUCH of s_btl_rx_synced_tmr       : signal is "TRUE";
+      attribute DONT_TOUCH of s_time_quanta_restart_tmr : signal is "TRUE";
 
-      constant C_mismatch_sync_fsm_state   : integer := 0;
-      constant C_mismatch_can_tx           : integer := 1;
-      constant C_mismatch_btl_tx_rdy       : integer := 2;
-      constant C_mismatch_btl_tx_done      : integer := 3;
-      constant C_mismatch_btl_rx_bit_value : integer := 4;
-      constant C_mismatch_btl_rx_bit_valid : integer := 5;
-      constant C_mismatch_btl_rx_synced    : integer := 6;
-      constant C_MISMATCH_WIDTH            : integer := 7;
+      constant C_mismatch_sync_fsm_state      : integer := 0;
+      constant C_mismatch_can_tx              : integer := 1;
+      constant C_mismatch_btl_tx_rdy          : integer := 2;
+      constant C_mismatch_btl_tx_done         : integer := 3;
+      constant C_mismatch_btl_rx_bit_value    : integer := 4;
+      constant C_mismatch_btl_rx_bit_valid    : integer := 5;
+      constant C_mismatch_btl_rx_synced       : integer := 6;
+      constant C_mismatch_time_quanta_restart : integer := 7;
+      constant C_MISMATCH_WIDTH               : integer := 8;
 
       constant C_MISMATCH_NONE : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0) := (others => '0');
       signal s_mismatch_vector : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
@@ -173,27 +179,28 @@ begin  -- architecture structural
           generic map (
             G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
           port map (
-            CLK                     => CLK,
-            RESET                   => RESET,
-            CAN_TX                  => s_can_tx_tmr(i),
-            CAN_RX                  => CAN_RX,
-            BTL_TX_BIT_VALUE        => BTL_TX_BIT_VALUE,
-            BTL_TX_BIT_VALID        => BTL_TX_BIT_VALID,
-            BTL_TX_RDY              => s_btl_tx_rdy_tmr(i),
-            BTL_TX_DONE             => s_btl_tx_done_tmr(i),
-            BTL_TX_ACTIVE           => BTL_TX_ACTIVE,
-            BTL_RX_BIT_VALUE        => s_btl_rx_bit_value_tmr(i),
-            BTL_RX_BIT_VALID        => s_btl_rx_bit_valid_tmr(i),
-            BTL_RX_SYNCED           => s_btl_rx_synced_tmr(i),
-            BTL_RX_STOP             => BTL_RX_STOP,
-            TRIPLE_SAMPLING         => TRIPLE_SAMPLING,
-            PROP_SEG                => PROP_SEG,
-            PHASE_SEG1              => PHASE_SEG1,
-            PHASE_SEG2              => PHASE_SEG2,
-            SYNC_JUMP_WIDTH         => SYNC_JUMP_WIDTH,
-            TIME_QUANTA_CLOCK_SCALE => TIME_QUANTA_CLOCK_SCALE,
-            SYNC_FSM_STATE_O        => s_sync_fsm_state_out(i),
-            SYNC_FSM_STATE_VOTED_I  => s_sync_fsm_state_voted(i)
+            CLK                    => CLK,
+            RESET                  => RESET,
+            CAN_TX                 => s_can_tx_tmr(i),
+            CAN_RX                 => CAN_RX,
+            BTL_TX_BIT_VALUE       => BTL_TX_BIT_VALUE,
+            BTL_TX_BIT_VALID       => BTL_TX_BIT_VALID,
+            BTL_TX_RDY             => s_btl_tx_rdy_tmr(i),
+            BTL_TX_DONE            => s_btl_tx_done_tmr(i),
+            BTL_TX_ACTIVE          => BTL_TX_ACTIVE,
+            BTL_RX_BIT_VALUE       => s_btl_rx_bit_value_tmr(i),
+            BTL_RX_BIT_VALID       => s_btl_rx_bit_valid_tmr(i),
+            BTL_RX_SYNCED          => s_btl_rx_synced_tmr(i),
+            BTL_RX_STOP            => BTL_RX_STOP,
+            TRIPLE_SAMPLING        => TRIPLE_SAMPLING,
+            PROP_SEG               => PROP_SEG,
+            PHASE_SEG1             => PHASE_SEG1,
+            PHASE_SEG2             => PHASE_SEG2,
+            SYNC_JUMP_WIDTH        => SYNC_JUMP_WIDTH,
+            TIME_QUANTA_PULSE      => TIME_QUANTA_PULSE,
+            TIME_QUANTA_RESTART    => s_time_quanta_restart_tmr(i),
+            SYNC_FSM_STATE_O       => s_sync_fsm_state_out(i),
+            SYNC_FSM_STATE_VOTED_I => s_sync_fsm_state_voted(i)
             );
       end generate for_TMR_generate;
 
@@ -285,6 +292,18 @@ begin  -- architecture structural
           INPUT_C   => s_btl_rx_synced_tmr(2),
           VOTER_OUT => BTL_RX_SYNCED,
           MISMATCH  => s_mismatch_vector(C_mismatch_btl_rx_synced));
+
+      INST_time_quanta_restart : entity work.tmr_voter
+        generic map (
+          G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+        port map (
+          CLK       => CLK,
+          INPUT_A   => s_time_quanta_restart_tmr(0),
+          INPUT_B   => s_time_quanta_restart_tmr(1),
+          INPUT_C   => s_time_quanta_restart_tmr(2),
+          VOTER_OUT => TIME_QUANTA_RESTART,
+          MISMATCH  => s_mismatch_vector(C_mismatch_time_quanta_restart));
 
     end block tmr_block;
   end generate if_TMR_generate;

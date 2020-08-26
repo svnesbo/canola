@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-08-25
+-- Last update: 2020-08-26
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -62,7 +62,8 @@ entity canola_btl is
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
 
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+    TIME_QUANTA_PULSE       : in  std_logic;
+    TIME_QUANTA_RESTART     : out std_logic;
 
     -- Sync FSM state register output/input - for triplication and voting of state
     SYNC_FSM_STATE_O       : out std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
@@ -117,9 +118,8 @@ architecture rtl of canola_btl is
   -- states: ST_PROP_SEG, ST_PHASE1_SEG, or ST_PHASE2_SEG.
   -- During those states it is right shifted 1 time per time quanta pulse
   -- until there are no 1s left, at which point we continue to the next segment.
-  signal s_segment         : std_logic_vector(C_SEGMENT_WIDTH_MAX-1 downto 0);
+  signal s_segment              : std_logic_vector(C_SEGMENT_WIDTH_MAX-1 downto 0);
 
-  signal s_frame_hard_sync      : std_logic;
   signal s_resync_allowed       : std_logic;
   signal s_resync_done          : std_logic;
   signal s_phase_error          : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
@@ -127,7 +127,6 @@ architecture rtl of canola_btl is
   signal s_sample_point_tx      : std_logic;
   signal s_sample_point_rx_done : std_logic;
   signal s_sample_point_tx_done : std_logic;
-  signal s_time_quanta_pulse    : std_logic;
 
   -- Indicates that we detected a falling edge transition on CAN_RX
   -- for the bit that is currently being processed
@@ -159,17 +158,6 @@ begin  -- architecture rtl
   -- Convert voted sync FSM state register input from std_logic_vector to btl_sync_fsm_state_t
   s_sync_fsm_state_voted <= btl_sync_fsm_state_t'val(to_integer(unsigned(SYNC_FSM_STATE_VOTED_I)));
 
-  -- Generates a 1 (system) clock cycle pulse for each time quanta
-  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
-    generic map (
-      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
-    port map (
-      CLK               => CLK,
-      RESET             => RESET,
-      RESTART           => s_frame_hard_sync,
-      COUNT_VAL         => TIME_QUANTA_CLOCK_SCALE,
-      TIME_QUANTA_PULSE => s_time_quanta_pulse);
-
   proc_rx_sync_fsm : process(CLK) is
     variable v_phase_error             : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
     variable v_got_rx_bit_falling_edge : std_logic;
@@ -180,16 +168,15 @@ begin  -- architecture rtl
       -- Sync jump width should be at least one, but not greater than C_SYNC_JUMP_WIDTH_MAX
       s_sync_jump_width <= maximum(maximum(1, to_integer(SYNC_JUMP_WIDTH)), C_SYNC_JUMP_WIDTH_MAX);
 
+      TIME_QUANTA_RESTART  <= '0';
+
       -- Synchronous reset
       if RESET = '1' then
         BTL_RX_SYNCED             <= '0';
-        s_frame_hard_sync         <= '0';
         s_resync_allowed          <= '0';
         s_resync_done             <= '0';
         s_got_rx_bit_falling_edge <= '0';
       else
-        s_frame_hard_sync      <= '0';
-
         if s_clk_sampled_bit(1) = '1' and s_clk_sampled_bit(0) = '0' then
           v_got_rx_bit_falling_edge := '1';
         else
@@ -221,7 +208,7 @@ begin  -- architecture rtl
           -- BTL_RX_SYNCED and s_got_rx_bit_falling_edge should both be '1' by then,
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
-            s_frame_hard_sync     <= '1';
+            TIME_QUANTA_RESTART   <= '1';
             s_sync_fsm_state_out  <= ST_SYNC_SEG;
 
           -- Hard sync is not allowed when we are transmitting,
@@ -232,7 +219,7 @@ begin  -- architecture rtl
         -- FSM logic for bit synchronization within a CAN frame
         -- Note: FSM is processed only on time quanta pulses
         -----------------------------------------------------------------------
-        elsif s_time_quanta_pulse = '1' then
+        elsif TIME_QUANTA_PULSE = '1' then
           case s_sync_fsm_state_voted is
             when ST_SYNC_SEG =>
 
@@ -355,7 +342,7 @@ begin  -- architecture rtl
 
           end case;
 
-        end if; -- s_time_quanta_pulse = '1'
+        end if; -- TIME_QUANTA_PULSE = '1'
       end if; -- RESET = '0'
     end if; -- rising_edge(CLK)
   end process proc_rx_sync_fsm;
@@ -428,7 +415,7 @@ begin  -- architecture rtl
 
   -- purpose: Sample received bits
   -- type   : sequential
-  -- inputs : CLK, RESET, CAN_RX, s_time_quanta_pulse
+  -- inputs : CLK, RESET, CAN_RX, TIME_QUANTA_PULSE
   -- outputs: CAN_RX_BIT_VALUE, CAN_RX_BIT_VALID, s_quanta_sampled_bits
   proc_sample_rx_bit : process (CLK, RESET) is
     variable v_sampled_bit : std_logic;
@@ -454,7 +441,7 @@ begin  -- architecture rtl
         -- and also for triple sampling (majority vote determines value)
         -- The actual value of a received bit is sampled at the Rx sample point
         -----------------------------------------------------------------------
-        if s_time_quanta_pulse = '1' then
+        if TIME_QUANTA_PULSE = '1' then
           -- Sample and store 2 previous values of CAN_RX,
           -- used for triple sampling and for falling edge
           -- detection in proc_sync_fsm

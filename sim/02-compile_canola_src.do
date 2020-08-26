@@ -58,6 +58,7 @@ eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/axi_slave/canola_axi
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/axi_slave/canola_axi_slave.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/counter_saturating_tmr_wrapper_triplicated.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/up_counter_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_time_quanta_gen_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_bsp_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_btl_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_eml_tmr_wrapper.vhd

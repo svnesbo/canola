@@ -333,7 +333,7 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
@@ -383,7 +383,8 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
@@ -433,7 +434,8 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
@@ -667,7 +669,8 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
@@ -713,7 +716,8 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl2_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl2_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl2_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
@@ -759,7 +763,8 @@ begin
         BTL_PHASE_SEG1              => s_can_ctrl3_phase_seg1,
         BTL_PHASE_SEG2              => s_can_ctrl3_phase_seg2,
         BTL_SYNC_JUMP_WIDTH         => s_can_ctrl3_sync_jump_width,
-        BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+        TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                    C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
         -- Error state and counters
