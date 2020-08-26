@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-05-29
+-- Last update: 2020-08-26
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -234,7 +234,8 @@ begin
       BTL_PHASE_SEG1              => s_can_ctrl1_phase_seg1,
       BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
       BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
-      BTL_TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+
+      TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
                                                  C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
 
       -- Error state and counters

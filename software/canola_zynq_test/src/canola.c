@@ -70,14 +70,14 @@ void canola_print_ctrl_regs(unsigned int canola_dev_id)
   printf("BTL_PHASE_SEG1: %#010x\n\r", (unsigned int)Xil_In32(canola_baseaddr+BTL_PHASE_SEG1_OFFSET));
   printf("BTL_PHASE_SEG2: %#010x\n\r", (unsigned int)Xil_In32(canola_baseaddr+BTL_PHASE_SEG2_OFFSET));
   printf("BTL_SYNC_JUMP_WIDTH: %#010x\n\r", (unsigned int)Xil_In32(canola_baseaddr+BTL_SYNC_JUMP_WIDTH_OFFSET));
-  printf("BTL_TIME_QUANTA_CLOCK_SCALE: %#010x\n\r", (unsigned int)Xil_In32(canola_baseaddr+BTL_TIME_QUANTA_CLOCK_SCALE_OFFSET));
+  printf("TIME_QUANTA_CLOCK_SCALE: %#010x\n\r", (unsigned int)Xil_In32(canola_baseaddr+TIME_QUANTA_CLOCK_SCALE_OFFSET));
 }
 
 void canola_init(unsigned int canola_dev_id)
 {
   UINTPTR canola_baseaddr = canola_get_base_addr(canola_dev_id);
 
-  Xil_Out32(canola_baseaddr+BTL_TIME_QUANTA_CLOCK_SCALE_OFFSET, 9);
+  Xil_Out32(canola_baseaddr+TIME_QUANTA_CLOCK_SCALE_OFFSET, 9);
 }
 
 void canola_send_msg(unsigned int canola_dev_id, can_msg_t msg)

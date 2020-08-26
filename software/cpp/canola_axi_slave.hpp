@@ -137,9 +137,9 @@ static const uint32_t BTL_PHASE_SEG2_RESET = 0x7;
 static const uint32_t BTL_SYNC_JUMP_WIDTH_OFFSET = 0x2c;
 static const uint32_t BTL_SYNC_JUMP_WIDTH_RESET = 0x1;
 
-/* Register: BTL_TIME_QUANTA_CLOCK_SCALE */
-static const uint32_t BTL_TIME_QUANTA_CLOCK_SCALE_OFFSET = 0x30;
-static const uint32_t BTL_TIME_QUANTA_CLOCK_SCALE_RESET = 0xF;
+/* Register: TIME_QUANTA_CLOCK_SCALE */
+static const uint32_t TIME_QUANTA_CLOCK_SCALE_OFFSET = 0x30;
+static const uint32_t TIME_QUANTA_CLOCK_SCALE_RESET = 0xF;
 
 /* Register: TRANSMIT_ERROR_COUNT */
 static const uint32_t TRANSMIT_ERROR_COUNT_OFFSET = 0x34;
