@@ -18,22 +18,6 @@
 -- Date        Version  Author  Description
 -- 2019-07-06  1.0      svn     Created
 -------------------------------------------------------------------------------
-
--- TODO: Indicate in some way from tx_fsm that a message originated from us and
---       not an different node on the bus
--- TODO: Error handling
---       * Active Error Flag
---       * Passive Error Flag
---       * Error delimiter?
---       When are they used? Who issues them?
---       What happens when received CRC does not match calculated CRC in receiver?
---         - Besides not issuing ACK, what does the receiver do?
---       See 7.1 in Bosch CAN specification
--- TODO: RX_ACTIVE check..
---       Technically the BSP should not just detect that Rx is not active anymore,
---       I should get a bit stuff error if I receive too many bits of same value.
---       Maybe look for bit stuff error instead of RX_ACTIVE?
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -268,11 +252,8 @@ begin  -- architecture rtl
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
-              -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
-              -- Todo: Should we accept messages that have different R0/R1 value
-              -- than what is expected? Yes it's not an error, but maybe we
-              -- shouldn't accept messages with the wrong value..
-              s_fsm_state_out   <= ST_RECV_R0;
+              -- Note: A CAN receiver should accept any value for R0 and R1
+              s_fsm_state_out <= ST_RECV_R0;
             end if;
 
           when ST_RECV_R0 =>
@@ -282,7 +263,7 @@ begin  -- architecture rtl
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
-              -- Note: A CAN receiver should accept any value for reserved fields R0 and R1
+              -- Note: A CAN receiver should accept any value for R0 and R1
               s_fsm_state_out   <= ST_RECV_DLC;
             end if;
 
@@ -467,6 +448,10 @@ begin  -- architecture rtl
             -- If we end up here because BSP_RX_ACTIVE went low unexpectedly,
             -- an error flag is increased but no error counter is increased.
 
+            -- Note 2:
+            -- BSP_SEND_ERROR_FLAG is set when we are in this state,
+            -- outside of this process to save a clock cycle.
+
             if s_reg_tx_arb_won = '0' then
               -- If we are receiving from a different node:
               -- Signal the error type to the EML, and send an error flag
@@ -512,9 +497,6 @@ begin  -- architecture rtl
           when ST_WAIT_BUS_IDLE =>
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            -- TODO:
-            -- Handle this differently..
-            -- I have a state in BSP that handles IFS now, and a signal for it
             if BSP_RX_ACTIVE = '0' and BSP_RX_IFS = '0' then
               s_fsm_state_out <= ST_IDLE;
             end if;
