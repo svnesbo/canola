@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-08-26
+-- Last update: 2020-08-28
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -159,7 +159,8 @@ architecture struct of canola_top_tmr is
   signal s_eml_rx_active_error_flag_bit_error   : std_logic;
   signal s_eml_rx_overload_flag_bit_error       : std_logic;
   signal s_eml_rx_dominant_bit_after_error_flag : std_logic;
-  signal s_eml_tx_bit_error                     : std_logic;
+  signal s_eml_tx_bit_error_rx_fsm              : std_logic;
+  signal s_eml_tx_bit_error_tx_fsm              : std_logic;
   signal s_eml_tx_ack_error                     : std_logic;
   signal s_eml_tx_arb_stuff_error               : std_logic;
   signal s_eml_tx_active_error_flag_bit_error   : std_logic;
@@ -227,7 +228,7 @@ begin  -- architecture struct
   TX_MSG_SENT_COUNT_UP    <= TX_DONE;
   TX_ACK_ERROR_COUNT_UP   <= s_eml_tx_ack_error;
   TX_ARB_LOST_COUNT_UP    <= s_tx_fsm_arb_lost;
-  TX_BIT_ERROR_COUNT_UP   <= s_eml_tx_bit_error;
+  TX_BIT_ERROR_COUNT_UP   <= s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm;
   TX_RETRANSMIT_COUNT_UP  <= s_tx_fsm_retransmitting;
   RX_MSG_RECV_COUNT_UP    <= RX_MSG_VALID;
   RX_CRC_ERROR_COUNT_UP   <= s_eml_rx_crc_error;
@@ -271,7 +272,7 @@ begin  -- architecture struct
       BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE                => s_bsp_error_flag_done,
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
-      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error,
+      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_tx_fsm,
       EML_TX_ACK_ERROR                   => s_eml_tx_ack_error,
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
@@ -306,6 +307,7 @@ begin  -- architecture struct
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
       BTL_RX_BIT_VALUE                   => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID                   => s_btl_rx_bit_valid,
+      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_rx_fsm,
       EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error,
       EML_RX_CRC_ERROR                   => s_eml_rx_crc_error,
       EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
@@ -425,7 +427,7 @@ begin  -- architecture struct
       RX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_rx_active_error_flag_bit_error,
       RX_OVERLOAD_FLAG_BIT_ERROR       => s_eml_rx_overload_flag_bit_error,
       RX_DOMINANT_BIT_AFTER_ERROR_FLAG => s_eml_rx_dominant_bit_after_error_flag,
-      TX_BIT_ERROR                     => s_eml_tx_bit_error,
+      TX_BIT_ERROR                     => s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
       TX_ACK_PASSIVE_ERROR             => '0',
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,

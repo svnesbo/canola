@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-12
+-- Last update: 2020-08-28
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -203,27 +203,25 @@ package canola_pkg is
 
   -- Type definition for Rx Frame FSM state register
   type can_frame_rx_fsm_state_t is (ST_IDLE,
-                              ST_RECV_SOF,
-                              ST_RECV_ID_A,
-                              ST_RECV_SRR_RTR,
-                              ST_RECV_IDE,
-                              ST_RECV_ID_B,
-                              ST_RECV_EXT_FRAME_RTR,
-                              ST_RECV_R1,
-                              ST_RECV_R0,
-                              ST_RECV_DLC,
-                              ST_RECV_DATA,
-                              ST_RECV_CRC,
-                              ST_RECV_CRC_DELIM,
-                              ST_SEND_RECV_ACK,
-                              ST_RECV_ACK_DELIM,
-                              ST_RECV_EOF,
-                              ST_CRC_ERROR,
-                              ST_STUFF_ERROR,
-                              ST_FORM_ERROR,
-                              ST_WAIT_ERROR_FLAG,
-                              ST_DONE,
-                              ST_WAIT_BUS_IDLE);
+                                    ST_RECV_SOF,
+                                    ST_RECV_ID_A,
+                                    ST_RECV_SRR_RTR,
+                                    ST_RECV_IDE,
+                                    ST_RECV_ID_B,
+                                    ST_RECV_EXT_FRAME_RTR,
+                                    ST_RECV_R1,
+                                    ST_RECV_R0,
+                                    ST_RECV_DLC,
+                                    ST_RECV_DATA,
+                                    ST_RECV_CRC,
+                                    ST_RECV_CRC_DELIM,
+                                    ST_SEND_RECV_ACK,
+                                    ST_RECV_ACK_DELIM,
+                                    ST_RECV_EOF,
+                                    ST_ERROR,
+                                    ST_WAIT_ERROR_FLAG,
+                                    ST_DONE,
+                                    ST_WAIT_BUS_IDLE);
 
   -- Type definition for Tx Frame FSM state register
   type can_frame_tx_fsm_state_t is (ST_IDLE,

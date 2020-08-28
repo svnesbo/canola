@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-08-25
+-- Last update: 2020-08-28
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -75,6 +75,7 @@ entity canola_frame_rx_fsm is
     BTL_RX_BIT_VALUE          : in  std_logic;
 
     -- Signals to/from EML
+    EML_TX_BIT_ERROR                   : out std_logic;
     EML_RX_STUFF_ERROR                 : out std_logic;
     EML_RX_CRC_ERROR                   : out std_logic;
     EML_RX_FORM_ERROR                  : out std_logic;
@@ -107,6 +108,11 @@ architecture rtl of canola_frame_rx_fsm is
   signal s_rx_active_error_flag_bit_error : std_logic;
   signal s_bsp_rx_data_count              : natural range 0 to C_BSP_DATA_LENGTH;
 
+  signal s_tx_bit_error   : std_logic;
+  signal s_rx_stuff_error : std_logic;
+  signal s_rx_form_error  : std_logic;
+  signal s_rx_crc_error   : std_logic;
+
 begin  -- architecture rtl
 
   RX_MSG_OUT            <= s_reg_rx_msg;
@@ -132,6 +138,10 @@ begin  -- architecture rtl
       EML_RX_CRC_ERROR                   <= '0';
       EML_RX_FORM_ERROR                  <= '0';
       EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR <= '0';
+      s_tx_bit_error                     <= '0';
+      s_rx_stuff_error                   <= '0';
+      s_rx_form_error                    <= '0';
+      s_rx_crc_error                     <= '0';
 
       if RESET = '1' then
         s_reg_rx_msg.arb_id_a       <= (others => '0');
@@ -173,21 +183,22 @@ begin  -- architecture rtl
           when ST_RECV_SOF =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if BSP_RX_DATA(0) = C_SOF_VALUE then
                 s_fsm_state_out <= ST_RECV_ID_A;
               else
-                s_fsm_state_out <= ST_FORM_ERROR;
+                s_rx_form_error <= '1';
+                s_fsm_state_out <= ST_ERROR;
               end if;
             end if;
 
           when ST_RECV_ID_A =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = C_ID_A_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR     <= '1';
               s_reg_rx_msg.arb_id_a <= BSP_RX_DATA(0 to C_ID_A_LENGTH-1);
@@ -197,7 +208,7 @@ begin  -- architecture rtl
           when ST_RECV_SRR_RTR =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
               s_srr_rtr_bit     <= BSP_RX_DATA(0);
@@ -207,7 +218,7 @@ begin  -- architecture rtl
           when ST_RECV_IDE =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
@@ -217,7 +228,8 @@ begin  -- architecture rtl
                 -- The previous bit is RTR for standard frame,
                 -- and SRR for extended frame. SRR must have value 1 (recessive)
                 if s_srr_rtr_bit /= C_SRR_VALUE then
-                  s_fsm_state_out <= ST_FORM_ERROR;
+                  s_rx_form_error <= '1';
+                  s_fsm_state_out <= ST_ERROR;
                 else
                   s_fsm_state_out <= ST_RECV_ID_B;
                 end if;
@@ -232,7 +244,7 @@ begin  -- architecture rtl
           when ST_RECV_ID_B =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = C_ID_B_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR     <= '1';
               s_reg_rx_msg.arb_id_b <= BSP_RX_DATA(0 to C_ID_B_LENGTH-1);
@@ -242,7 +254,7 @@ begin  -- architecture rtl
           when ST_RECV_EXT_FRAME_RTR =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR           <= '1';
               s_reg_rx_msg.remote_request <= BSP_RX_DATA(0);
@@ -252,7 +264,7 @@ begin  -- architecture rtl
           when ST_RECV_R1 =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
@@ -266,7 +278,7 @@ begin  -- architecture rtl
           when ST_RECV_R0 =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
@@ -277,7 +289,7 @@ begin  -- architecture rtl
           when ST_RECV_DLC =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
 
             elsif s_bsp_rx_data_count = C_DLC_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
@@ -285,7 +297,8 @@ begin  -- architecture rtl
               if unsigned(BSP_RX_DATA(0 to C_DLC_LENGTH-1)) > C_DLC_MAX_VALUE then
                 -- The DLC field is 4 bits and can technically represent values
                 -- up to 15, but 8 is the maximum according to CAN bus specification
-                s_fsm_state_out <= ST_FORM_ERROR;
+                s_rx_form_error <= '1';
+                s_fsm_state_out <= ST_ERROR;
               else
                 s_reg_rx_msg.data_length <= BSP_RX_DATA(0 to C_DLC_LENGTH-1);
 
@@ -301,7 +314,7 @@ begin  -- architecture rtl
           when ST_RECV_DATA =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = unsigned(s_reg_rx_msg.data_length)*8 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
@@ -321,7 +334,7 @@ begin  -- architecture rtl
           when ST_RECV_CRC =>
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
 
               -- 15-bit CRC
             elsif s_bsp_rx_data_count = C_CAN_CRC_WIDTH and BSP_RX_DATA_CLEAR = '0' then
@@ -343,12 +356,13 @@ begin  -- architecture rtl
             -- slot state, to make sure that the last bit of the CRC is stuffed.
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if BSP_RX_DATA(0) /= C_CRC_DELIM_VALUE then
-                s_fsm_state_out <= ST_FORM_ERROR;
+                s_rx_form_error <= '1';
+                s_fsm_state_out <= ST_ERROR;
               else
                 -- Send ACK only if CRC was ok
                 if s_crc_mismatch = '0' then
@@ -378,15 +392,14 @@ begin  -- architecture rtl
 
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if s_crc_mismatch = '0' and BSP_RX_DATA(0) /= C_ACK_VALUE then
                 if s_reg_tx_arb_won = '0' then
-                  -- Did we try to send ACK, but did not read ACK value back?
-                  -- Todo: What kind of error is that? Form error?
-                  s_fsm_state_out <= ST_FORM_ERROR;
+                  s_tx_bit_error  <= '1';
+                  s_fsm_state_out <= ST_ERROR;
                 else
                   -- In this case we were transmitting this message ourselves,
                   -- and did not send out ACK, so we proceed as normal and let
@@ -404,19 +417,21 @@ begin  -- architecture rtl
 
             if BSP_RX_ACTIVE = '0' then
               -- Did frame end unexpectedly?
-              s_fsm_state_out <= ST_FORM_ERROR;
+              s_fsm_state_out <= ST_ERROR;
             elsif s_bsp_rx_data_count = 1 and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
 
               if s_crc_mismatch = '1' then
                 -- CAN specification part B - 7.2 Error Signaling
                 -- Send error flag following ACK delimiter on CRC error,
-                s_fsm_state_out <= ST_CRC_ERROR;
+                s_rx_crc_error  <= '1';
+                s_fsm_state_out <= ST_ERROR;
               elsif BSP_RX_DATA(0) /= C_ACK_DELIM_VALUE then
                 if s_reg_tx_arb_won = '0' then
                   -- Ack delimiter is a fixed field,
                   -- it is a form error if it has the wrong value
-                  s_fsm_state_out <= ST_FORM_ERROR;
+                  s_rx_form_error <= '1';
+                  s_fsm_state_out <= ST_ERROR;
                 else
                   -- In this case we were transmitting this message ourselves,
                   -- and did not send out ACK, so we proceed as normal and let
@@ -437,50 +452,33 @@ begin  -- architecture rtl
               -- Note: Last bit of EOF is don't care for the receiver
               -- See CAN specification 2.0B: 5 Message Validation
               if BTL_RX_BIT_VALID = '1' and BTL_RX_BIT_VALUE /= C_EOF_VALUE then
-                s_fsm_state_out <= ST_FORM_ERROR;
+                s_rx_form_error <= '1';
+                s_fsm_state_out <= ST_ERROR;
               end if;
             elsif s_bsp_rx_data_count = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
               s_fsm_state_out   <= ST_DONE;
             end if;
 
-          when ST_CRC_ERROR =>
-            -- Page 50: https://www.nxp.com/docs/en/reference-manual/BCANPSV2.pdf
-            --  Whenever a CRC error is detected, transmission of an Error flag will start at the bit following the
-            --  ACK Delimiter, unless an Error flag for another error condition has already been started."
-            if s_reg_tx_arb_won = '0' then
-              -- Send error flag on CRC error when receiving from a different node.
-              EML_RX_CRC_ERROR <= '1';
-              s_fsm_state_out  <= ST_WAIT_ERROR_FLAG;
-            else
-              -- Don't send error flag if we are transmitting this message ourselves
-              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
-              s_fsm_state_out <= ST_WAIT_BUS_IDLE;
-            end if;
-
-          when ST_FORM_ERROR =>
+          when ST_ERROR =>
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if s_reg_tx_arb_won = '0' then
-              -- Send error flag on form error when receiving from a different node.
-              EML_RX_FORM_ERROR <= '1';
-              s_fsm_state_out   <= ST_WAIT_ERROR_FLAG;
-            else
-              -- Don't send error flag if we are transmitting this message ourselves
-              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
-              s_fsm_state_out <= ST_WAIT_BUS_IDLE;
-            end if;
-
-          when ST_STUFF_ERROR =>
-            BSP_RX_BIT_DESTUFF_EN <= '0';
+            -- Note/Todo:
+            -- If we end up here because BSP_RX_ACTIVE went low unexpectedly,
+            -- an error flag is increased but no error counter is increased.
 
             if s_reg_tx_arb_won = '0' then
-              -- Send error flag on stuff error when receiving from a different node.
-              EML_RX_STUFF_ERROR <= '1';
+              -- If we are receiving from a different node:
+              -- Signal the error type to the EML, and send an error flag
+              EML_TX_BIT_ERROR   <= s_tx_bit_error;
+              EML_RX_STUFF_ERROR <= s_rx_stuff_error;
+              EML_RX_FORM_ERROR  <= s_rx_form_error;
+              EML_RX_CRC_ERROR   <= s_rx_crc_error;
               s_fsm_state_out    <= ST_WAIT_ERROR_FLAG;
             else
-              -- Don't send error flag if we are transmitting this message ourselves
-              -- (ie. arb was won). Let the Tx FSM handle errors in that case.
+              -- Don't send error flag or increase receive error counters in
+              -- EML if we are transmitting this message ourselves (ie. arb was won).
+              -- Let the Tx FSM handle errors in that case.
               s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
@@ -533,7 +531,8 @@ begin  -- architecture rtl
           if BSP_RX_BIT_DESTUFF_EN = '1' and
             (BSP_RX_ACTIVE_ERROR_FLAG = '1' or BSP_RX_PASSIVE_ERROR_FLAG = '1')
           then
-            s_fsm_state_out <= ST_STUFF_ERROR;
+            s_rx_stuff_error <= '1';
+            s_fsm_state_out  <= ST_ERROR;
           end if;
         end if;
 
@@ -541,10 +540,7 @@ begin  -- architecture rtl
     end if;
   end process proc_fsm;
 
-  BSP_SEND_ERROR_FLAG <= '1' when (s_fsm_state_voted = ST_FORM_ERROR or
-                                   s_fsm_state_voted = ST_STUFF_ERROR or
-                                   s_fsm_state_voted = ST_CRC_ERROR) and
-                                   s_reg_tx_arb_won = '0'
+  BSP_SEND_ERROR_FLAG <= '1' when s_fsm_state_voted = ST_ERROR and s_reg_tx_arb_won = '0'
                              else '0';
 
 end architecture rtl;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-28
--- Last update: 2020-03-05
+-- Last update: 2020-08-28
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -67,6 +67,7 @@ entity canola_frame_rx_fsm_tmr_wrapper is
     BTL_RX_BIT_VALUE          : in  std_logic;
 
     -- Signals to/from EML
+    EML_TX_BIT_ERROR                   : out std_logic;
     EML_RX_STUFF_ERROR                 : out std_logic;
     EML_RX_CRC_ERROR                   : out std_logic;
     EML_RX_FORM_ERROR                  : out std_logic;
@@ -122,6 +123,7 @@ begin  -- architecture structural
           BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
           BTL_RX_BIT_VALID                   => BTL_RX_BIT_VALID,
           BTL_RX_BIT_VALUE                   => BTL_RX_BIT_VALUE,
+          EML_TX_BIT_ERROR                   => EML_TX_BIT_ERROR,
           EML_RX_STUFF_ERROR                 => EML_RX_STUFF_ERROR,
           EML_RX_CRC_ERROR                   => EML_RX_CRC_ERROR,
           EML_RX_FORM_ERROR                  => EML_RX_FORM_ERROR,
@@ -150,6 +152,7 @@ begin  -- architecture structural
       signal s_bsp_rx_stop_tmr                        : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_rx_send_ack_tmr                    : std_logic_vector(0 to C_K_TMR-1);
       signal s_bsp_send_error_flag_tmr                : std_logic_vector(0 to C_K_TMR-1);
+      signal s_eml_tx_bit_error_tmr                   : std_logic_vector(0 to C_K_TMR-1);
       signal s_eml_rx_stuff_error_tmr                 : std_logic_vector(0 to C_K_TMR-1);
       signal s_eml_rx_crc_error_tmr                   : std_logic_vector(0 to C_K_TMR-1);
       signal s_eml_rx_form_error_tmr                  : std_logic_vector(0 to C_K_TMR-1);
@@ -165,6 +168,7 @@ begin  -- architecture structural
       attribute DONT_TOUCH of s_bsp_rx_stop_tmr                        : signal is "TRUE";
       attribute DONT_TOUCH of s_bsp_rx_send_ack_tmr                    : signal is "TRUE";
       attribute DONT_TOUCH of s_bsp_send_error_flag_tmr                : signal is "TRUE";
+      attribute DONT_TOUCH of s_eml_tx_bit_error_tmr                   : signal is "TRUE";
       attribute DONT_TOUCH of s_eml_rx_stuff_error_tmr                 : signal is "TRUE";
       attribute DONT_TOUCH of s_eml_rx_crc_error_tmr                   : signal is "TRUE";
       attribute DONT_TOUCH of s_eml_rx_form_error_tmr                  : signal is "TRUE";
@@ -190,11 +194,12 @@ begin  -- architecture structural
       constant C_mismatch_bsp_rx_stop                        : integer := 17;
       constant C_mismatch_bsp_rx_send_ack                    : integer := 18;
       constant C_mismatch_bsp_send_error_flag                : integer := 19;
-      constant C_mismatch_eml_rx_stuff_error                 : integer := 20;
-      constant C_mismatch_eml_rx_crc_error                   : integer := 21;
-      constant C_mismatch_eml_rx_form_error                  : integer := 22;
-      constant C_mismatch_eml_rx_active_error_flag_bit_error : integer := 23;
-      constant C_MISMATCH_WIDTH                              : integer := 24;
+      constant C_mismatch_eml_tx_bit_error                   : integer := 20;
+      constant C_mismatch_eml_rx_stuff_error                 : integer := 21;
+      constant C_mismatch_eml_rx_crc_error                   : integer := 22;
+      constant C_mismatch_eml_rx_form_error                  : integer := 23;
+      constant C_mismatch_eml_rx_active_error_flag_bit_error : integer := 24;
+      constant C_MISMATCH_WIDTH                              : integer := 25;
 
       constant C_MISMATCH_NONE : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0) := (others => '0');
       signal s_mismatch_vector : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
@@ -240,6 +245,7 @@ begin  -- architecture structural
             BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
             BTL_RX_BIT_VALID                   => BTL_RX_BIT_VALID,
             BTL_RX_BIT_VALUE                   => BTL_RX_BIT_VALUE,
+            EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_tmr(i),
             EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error_tmr(i),
             EML_RX_CRC_ERROR                   => s_eml_rx_crc_error_tmr(i),
             EML_RX_FORM_ERROR                  => s_eml_rx_form_error_tmr(i),
@@ -412,6 +418,18 @@ begin  -- architecture structural
           INPUT_C   => s_bsp_send_error_flag_tmr(2),
           VOTER_OUT => BSP_SEND_ERROR_FLAG,
           MISMATCH  => s_mismatch_vector(C_mismatch_bsp_send_error_flag));
+
+      INST_eml_tx_bit_error_voter : entity work.tmr_voter
+        generic map (
+          G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+          G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+        port map (
+          CLK       => CLK,
+          INPUT_A   => s_eml_tx_bit_error_tmr(0),
+          INPUT_B   => s_eml_tx_bit_error_tmr(1),
+          INPUT_C   => s_eml_tx_bit_error_tmr(2),
+          VOTER_OUT => EML_TX_BIT_ERROR,
+          MISMATCH  => s_mismatch_vector(C_mismatch_eml_tx_bit_error));
 
       INST_eml_rx_stuff_error_voter : entity work.tmr_voter
         generic map (
