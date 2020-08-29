@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-26
+-- Last update: 2020-08-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -209,21 +209,21 @@ begin  -- architecture rtl
               BSP_TX_ACTIVE   <= '0';
               s_fsm_state_out <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
-              if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state_out <= ST_SETUP_SRR;
-              else
-                s_fsm_state_out <= ST_SETUP_RTR;
-              end if;
+              s_fsm_state_out <= ST_SETUP_SRR_RTR;
             else
               s_bsp_tx_write_en <= '1';
             end if;
 
-          when ST_SETUP_SRR =>
-            BSP_TX_DATA(0)      <= C_SRR_VALUE;
+          when ST_SETUP_SRR_RTR =>
+            if s_reg_tx_msg.ext_id = '1' then
+              BSP_TX_DATA(0) <= C_SRR_VALUE;
+            else
+              BSP_TX_DATA(0) <= s_reg_tx_msg.remote_request;
+            end if;
             s_bsp_tx_data_count <= 1;
-            s_fsm_state_out     <= ST_SEND_SRR;
+            s_fsm_state_out     <= ST_SEND_SRR_RTR;
 
-          when ST_SEND_SRR =>
+          when ST_SEND_SRR_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
               BSP_TX_ACTIVE   <= '0';
               s_fsm_state_out <= ST_BIT_ERROR;
@@ -257,6 +257,8 @@ begin  -- architecture rtl
               if s_reg_tx_msg.ext_id = '1' then
                 s_fsm_state_out <= ST_SETUP_ID_B;
               else
+                -- At this point we have won the arbitration for basic frame
+                TX_ARB_WON      <= '1';
                 s_fsm_state_out <= ST_SETUP_R0;
               end if;
             else
@@ -273,29 +275,25 @@ begin  -- architecture rtl
               BSP_TX_ACTIVE   <= '0';
               s_fsm_state_out <= ST_ARB_LOST;
             elsif BSP_TX_DONE = '1' then
-              s_fsm_state_out <= ST_SETUP_RTR;
+              s_fsm_state_out <= ST_SETUP_EXT_RTR;
             else
               s_bsp_tx_write_en <= '1';
             end if;
 
-          when ST_SETUP_RTR =>
-            -- At this point we have just won the arbitration,
-            -- both for extended and basic ID messages
+          when ST_SETUP_EXT_RTR =>
+            -- Remote frame request (RTR) bit for extended frame
+            -- At this point we have won the arbitration for ext frame
             TX_ARB_WON          <= '1';
             BSP_TX_DATA(0)      <= s_reg_tx_msg.remote_request;
             s_bsp_tx_data_count <= 1;
-            s_fsm_state_out     <= ST_SEND_RTR;
+            s_fsm_state_out     <= ST_SEND_EXT_RTR;
 
-          when ST_SEND_RTR =>
+          when ST_SEND_EXT_RTR =>
             if BSP_TX_RX_MISMATCH = '1' then
               BSP_TX_ACTIVE   <= '0';
               s_fsm_state_out <= ST_BIT_ERROR;
             elsif BSP_TX_DONE = '1' then
-              if s_reg_tx_msg.ext_id = '1' then
-                s_fsm_state_out <= ST_SETUP_R1;
-              else
-                s_fsm_state_out <= ST_SETUP_IDE;
-              end if;
+              s_fsm_state_out <= ST_SETUP_R1;
             else
               s_bsp_tx_write_en <= '1';
             end if;

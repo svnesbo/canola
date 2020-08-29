@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-28
+-- Last update: 2020-08-29
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -228,10 +228,10 @@ package canola_pkg is
                               ST_WAIT_FOR_BUS_IDLE,
                               ST_SETUP_SOF,
                               ST_SETUP_ID_A,
-                              ST_SETUP_SRR,
+                              ST_SETUP_SRR_RTR,
                               ST_SETUP_IDE,
                               ST_SETUP_ID_B,
-                              ST_SETUP_RTR,
+                              ST_SETUP_EXT_RTR,
                               ST_SETUP_R1,
                               ST_SETUP_R0,
                               ST_SETUP_DLC,
@@ -244,10 +244,10 @@ package canola_pkg is
                               ST_SETUP_ERROR_FLAG,
                               ST_SEND_SOF,
                               ST_SEND_ID_A,
-                              ST_SEND_SRR,
+                              ST_SEND_SRR_RTR,
                               ST_SEND_IDE,
                               ST_SEND_ID_B,
-                              ST_SEND_RTR,
+                              ST_SEND_EXT_RTR,
                               ST_SEND_R1,
                               ST_SEND_R0,
                               ST_SEND_DLC,

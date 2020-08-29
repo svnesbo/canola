@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-08-26
+-- Last update: 2020-08-29
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -2116,7 +2116,7 @@ begin
       s_can_ctrl1_tx_start <= transport '0' after C_CLK_PERIOD;
 
       -- Wait till we're after the (extended) arbitration field
-      wait until s_can_ctrl1_tx_fsm_state = ST_SETUP_RTR for 50*C_CAN_BAUD_PERIOD;
+      wait until s_can_ctrl1_tx_fsm_state = ST_SETUP_EXT_RTR for 50*C_CAN_BAUD_PERIOD;
 
       uniform(seed1, seed2, v_rand_real);
 
