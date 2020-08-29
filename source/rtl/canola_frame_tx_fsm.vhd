@@ -18,10 +18,6 @@
 -- Date        Version  Author  Description
 -- 2019-06-26  1.0      svn     Created
 -------------------------------------------------------------------------------
-
--- TODO: I think it should be Bit Error (not Form Error) when the monitored bit
---       does not match the transmitted bit in the node that is transmitting.
---       See section 7 Error Handling in Bosch CAN specification.
 -- TODO: Acknowledgement Error: When no ACK is detected, we should attempt to
 --       retransmit for a certain number of times. After too many failed
 --       I think the transmitter has to be silent for a while (it assumes
@@ -100,7 +96,6 @@ architecture rtl of canola_frame_tx_fsm is
   attribute fsm_encoding of s_eml_error_state : signal is "sequential";
 
   signal s_reg_tx_msg          : can_msg_t;
-  signal s_tx_ack_recv         : std_logic;
   signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
 
   signal s_bsp_tx_write_en                : std_logic;
@@ -146,19 +141,17 @@ begin  -- architecture rtl
       BSP_TX_BIT_STUFF_EN                <= '1';
 
       if RESET = '1' then
-        s_fsm_state_out                    <= ST_IDLE;
-        TX_BUSY                            <= '0';
-        BSP_TX_DATA                        <= (others => '0');
-        BSP_TX_ACTIVE                      <= '0';
-        s_tx_ack_recv                      <= '0';
-        s_retransmit_attempts              <= 0;
-        s_tx_active_error_flag_bit_error   <= '0';
+        s_fsm_state_out                  <= ST_IDLE;
+        TX_BUSY                          <= '0';
+        BSP_TX_DATA                      <= (others => '0');
+        BSP_TX_ACTIVE                    <= '0';
+        s_retransmit_attempts            <= 0;
+        s_tx_active_error_flag_bit_error <= '0';
       else
         case s_fsm_state_voted is
           when ST_IDLE =>
             BSP_TX_ACTIVE                    <= '0';
             TX_BUSY                          <= '0';
-            s_tx_ack_recv                    <= '0';
             s_retransmit_attempts            <= 0;
             s_tx_active_error_flag_bit_error <= '0';
 
@@ -418,22 +411,14 @@ begin  -- architecture rtl
           when ST_SEND_RECV_ACK_SLOT =>
             BSP_TX_BIT_STUFF_EN <= '0';
 
-            if BSP_TX_RX_MISMATCH = '1' then
-              -- In this case for the ACK we actually want to receive
-              -- the opposite value of what we sent
-              s_tx_ack_recv <= '1';
-            end if;
-
             if BSP_TX_DONE = '1' then
-              if s_tx_ack_recv = '1' or BSP_TX_RX_MISMATCH = '1' then
+              if BSP_TX_RX_MISMATCH = '1' then
+                -- For the ACK bit we actually expect a Tx/Rx bit mismatch
+                -- since a receiver overwrites our recessive '1' bit with a '0'
                 s_fsm_state_out <= ST_SETUP_ACK_DELIM;
               else
-                -- I believe the error flag for ACK should be sent immediately,
-                -- and not after the ACK delimiter.
-                -- CAN spec 2.0B, 7.2 Error Signalling:
-                -- "Whenever a BIT ERROR, a STUFF ERROR, a FORM ERROR or an
-                --  ACKNOWLEDGMENT ERROR is detected by any station, transmission
-                --  of an ERROR FLAG is started at the respective station at the next bit."
+                -- Send error flag for ACK immediately, not after ACK delimiter
+                -- See CAN spec 2.0B, 7.2 Error Signaling.
                 s_fsm_state_out <= ST_ACK_ERROR;
               end if;
             else
