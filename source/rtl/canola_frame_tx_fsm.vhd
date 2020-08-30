@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-29
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,6 +42,8 @@ library work;
 use work.canola_pkg.all;
 
 entity canola_frame_tx_fsm is
+  generic (
+    G_RETRANSMIT_COUNT_MAX : natural);
   port (
     CLK                            : in  std_logic;
     RESET                          : in  std_logic;
@@ -96,7 +98,7 @@ architecture rtl of canola_frame_tx_fsm is
   attribute fsm_encoding of s_eml_error_state : signal is "sequential";
 
   signal s_reg_tx_msg          : can_msg_t;
-  signal s_retransmit_attempts : natural range 0 to C_RETRANSMIT_COUNT_MAX;
+  signal s_retransmit_attempts : natural range 0 to G_RETRANSMIT_COUNT_MAX;
 
   signal s_bsp_tx_write_en                : std_logic;
   signal s_bsp_tx_data_count              : natural range 0 to C_BSP_DATA_LENGTH;
@@ -131,6 +133,7 @@ begin  -- architecture rtl
       TX_ARB_WON                         <= '0';
       TX_ARB_LOST                        <= '0';
       TX_DONE                            <= '0';
+      TX_FAILED                          <= '0';
       TX_RETRANSMITTING                  <= '0';
       EML_TX_BIT_ERROR                   <= '0';
       EML_TX_ACK_ERROR                   <= '0';
@@ -145,7 +148,6 @@ begin  -- architecture rtl
         TX_BUSY                          <= '0';
         BSP_TX_DATA                      <= (others => '0');
         BSP_TX_ACTIVE                    <= '0';
-        s_retransmit_attempts            <= 0;
         s_tx_active_error_flag_bit_error <= '0';
       else
         case s_fsm_state_voted is
@@ -166,9 +168,6 @@ begin  -- architecture rtl
             end if;
 
           when ST_WAIT_FOR_BUS_IDLE =>
-            -- TODO:
-            -- Should there be a timeout here?
-            -- Can we wait forever?
             if BSP_RX_ACTIVE = '0' and BSP_RX_IFS = '0' then
               BSP_TX_ACTIVE   <= '1';
               s_fsm_state_out <= ST_SETUP_SOF;
@@ -487,27 +486,24 @@ begin  -- architecture rtl
             end if;
 
           when ST_ARB_LOST =>
-            TX_ARB_LOST            <= '1';
-            s_fsm_state_out        <= ST_RETRANSMIT;
+            TX_ARB_LOST     <= '1';
+            s_fsm_state_out <= ST_RETRANSMIT;
 
           when ST_BIT_ERROR =>
-            BSP_SEND_ERROR_FLAG   <= '1';
-            EML_TX_BIT_ERROR      <= '1';
-            s_fsm_state_out       <= ST_RETRANSMIT;
+            BSP_SEND_ERROR_FLAG <= '1';
+            EML_TX_BIT_ERROR    <= '1';
+            s_fsm_state_out     <= ST_RETRANSMIT;
 
           when ST_ACK_ERROR =>
-            BSP_SEND_ERROR_FLAG       <= '1';
-            EML_TX_ACK_ERROR          <= '1';
-            s_fsm_state_out           <= ST_RETRANSMIT;
+            BSP_SEND_ERROR_FLAG <= '1';
+            EML_TX_ACK_ERROR    <= '1';
+            s_fsm_state_out     <= ST_RETRANSMIT;
 
           when ST_RETRANSMIT =>
-            -- TODO:
-            -- Find out WHEN we are allowed to retransmit.....
-            -- Check CAN specification
-
-            -- Retry transmission until retransmit count is reached
-            -- TODO: Need to respect IFS etc. before retransmitting....
-            if TX_RETRANSMIT_EN = '0' or s_retransmit_attempts = C_RETRANSMIT_COUNT_MAX then
+            if TX_RETRANSMIT_EN = '0' or
+              (G_RETRANSMIT_COUNT_MAX /= C_RETRANSMIT_COUNT_FOREVER and
+               s_retransmit_attempts = G_RETRANSMIT_COUNT_MAX)
+            then
               TX_FAILED       <= '1';
               s_fsm_state_out <= ST_IDLE;
             else

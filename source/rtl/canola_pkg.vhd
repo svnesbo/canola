@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-29
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -84,8 +84,10 @@ package canola_pkg is
 
   constant C_ACCEPTANCE_FILTERS_MAX : natural := 256;
 
-  -- TODO: Set this to whatever value the CANbus standard specifies
-  constant C_RETRANSMIT_COUNT_MAX : natural := 4;
+  -- Maximum number of retransmit attempts after a message failed to send
+  -- (default and value to use to attempt retransmits forever until it succeeds)
+  constant C_RETRANSMIT_COUNT_MAX_DEFAULT : natural := 4;
+  constant C_RETRANSMIT_COUNT_FOREVER     : natural := 0;
 
   type can_payload_t is array (0 to 7) of std_logic_vector(7 downto 0);
 

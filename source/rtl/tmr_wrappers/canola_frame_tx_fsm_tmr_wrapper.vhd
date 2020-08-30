@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-29
--- Last update: 2020-03-05
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -32,8 +32,9 @@ use work.tmr_pkg.all;
 
 entity canola_frame_tx_fsm_tmr_wrapper is
   generic (
-    G_SEE_MITIGATION_EN  : boolean := false;
-    G_MISMATCH_OUTPUT_EN : boolean := false);
+    G_SEE_MITIGATION_EN    : boolean := false;
+    G_MISMATCH_OUTPUT_EN   : boolean := false;
+    G_RETRANSMIT_COUNT_MAX : natural);
   port (
     CLK                            : in  std_logic;
     RESET                          : in  std_logic;
@@ -92,6 +93,8 @@ begin  -- architecture structural
       VOTER_MISMATCH <= '0';
 
       INST_canola_frame_tx_fsm: entity work.canola_frame_tx_fsm
+        generic map (
+          G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
         port map (
           CLK                                => CLK,
           RESET                              => RESET,
@@ -218,6 +221,8 @@ begin  -- architecture structural
 
       for_TMR_generate : for i in 0 to C_K_TMR-1 generate
         INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+          generic map (
+            G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
           port map (
             CLK                                => CLK,
             RESET                              => RESET,

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-08-28
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -38,8 +38,8 @@ entity canola_top_tmr is
   generic (
     G_SEE_MITIGATION_EN       : boolean := true;  -- Enable TMR
     G_MISMATCH_OUTPUT_EN      : boolean := true;  -- Enable TMR voter mismatch output
-    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT
-    );
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT;
+    G_RETRANSMIT_COUNT_MAX    : natural := C_RETRANSMIT_COUNT_MAX_DEFAULT);
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -244,8 +244,9 @@ begin  -- architecture struct
   -- Transmit state machine
   INST_canola_frame_tx_fsm_tmr : entity work.canola_frame_tx_fsm_tmr_wrapper
     generic map (
-      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN)
+      G_SEE_MITIGATION_EN    => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN   => G_MISMATCH_OUTPUT_EN,
+      G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,

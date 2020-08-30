@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-08-28
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -35,7 +35,8 @@ use work.canola_pkg.all;
 
 entity canola_top is
   generic (
-    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT);
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT;
+    G_RETRANSMIT_COUNT_MAX    : natural := C_RETRANSMIT_COUNT_MAX_DEFAULT);
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -213,6 +214,8 @@ begin  -- architecture struct
 
   -- Transmit state machine
   INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+    generic map (
+      G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
