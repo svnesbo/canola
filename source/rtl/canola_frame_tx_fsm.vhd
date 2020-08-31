@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-30
+-- Last update: 2020-08-31
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -18,22 +18,6 @@
 -- Date        Version  Author  Description
 -- 2019-06-26  1.0      svn     Created
 -------------------------------------------------------------------------------
--- TODO: Acknowledgement Error: When no ACK is detected, we should attempt to
---       retransmit for a certain number of times. After too many failed
---       I think the transmitter has to be silent for a while (it assumes
---       that it is faulty and does not want to be holding the bus)
--- TODO: Error Active vs. Error Passive:
---       There should be two states, error active and error passive. Initially
---       a node is in error active state, when it detects an error it sends
---       an active error flag (six consecutive dominant bits). If it continues
---       detecting errors (reaches some count of errors), it should
---       flag/interrupt the application and give it some error warning, and
---       assume that it is faulty. At this point it goes into Error Passive
---       state, and now transmits Passive Error flag (six consecutive
---       recessive bits) on error instead.
--- TODO: I think it makes more sense that the Tx FSM sends the error flags,
---       and the BSP is very simple and just transmits whatever it is told
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -155,7 +139,6 @@ begin  -- architecture rtl
             BSP_TX_ACTIVE                    <= '0';
             TX_BUSY                          <= '0';
             s_retransmit_attempts            <= 0;
-            s_tx_active_error_flag_bit_error <= '0';
 
             -- EML_ERROR_STATE may change after transmission of error flag has started.
             -- Keep a registered version since we need to know its value while transmitting error flag
@@ -168,6 +151,8 @@ begin  -- architecture rtl
             end if;
 
           when ST_WAIT_FOR_BUS_IDLE =>
+            s_tx_active_error_flag_bit_error <= '0';
+
             if BSP_RX_ACTIVE = '0' and BSP_RX_IFS = '0' then
               BSP_TX_ACTIVE   <= '1';
               s_fsm_state_out <= ST_SETUP_SOF;
@@ -461,25 +446,18 @@ begin  -- architecture rtl
             end if;
 
           when ST_SETUP_ERROR_FLAG =>
-            -- Pulse send error flag output to BSP here
-            -- UNLESS we are in BUS_OFF state
+            -- Pulse send error flag output unless we are in BUS_OFF state
             BSP_SEND_ERROR_FLAG <= '1';
             s_fsm_state_out     <= ST_SEND_ERROR_FLAG;
 
           when ST_SEND_ERROR_FLAG =>
             if s_eml_error_state = ERROR_ACTIVE and BSP_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
-              -- CAN specification 7.1:
-              -- Bit errors while sending active error flag should be detected,
-              -- and leads to an increase in transmit error count by 8 in the EML
+              -- CAN 2.0B - 7.1:
+              -- Bit errors while sending active error flag should be detected
               EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR <= not s_tx_active_error_flag_bit_error;
 
-
-              -- NOTE: Should we go to some other state here?
-              --       Can we end up getting stuck here if there are error flag
-              --       bit errors?????
-
-              -- Send only one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR per
-              -- error flag, even if there are more than 1 bit errors
+              -- Signal is used to send one pulse on EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR
+              -- per error flag, even if there are more than 1 bit errors
               s_tx_active_error_flag_bit_error   <= '1';
             elsif BSP_ERROR_FLAG_DONE = '1' then
               s_fsm_state_out <= ST_RETRANSMIT;
