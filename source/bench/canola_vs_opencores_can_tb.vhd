@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-08-31
+-- Last update: 2020-09-02
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -77,7 +77,7 @@ architecture tb of canola_vs_opencores_can_tb is
   constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
-  constant C_NUM_ITERATIONS  : natural := 1000;
+  constant C_NUM_ITERATIONS  : natural := 100;
 
   constant C_COUNTER_WIDTH : natural := 16;
 
@@ -423,8 +423,8 @@ begin
         rand_id             := natural(round(rand_real * real(2**29-1)));
         arb_id(28 downto 0) := std_logic_vector(to_unsigned(rand_id, 29));
       else
-        rand_id                 := natural(round(rand_real * real(2**11-1)));
-        arb_id                  := (others => '0');
+        rand_id              := natural(round(rand_real * real(2**11-1)));
+        arb_id               := (others => '0');
         arb_id(28 downto 18) := std_logic_vector(to_unsigned(rand_id, 11));
       end if;
 
@@ -526,12 +526,70 @@ begin
       wb_check(C_CAN_BM_CR, "00111110", error, "Interrupts enabled, operation mode", wbm_opcores_can_if);
     end procedure can_ctrl_enable_basic_mode_operation;
 
+
     procedure can_ctrl_enable_ext_mode_operation(
-      -- Todo: Wrong length for acceptance code/mask for extended mode?
-      constant acceptance_code : in std_logic_vector(7 downto 0);
-      constant acceptance_mask : in std_logic_vector(7 downto 0)) is
+      constant acceptance_code : in std_logic_vector(28 downto 0);
+      constant acceptance_mask : in std_logic_vector(28 downto 0)) is
     begin
+      log(ID_LOG_HDR, "Check that CAN controller is in RESET mode", C_SCOPE);
+      ------------------------------------------------------------
+      wb_check(C_CAN_CMR, x"FF", error, "Reading CMR should return FF (basic mode) after reset", wbm_opcores_can_if);
+      wb_check(C_CAN_BM_CR, "001----1", error, "Check that reset request bit is set (reset mode)", wbm_opcores_can_if);
+
+      log(ID_LOG_HDR, "Configure CAN controller for PeliCAN (ext) mode", C_SCOPE);
+      ------------------------------------------------------------
+      wb_write(C_CAN_CDR, x"80", "Set CAN mode bit", wbm_opcores_can_if);
+      wb_check(C_CAN_CDR, x"80", error, "CAN mode bit", wbm_opcores_can_if);
+
+      wb_check(C_CAN_CMR, x"00", error, "Reading CMR should return 00 in PeliCAN (ext) mode", wbm_opcores_can_if);
+
+
+      log(ID_LOG_HDR, "Setting up CAN controller acceptance code and mask", C_SCOPE);
+      ------------------------------------------------------------
+      wb_write(C_CAN_EM_ACR0, acceptance_code(28 downto 21), "Acceptance code 0", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_ACR1, acceptance_code(20 downto 13), "Acceptance code 1", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_ACR2, acceptance_code(12 downto 5),  "Acceptance code 2", wbm_opcores_can_if);
+      -- Bit 2: RTR, Bit 1:0: Not used - Don't care about RTR, mask bit is set
+      wb_write(C_CAN_EM_ACR3, acceptance_code(4 downto 0) & "000", "Acceptance code 3", wbm_opcores_can_if);
+
+      wb_check(C_CAN_EM_ACR0, acceptance_code(28 downto 21), error, "Acceptance code 0", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_ACR1, acceptance_code(20 downto 13), error, "Acceptance code 1", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_ACR2, acceptance_code(12 downto 5),  error, "Acceptance code 2", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_ACR3, acceptance_code(4 downto 0) & "000", error, "Acceptance code 3", wbm_opcores_can_if);
+
+      wb_write(C_CAN_EM_AMR0, acceptance_mask(28 downto 21), "Acceptance mask 0", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_AMR1, acceptance_mask(20 downto 13), "Acceptance mask 1", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_AMR2, acceptance_mask(12 downto 5),  "Acceptance mask 2", wbm_opcores_can_if);
+      -- Bit 2: RTR, Bit 1:0: Not used - Mask bit hardcoded to accept any RTR
+      wb_write(C_CAN_EM_AMR3, acceptance_mask(4 downto 0) & "100", "Acceptance mask 0", wbm_opcores_can_if);
+
+      wb_check(C_CAN_EM_AMR0, acceptance_mask(28 downto 21), error, "Acceptance mask 0", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_AMR1, acceptance_mask(20 downto 13), error, "Acceptance mask 1", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_AMR2, acceptance_mask(12 downto 5),  error, "Acceptance mask 2", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_AMR3, acceptance_mask(4 downto 0) & "100", error, "Acceptance mask 0", wbm_opcores_can_if);
+
+
+      log(ID_LOG_HDR, "Setting up CAN controller bus timing register for 1Mbps", C_SCOPE);
+      ------------------------------------------------------------
+      wb_write(C_CAN_BTR0, x"01", "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_write(C_CAN_BTR1, x"25", "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3", wbm_opcores_can_if);
+
+      wb_check(C_CAN_BTR0, x"01", error, "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_check(C_CAN_BTR1, x"25", error, "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3, for CAN0", wbm_opcores_can_if);
+
+
+      log(ID_LOG_HDR, "Enable interrupts", C_SCOPE);
+      ------------------------------------------------------------
+      wb_write(C_CAN_EM_IER, x"FF", "Enable all interrupts", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_IER, x"FF", error, "all interrupts enabled", wbm_opcores_can_if);
+
+
+      log(ID_LOG_HDR, "Configure CAN controller for Operation Mode", C_SCOPE);
+      ------------------------------------------------------------
+      wb_write(C_CAN_EM_MOD, x"00", "Bring controller out of reset mode", wbm_opcores_can_if);
+      wb_check(C_CAN_EM_MOD, x"00", error, "Interrupts enabled, operation mode", wbm_opcores_can_if);
     end procedure can_ctrl_enable_ext_mode_operation;
+
 
     procedure can_ctrl_send_basic_mode (
       constant arb_id_a     : in std_logic_vector(10 downto 0);
@@ -591,6 +649,83 @@ begin
         log(config.id_for_bfm, v_proc_call.all & "=> completed. " & msg, scope, msg_id_panel);
       end if;
     end procedure can_ctrl_send_basic_mode;
+
+
+    procedure can_ctrl_send_ext_mode (
+      constant arb_id_a     : in std_logic_vector(10 downto 0);
+      constant arb_id_b     : in std_logic_vector(17 downto 0);
+      constant data         : in work.can_bfm_pkg.can_payload_t;
+      constant data_length  : in natural;
+      constant remote_frame : in std_logic;
+      constant msg          : in string;
+      constant timeout      : in time                  := 1 ms;
+      constant scope        : in string                := C_SCOPE;
+      constant msg_id_panel : in t_msg_id_panel        := shared_msg_id_panel;
+      constant config       : in t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+      variable proc_name    :    string                := "can_ctrl_send_ext_mode")
+    is
+      variable tx_id1          : std_logic_vector(7 downto 0);
+      variable tx_id2          : std_logic_vector(7 downto 0);
+      variable tx_id3          : std_logic_vector(7 downto 0);
+      variable tx_id4          : std_logic_vector(7 downto 0);
+      variable tx_frame_format : std_logic_vector(7 downto 0);
+      variable can_irq_reg     : std_logic_vector(7 downto 0);
+      variable v_proc_call     : line;
+    begin
+
+      wb_read(C_CAN_IR, can_irq_reg, "Read out IR register to clear interrupts", wbm_opcores_can_if);
+
+      -- Format procedure call string
+      write(v_proc_call, to_string("can_ctrl_send_ext_mode(ID:"));
+      write(v_proc_call, to_string(arb_id_a, HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(", Length:"));
+      write(v_proc_call, to_string(data_length, 1));
+
+      -- Format procedure call string for remote frame
+      if remote_frame = '1' then
+        write(v_proc_call, to_string(", RTR"));
+      end if;
+
+      tx_id1 := arb_id_a(10 downto 3);
+      tx_id2 := arb_id_a(2 downto 0) & arb_id_b(17 downto 13);
+      tx_id3 := arb_id_b(12 downto 5);
+      tx_id4 := arb_id_b(4 downto 0) & "000"; -- Last 3 bits: don't care
+
+      -- Tx Frame Information register:
+      -- Bit 7: Frame Format (FF): 1=ext, 0=base
+      -- Bit 6: RTR
+      -- Bit 5-4: Don't care
+      -- Bit 3-0: DLC (Data Length Code)
+      tx_frame_format := '1' & remote_frame & "00" & std_logic_vector(to_unsigned(data_length, 4));
+
+      wb_write(C_CAN_EM_EFF_TXB_ID1, tx_id1, "Set TXID1", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_EFF_TXB_ID2, tx_id2, "Set TXID2", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_EFF_TXB_ID3, tx_id3, "Set TXID3", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_EFF_TXB_ID4, tx_id4, "Set TXID4", wbm_opcores_can_if);
+      wb_write(C_CAN_EM_EFF, tx_frame_format, "Set Frame Format (FF)", wbm_opcores_can_if);
+
+      -- Write payload bytes to TX buffer and
+      -- format procedure call string with data
+      if remote_frame = '0' and data_length > 0 then
+        write(v_proc_call, to_string(", Data:0x"));
+
+        for byte_num in 0 to data_length-1 loop
+          wb_write(C_CAN_EM_EFF_TXB_DATA1+byte_num,
+                   data(byte_num),
+                   "Write byte " & to_string(byte_num, 1) & " to TX buffer.",
+                   wbm_opcores_can_if);
+
+          write(v_proc_call, to_string(data(byte_num), HEX));
+        end loop;
+      end if;
+      write(v_proc_call, to_string(")"));
+
+      wb_write(C_CAN_CMR, x"01", "Request transmission on CAN0", wbm_opcores_can_if);
+
+      if proc_name = "can_ctrl_send_ext_mode" then
+        log(config.id_for_bfm, v_proc_call.all & "=> completed. " & msg, scope, msg_id_panel);
+      end if;
+    end procedure can_ctrl_send_ext_mode;
 
 
     procedure can_ctrl_wait_and_clr_irq(
@@ -719,7 +854,7 @@ begin
 
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate transmit from OpenCores --> Canola controller", C_SCOPE);
+    log(ID_LOG_HDR, "Simulate basic-frame from OpenCores --> Canola controller", C_SCOPE);
     -----------------------------------------------------------------------------------------------
 
     s_clock_ena <= true;                -- to start clock generator
@@ -728,9 +863,9 @@ begin
 
     can_ctrl_enable_basic_mode_operation(x"AA", x"FF");
 
-    -----------------------------------------------------------------
-    -- Test data transmission from OpenCores CAN controller to Canola
-    -----------------------------------------------------------------
+    ---------------------------------------------------------------------------
+    -- Test basic-frame transmission from OpenCores CAN controller to Canola
+    ---------------------------------------------------------------------------
     for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
       log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
 
@@ -799,8 +934,9 @@ begin
 
     can_ctrl_enable_basic_mode_operation(x"AA", x"FF");
 
-    -- It takes the OpenCores controller some bauds before it is ready...
-    wait for 10*C_CAN_BAUD_PERIOD;
+    -- The OpenCores controller waits for 11 recessive bits before it is ready
+    -- (see SJA1000 datasheet)
+    wait for 11*C_CAN_BAUD_PERIOD;
 
     -----------------------------------------------------------------
     -- Test data transmission from Canola to OpenCores CAN controller
@@ -862,6 +998,72 @@ begin
       log(ID_SEQUENCER, "", C_SCOPE);
 
     end loop;
+
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Simulate ext-frame from OpenCores --> Canola controller", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    s_clock_ena <= true;                -- to start clock generator
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+
+    -- Accept any ID code
+    can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1');
+
+    ---------------------------------------------------------------------------
+    -- Test extended-frame transmission from OpenCores CAN controller to Canola
+    ---------------------------------------------------------------------------
+    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+
+      wait for 200 ns;
+
+      log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
+      ------------------------------------------------------------
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   '1');
+
+      can_ctrl_send_ext_mode(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                             v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
+                             v_xmit_data,
+                             v_xmit_data_length,
+                             v_xmit_remote_frame,
+                             "Send msg with OpenCores CAN controller");
+
+
+      log(ID_SEQUENCER, "Receive random message with Canola controller", C_SCOPE);
+      ------------------------------------------------------------
+
+      wait until s_msg_ctrl1_received = '1' for 300*C_CAN_BAUD_PERIOD;
+
+      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
+      check_value(s_msg_ctrl1.ext_id, '1', error, "Check extended ID bit");
+
+      v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
+      v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
+      check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+
+      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+      check_value(s_msg_ctrl1.data_length,
+                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                  error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+      pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
+      log(ID_SEQUENCER, "", C_SCOPE);
+
+    end loop;
+
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete
