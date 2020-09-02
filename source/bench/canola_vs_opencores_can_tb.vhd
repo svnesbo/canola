@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-09-02
+-- Last update: 2020-09-03
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -77,7 +77,7 @@ architecture tb of canola_vs_opencores_can_tb is
   constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
-  constant C_NUM_ITERATIONS  : natural := 100;
+  constant C_NUM_ITERATIONS  : natural := 1000;
 
   constant C_COUNTER_WIDTH : natural := 16;
 
@@ -676,8 +676,10 @@ begin
       wb_read(C_CAN_IR, can_irq_reg, "Read out IR register to clear interrupts", wbm_opcores_can_if);
 
       -- Format procedure call string
-      write(v_proc_call, to_string("can_ctrl_send_ext_mode(ID:"));
+      write(v_proc_call, to_string("can_ctrl_send_ext_mode(ID A:"));
       write(v_proc_call, to_string(arb_id_a, HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(", ID B:"));
+      write(v_proc_call, to_string(arb_id_b, HEX, AS_IS, INCL_RADIX));
       write(v_proc_call, to_string(", Length:"));
       write(v_proc_call, to_string(data_length, 1));
 
@@ -740,9 +742,6 @@ begin
       wb_read(C_CAN_IR, can_irq_reg, "Read out IR register to clear interrupts", wbm_opcores_can_if);
     end procedure can_ctrl_wait_and_clr_irq;
 
-    -- Todo:
-    -- Can can controller receive both basic and extended frames when it is
-    -- in basic mode? Can one procedure do both, or are two procedures needed?
     procedure can_ctrl_recv_basic_mode (
       variable arb_id       : out std_logic_vector(10 downto 0);
       variable data         : out work.can_bfm_pkg.can_payload_t;
@@ -813,6 +812,106 @@ begin
       end if;
 
     end procedure can_ctrl_recv_basic_mode;
+
+    procedure can_ctrl_recv_ext_mode (
+      variable arb_id_a     : out std_logic_vector(10 downto 0);
+      variable arb_id_b     : out std_logic_vector(17 downto 0);
+      variable data         : out work.can_bfm_pkg.can_payload_t;
+      variable data_length  : out natural;
+      variable ext_id       : out std_logic;
+      variable remote_frame : out std_logic;
+      constant msg          : in  string;
+      constant timeout      : in  time                  := 1 ms;
+      constant scope        : in  string                := C_SCOPE;
+      constant msg_id_panel : in  t_msg_id_panel        := shared_msg_id_panel;
+      constant config       : in  t_can_uvvm_bfm_config := C_CAN_UVVM_BFM_CONFIG_DEFAULT;
+      variable proc_name    :     string                := "can_ctrl_recv_ext_mode")
+    is
+      variable rx_buff_start_addr : natural; -- Different from ext and standard frames
+      variable rx_frame_format    : std_logic_vector(7 downto 0);
+      variable rx_id1             : std_logic_vector(7 downto 0);
+      variable rx_id2             : std_logic_vector(7 downto 0);
+      variable rx_id3             : std_logic_vector(7 downto 0);
+      variable rx_id4             : std_logic_vector(7 downto 0);
+      variable can_irq_reg        : std_logic_vector(7 downto 0);
+      variable v_proc_call        : line;
+    begin
+      -- Wait for interrupt (if it is not active)
+      if s_opcores_can_irq_n = '1' then
+        wait until s_opcores_can_irq_n = '0' for timeout;
+      end if;
+
+      if s_opcores_can_irq_n /= '0' then
+        alert(warning, "Timeout while waiting for CAN controller to assert interrupt.", C_SCOPE);
+        return;
+      end if;
+
+      wb_check(C_CAN_IR, "-------1", error, "Check that receive interrupt was set", wbm_opcores_can_if);
+
+      wb_read(C_CAN_EM_EFF, rx_frame_format, "Read Frame Format (FF)", wbm_opcores_can_if);
+
+      ext_id       := rx_frame_format(7);
+      remote_frame := rx_frame_format(6);
+      data_length  := to_integer(unsigned(rx_frame_format(3 downto 0)));
+
+      if ext_id = '1' then
+        -- Extended frame
+        wb_read(C_CAN_EM_EFF_RXB_ID1, rx_id1, "Read out RXID1", wbm_opcores_can_if);
+        wb_read(C_CAN_EM_EFF_RXB_ID2, rx_id2, "Read out RXID2", wbm_opcores_can_if);
+        wb_read(C_CAN_EM_EFF_RXB_ID3, rx_id3, "Read out RXID3", wbm_opcores_can_if);
+        wb_read(C_CAN_EM_EFF_RXB_ID4, rx_id4, "Read out RXID4", wbm_opcores_can_if);
+
+        arb_id_b := rx_id2(4 downto 0) & rx_id3 & rx_id4(7 downto 3);
+
+        rx_buff_start_addr := C_CAN_EM_EFF_RXB_DATA1;
+      else
+        -- Standard frame
+        wb_read(C_CAN_EM_SFF_RXB_ID1, rx_id1, "Read out RXID1", wbm_opcores_can_if);
+        wb_read(C_CAN_EM_SFF_RXB_ID2, rx_id2, "Read out RXID2", wbm_opcores_can_if);
+
+        arb_id_b := (others => '0');
+
+        rx_buff_start_addr := C_CAN_EM_SFF_RXB_DATA1;
+      end if;
+
+      arb_id_a(10 downto 3) := rx_id1;
+      arb_id_a(2 downto 0)  := rx_id2(7 downto 5);
+
+      -- Format procedure call string
+      write(v_proc_call, to_string("can_ctrl_recv_ext_mode() => ID A: "));
+      write(v_proc_call, to_string(arb_id_a, HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(", ID B: "));
+      write(v_proc_call, to_string(arb_id_b, HEX, AS_IS, INCL_RADIX));
+      write(v_proc_call, to_string(", Length: "));
+      write(v_proc_call, to_string(data_length, 1));
+
+      -- Format procedure call string for remote frame
+      if remote_frame = '1' then
+        write(v_proc_call, to_string(", RTR"));
+
+      -- Read in data from buffer, and
+      -- format procedure call string for data frame
+      elsif remote_frame = '0' and data_length > 0 then
+        write(v_proc_call, to_string(", Data: 0x"));
+
+        for byte_num in 0 to data_length-1 loop
+          wb_read(rx_buff_start_addr+byte_num,
+                  data(byte_num),
+                  "Read byte " & to_string(byte_num, 1) & " from RX buffer.",
+                  wbm_opcores_can_if);
+
+          write(v_proc_call, to_string(data(byte_num), HEX));
+        end loop;
+      end if;
+
+      wb_write(C_CAN_CMR, "00000100", "Release receive buffer", wbm_opcores_can_if);
+
+      if proc_name = "can_ctrl_recv_ext_mode" then
+        log(config.id_for_bfm, v_proc_call.all & ". " & msg, scope, msg_id_panel);
+      end if;
+
+    end procedure can_ctrl_recv_ext_mode;
+
 
     variable v_can_bfm_tx        : std_logic                      := '1';
     variable v_can_bfm_rx        : std_logic                      := '1';
@@ -926,7 +1025,7 @@ begin
 
 
     -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate transmit from Canola --> OpenCores controller", C_SCOPE);
+    log(ID_LOG_HDR, "Simulate basic-frame from Canola --> OpenCores controller", C_SCOPE);
     -----------------------------------------------------------------------------------------------
     s_clock_ena <= true;                -- to start clock generator
     pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
@@ -938,9 +1037,9 @@ begin
     -- (see SJA1000 datasheet)
     wait for 11*C_CAN_BAUD_PERIOD;
 
-    -----------------------------------------------------------------
-    -- Test data transmission from Canola to OpenCores CAN controller
-    -----------------------------------------------------------------
+    ---------------------------------------------------------------------------
+    -- Test basic-frame transmission from Canola to OpenCores CAN controller
+    ---------------------------------------------------------------------------
     for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
       log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
 
@@ -1064,6 +1163,83 @@ begin
 
     end loop;
 
+
+    -----------------------------------------------------------------------------------------------
+    log(ID_LOG_HDR, "Simulate ext-frame from Canola --> OpenCores controller", C_SCOPE);
+    -----------------------------------------------------------------------------------------------
+    s_clock_ena <= true;                -- to start clock generator
+    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+
+    -- Accept any ID code
+    can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1');
+
+    -- The OpenCores controller waits for 11 recessive bits before it is ready
+    -- (see SJA1000 datasheet)
+    wait for 11*C_CAN_BAUD_PERIOD;
+
+    ---------------------------------------------------------------------------
+    -- Test ext-frame transmission from Canola to OpenCores CAN controller
+    ---------------------------------------------------------------------------
+    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+
+      wait for 200 ns;
+
+      log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
+      ------------------------------------------------------------
+      v_xmit_ext_id := '1';
+
+      generate_random_can_message (v_xmit_arb_id,
+                                   v_xmit_data,
+                                   v_xmit_data_length,
+                                   v_xmit_remote_frame,
+                                   v_xmit_ext_id);
+
+      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+      s_can_ctrl1_tx_msg.ext_id         <= '1';
+      s_can_ctrl1_tx_msg.data           <= work.canola_pkg.can_payload_t(v_xmit_data);
+      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+
+      wait until rising_edge(s_clk);
+      s_can_ctrl1_tx_start <= '1';
+      wait until rising_edge(s_clk);
+      s_can_ctrl1_tx_start <= '0';
+      wait until rising_edge(s_clk);
+
+      log(ID_SEQUENCER, "Receive random message with OpenCores controller", C_SCOPE);
+      ------------------------------------------------------------
+      v_recv_arb_id       := (others => '0');
+      v_recv_data         := (others => x"00");
+      v_recv_data_length  := 0;
+      v_recv_remote_frame := '0';
+      v_recv_ext_id       := '0';
+
+      can_ctrl_recv_ext_mode(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                             v_recv_arb_id(C_ID_B_LENGTH-1 downto 0),
+                             v_recv_data,
+                             v_recv_data_length,
+                             v_recv_ext_id,
+                             v_recv_remote_frame,
+                             "Receive message with OpenCores controller");
+
+      check_value(v_recv_ext_id, v_xmit_ext_id, error, "Check that ext. msg was received.");
+      check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+      check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
+      check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
+
+      -- Don't check data for remote frame requests
+      if v_xmit_remote_frame = '0' then
+        for idx in 0 to v_xmit_data_length-1 loop
+          check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
+        end loop;
+      end if;
+
+      log(ID_SEQUENCER, "", C_SCOPE);
+
+    end loop;
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete
