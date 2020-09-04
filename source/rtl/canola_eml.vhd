@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-14
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -40,7 +40,6 @@ entity canola_eml is
     RX_DOMINANT_BIT_AFTER_ERROR_FLAG : in std_logic;
     TX_BIT_ERROR                     : in std_logic;
     TX_ACK_ERROR                     : in std_logic;
-    TX_ACK_PASSIVE_ERROR             : in std_logic;
     TX_ACTIVE_ERROR_FLAG_BIT_ERROR   : in std_logic;
     TRANSMIT_SUCCESS                 : in std_logic;
     RECEIVE_SUCCESS                  : in std_logic;
@@ -122,11 +121,6 @@ begin  -- architecture rtl
       elsif TX_ACK_ERROR = '1' and s_error_state = ERROR_ACTIVE then
         TEC_COUNT_UP            <= '1';
         v_xmit_error_count_incr := C_TEC_ACK_ERROR_INCREASE;
-
-      elsif TX_ACK_PASSIVE_ERROR = '1' then
-        -- Todo: What is this??? TX_ACK_PASSIVE_ERROR is not connected anywhere...
-        TEC_COUNT_UP            <= '1';
-        v_xmit_error_count_incr := C_TEC_ACK_PASSIVE_ERROR_INCREASE;
 
       elsif TX_ACTIVE_ERROR_FLAG_BIT_ERROR = '1' then
         TEC_COUNT_UP            <= '1';

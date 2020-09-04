@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-08-30
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -150,9 +150,6 @@ package canola_pkg is
 
   -- Transmit Error Counter (TEC) increase on ack error
   constant C_TEC_ACK_ERROR_INCREASE : natural := 8;
-
-  -- Transmit Error Counter (TEC) increase on ack error
-  constant C_TEC_ACK_PASSIVE_ERROR_INCREASE : natural := 8;
 
   -- Transmit Error Counter (TEC) increase on active error flag bit error
   constant C_TEC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE : natural := 8;

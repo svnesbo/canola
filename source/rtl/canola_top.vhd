@@ -389,7 +389,6 @@ begin  -- architecture struct
       RX_DOMINANT_BIT_AFTER_ERROR_FLAG => '0', -- Todo: Not detected yet
       TX_BIT_ERROR                     => s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
-      TX_ACK_PASSIVE_ERROR             => '0',
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,
       TRANSMIT_SUCCESS                 => TX_DONE,
       RECEIVE_SUCCESS                  => RX_MSG_VALID,

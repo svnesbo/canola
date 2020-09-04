@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-09-17
--- Last update: 2020-05-29
+-- Last update: 2020-09-04
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -168,7 +168,6 @@ architecture tb of canola_eml_tb is
   signal s_eml_rx_dominant_bit_after_error_flag : std_logic := '0';
   signal s_eml_tx_bit_error                     : std_logic := '0';
   signal s_eml_tx_ack_error                     : std_logic := '0';
-  signal s_eml_tx_ack_passive_error             : std_logic := '0';
   signal s_eml_tx_active_error_flag_bit_error   : std_logic := '0';
   signal s_eml_transmit_success                 : std_logic := '0';
   signal s_eml_receive_success                  : std_logic := '0';
@@ -218,7 +217,6 @@ begin
       RX_DOMINANT_BIT_AFTER_ERROR_FLAG => s_eml_rx_dominant_bit_after_error_flag,
       TX_BIT_ERROR                     => s_eml_tx_bit_error,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
-      TX_ACK_PASSIVE_ERROR             => s_eml_tx_ack_passive_error,
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,
       TRANSMIT_SUCCESS                 => s_eml_transmit_success,
       RECEIVE_SUCCESS                  => s_eml_receive_success,
@@ -593,20 +591,6 @@ begin
     check_value(s_eml_transmit_error_count,
                 to_unsigned(C_ERROR_PASSIVE_THRESHOLD, s_eml_transmit_error_count'length),
                 ERROR, "Transmit error count no increase on ACK error in ERROR PASSIVE.");
-
-    wait until rising_edge(s_clk);
-    s_eml_tx_ack_passive_error <= '1';
-    wait until rising_edge(s_clk);
-    s_eml_tx_ack_passive_error <= '0';
-    wait until rising_edge(s_clk);
-
-    -- It takes one clock cycle for EML to process error signal,
-    -- and an additional clock cycle for the counter module to increase
-    wait until rising_edge(s_clk);
-
-    check_value(s_eml_transmit_error_count,
-                to_unsigned(C_ERROR_PASSIVE_THRESHOLD+8, s_eml_transmit_error_count'length),
-                ERROR, "Transmit error counter increase on PASSIVE ERROR flag BIT ERROR when ACK missing.");
 
     ---------------------------------------------------------------------------
     log(ID_LOG_HDR, "Test transmit error counter increase by 8 on BIT ERROR in ACTIVE ERROR FLAG", C_SCOPE);
