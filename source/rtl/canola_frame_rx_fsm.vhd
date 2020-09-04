@@ -483,12 +483,15 @@ begin  -- architecture rtl
               s_fsm_state_out <= ST_WAIT_BUS_IDLE;
             end if;
 
+          -- CAN2.0B Section 5 - Message validation:
+          -- Message is valid after EOF is received
           when ST_DONE =>
-            -- Don't output messages we were transmitting ourselves
-            -- (ie. when arbitration was won)
+            -- We're only interested in messages received from other nodes,
+            -- not the ones we transmitted ourselves (ie. arbitration  won).
+            -- Note: Internal loopback can be implemented by setting
+            --       this even when arbitration was won
             if s_reg_tx_arb_won = '0' then
-              -- Pulsed one cycle
-              RX_MSG_VALID         <= '1';
+              RX_MSG_VALID <= '1'; -- Pulsed one cycle
             end if;
 
             BSP_RX_STOP     <= '1';
