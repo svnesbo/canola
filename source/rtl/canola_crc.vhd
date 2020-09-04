@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-05
--- Last update: 2020-02-10
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -40,11 +40,8 @@ entity canola_crc is
 end entity canola_crc;
 
 architecture rtl of canola_crc is
-  signal s_crc          : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
   constant c_polynomial : std_logic_vector(C_CAN_CRC_WIDTH downto 0) := x"4599";
-
-begin  -- architecture rtl
-
+begin
   -- purpose: Calculate CRC15, one bit at a time.
   --          Based on pseudo code for calculating CRC in
   --          BOSCH CAN Specification 2.0, Part A - page 13
@@ -70,5 +67,4 @@ begin  -- architecture rtl
       CRC_OUT <= v_crc;
     end if;
   end process proc_crc_calc;
-
 end architecture rtl;

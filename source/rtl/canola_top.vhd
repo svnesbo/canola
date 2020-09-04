@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-08-30
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -93,10 +93,8 @@ end entity canola_top;
 architecture struct of canola_top is
 
   -- Signals for Tx Frame FSM
-  signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
   signal s_tx_fsm_arb_won                     : std_logic;  -- Arbitration was won
-  signal s_tx_fsm_failed                      : std_logic;  -- Failed to send message
   signal s_tx_fsm_retransmitting              : std_logic;  -- Attempting retransmit
 
   -- BSP interface to Tx Frame FSM
@@ -152,15 +150,11 @@ architecture struct of canola_top is
   signal s_eml_rx_crc_error                     : std_logic;
   signal s_eml_rx_form_error                    : std_logic;
   signal s_eml_rx_active_error_flag_bit_error   : std_logic;
-  signal s_eml_rx_overload_flag_bit_error       : std_logic;
-  signal s_eml_rx_dominant_bit_after_error_flag : std_logic;
   signal s_eml_tx_bit_error_rx_fsm              : std_logic;
   signal s_eml_tx_bit_error_tx_fsm              : std_logic;
   signal s_eml_tx_ack_error                     : std_logic;
   signal s_eml_tx_arb_stuff_error               : std_logic;
   signal s_eml_tx_active_error_flag_bit_error   : std_logic;
-  signal s_eml_transmit_success                 : std_logic;
-  signal s_eml_receive_success                  : std_logic;
   signal s_eml_recv_11_recessive_bits           : std_logic;
   signal s_eml_error_state                      : std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
@@ -226,7 +220,7 @@ begin  -- architecture struct
       TX_DONE                            => TX_DONE,
       TX_ARB_LOST                        => s_tx_fsm_arb_lost,
       TX_ARB_WON                         => s_tx_fsm_arb_won,
-      TX_FAILED                          => s_tx_fsm_failed,
+      TX_FAILED                          => TX_FAILED,
       TX_RETRANSMITTING                  => s_tx_fsm_retransmitting,
       BSP_TX_DATA                        => s_bsp_tx_data,
       BSP_TX_DATA_COUNT                  => s_bsp_tx_data_count,
@@ -391,8 +385,8 @@ begin  -- architecture struct
       RX_CRC_ERROR                     => s_eml_rx_crc_error,
       RX_FORM_ERROR                    => s_eml_rx_form_error,
       RX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_rx_active_error_flag_bit_error,
-      RX_OVERLOAD_FLAG_BIT_ERROR       => s_eml_rx_overload_flag_bit_error,
-      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => s_eml_rx_dominant_bit_after_error_flag,
+      RX_OVERLOAD_FLAG_BIT_ERROR       => '0', -- Note: Overload flag not implemented
+      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => '0', -- Todo: Not detected yet
       TX_BIT_ERROR                     => s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
       TX_ACK_PASSIVE_ERROR             => '0',

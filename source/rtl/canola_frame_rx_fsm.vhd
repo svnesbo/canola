@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-08-28
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -87,7 +87,6 @@ architecture rtl of canola_frame_rx_fsm is
   signal s_srr_rtr_bit                    : std_logic;
   signal s_crc_mismatch                   : std_logic;
   signal s_crc_calc                       : std_logic_vector(C_CAN_CRC_WIDTH-1 downto 0);
-  signal s_bsp_data_cleared               : std_logic;
   signal s_reg_tx_arb_won                 : std_logic;
   signal s_rx_active_error_flag_bit_error : std_logic;
   signal s_bsp_rx_data_count              : natural range 0 to C_BSP_DATA_LENGTH;
@@ -118,6 +117,7 @@ begin  -- architecture rtl
       BSP_RX_DATA_CLEAR                  <= '0';
       BSP_RX_BIT_DESTUFF_EN              <= '1';
       BSP_RX_STOP                        <= '0';
+      EML_TX_BIT_ERROR                   <= '0';
       EML_RX_STUFF_ERROR                 <= '0';
       EML_RX_CRC_ERROR                   <= '0';
       EML_RX_FORM_ERROR                  <= '0';
