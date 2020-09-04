@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-08-26
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -24,54 +24,41 @@ use ieee.numeric_std.all;
 
 library work;
 use work.canola_pkg.all;
-
--- TODO: Rename all ports that are pulses so they have _PULSE extension?
---       .. do I want this?
---       Suggestion:
---       - Top level CANbus entity has _PULSE extensions
---       - Other entities in the hierarchy does not use them
--- TODO: Implement BSP_SEND_ERROR_FRAME and BSP_ERROR_STATE
---       * Actually, I could have two inputs:
---         - BSP_SEND_PASSIVE_ERROR_FLAG (six recessive bits)
---         - BSP_SEND_ACTIVE_ERROR_FLAG (six dominant bits)
---       * Or, alternatively, two inputs like this:
---         - BSP_SEND_ERROR_FLAG
---         - BSP_ERROR_STATE (active or passive error state)
---         Error state is then defined globally (both rx and tx firmware
---         knows about it), and BSP sends recessive or dominant when it
---         gets BSP_SEND_ERROR_FLAG based on BSP_ERROR_STATE input.
---       I think I like the second approach better..
---       Then the Rx FSM can just say I want to send an Error Flag when
---       there is a CRC mismatch (I think it should send error flag then?),
---       and it is controlled "globally" (or by some error module) if this
---       should be an active or passive error flag.
--- TODO: BSP should output and look for bit stuff errors?
--- TODO: BSP should detect Error Flags?
-
 -- To send some data on the Tx interface:
+--  * Set BSP_TX_ACTIVE high to indicate that a transmission is starting
+-- And then, for each field of data:
 --  * Hold BSP_TX_WRITE_EN low.
 --  * Setup BSP_TX_DATA with a stream of data, starting at index 0.
 --  * Setup BSP_TX_DATA_COUNT with number of bits in BSP_TX_DATA to send
 --  * Set BSP_TX_WRITE_EN high, and hold it high until the BSP indicates that all
 --    bits have been sent with the BSP_TX_DONE output.
--- If a received bit does not match the bit to be transmitted, the BSP_TX_MISMATCH
--- output goes high. Transmission can then be aborted by setting BSP_TX_WRITE_EN low immediately.
+--  * Transmission can then be aborted by setting BSP_TX_WRITE_EN low
+--  * If a received bit value does not match the value of the transmitted bit,
+--    the BSP_TX_RX_MISMATCH output goes high.
+--  * If BSP_TX_BIT_STUFF_EN is high while transmitting, then the BSP will
+--    automatically insert stuff bits in the outgoing data stream
+--  * Bit mismatch for stuff bits are reported with the
+--    BSP_TX_RX_STUFF_MISMATCH output
 --
 -- To receive data on the Rx interface:
 --  * BSP_RX_ACTIVE goes high when the BTL has synced to an incoming CAN
 --    message and is receiving
---  * For the BSP to search for and discard stuff bits, BSP_RX_BIT_DESTUFF_EN
---    must be set high
+--  * The BSP will automatically remove and discard stuff bits in the received
+--    data stream when BSP_RX_BIT_DESTUFF_EN is high
 --  * The BSP shifts in data bit by bit, and makes them available at BSP_RX_DATA (LSB first)
 --    BSP_RX_DATA_COUNT reflects the number of bits available in BSP_RX_DATA.
 --  * The data received in BSP_RX_DATA can be cleared by pulsing
 --    BSP_RX_DATA_CLEAR high for one clock cycle
---  * BSP_RX_CRC_CALC outputs the CRC that is calculated for the frame, and is
---    updated for each incoming bit. The CRC value is automatically reset at
---    the beginning of each received frame.
+--  * BSP_RX_CRC_CALC outputs the CRC that is calculated for the outgoing data
+--    (excluding stuff bits), and is updated for each incoming bit.
+--    The CRC value is automatically reset at the beginning of each frame.
 --  * To acknowledge an incoming message, BSP_RX_SEND_ACK_PULSE should be
 --    pulsed high for a clock cycle immediately after the bit before the ACK
 --    slot has been received
+--
+--  Error flags can be sent at any time by pulsing BSP_SEND_ERROR_FLAG.
+--  The BSP will automatically send the right kind of error flag,
+--  passive or active, based on the EML's error state.
 
 entity canola_bsp is
   port (
