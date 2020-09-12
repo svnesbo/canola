@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-12
--- Last update: 2020-02-14
+-- Last update: 2020-09-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -42,6 +42,7 @@ entity canola_counters_tmr is
 
     -- Clear counters
     CLEAR_TX_MSG_SENT_COUNT    : in std_logic;
+    CLEAR_TX_FAILED_COUNT      : in std_logic;
     CLEAR_TX_ACK_ERROR_COUNT   : in std_logic;
     CLEAR_TX_ARB_LOST_COUNT    : in std_logic;
     CLEAR_TX_BIT_ERROR_COUNT   : in std_logic;
@@ -53,6 +54,7 @@ entity canola_counters_tmr is
 
     -- Signals to count up counters
     TX_MSG_SENT_COUNT_UP    : in std_logic;
+    TX_FAILED_COUNT_UP      : in std_logic;
     TX_ACK_ERROR_COUNT_UP   : in std_logic;
     TX_ARB_LOST_COUNT_UP    : in std_logic;
     TX_BIT_ERROR_COUNT_UP   : in std_logic;
@@ -64,6 +66,7 @@ entity canola_counters_tmr is
 
     -- Counter values
     TX_MSG_SENT_COUNT_VALUE    : out std_logic_vector(G_COUNTER_WIDTH-1 downto 0);
+    TX_FAILED_COUNT_VALUE      : out std_logic_vector(G_COUNTER_WIDTH-1 downto 0);
     TX_ACK_ERROR_COUNT_VALUE   : out std_logic_vector(G_COUNTER_WIDTH-1 downto 0);
     TX_ARB_LOST_COUNT_VALUE    : out std_logic_vector(G_COUNTER_WIDTH-1 downto 0);
     TX_BIT_ERROR_COUNT_VALUE   : out std_logic_vector(G_COUNTER_WIDTH-1 downto 0);
@@ -82,15 +85,16 @@ architecture struct of canola_counters_tmr is
 
   -- Voter mismatch for status counters
   constant C_mismatch_tx_msg_sent_count    : integer := 0;
-  constant C_mismatch_tx_ack_error_count   : integer := 1;
-  constant C_mismatch_tx_arb_lost_count    : integer := 2;
-  constant C_mismatch_tx_bit_error_count   : integer := 3;
-  constant C_mismatch_tx_retransmit_count  : integer := 4;
-  constant C_mismatch_rx_msg_recv_count    : integer := 5;
-  constant C_mismatch_rx_crc_error_count   : integer := 6;
-  constant C_mismatch_rx_form_error_count  : integer := 7;
-  constant C_mismatch_rx_stuff_error_count : integer := 8;
-  constant C_MISMATCH_WIDTH                : integer := 9;
+  constant C_mismatch_tx_failed_count      : integer := 1;
+  constant C_mismatch_tx_ack_error_count   : integer := 2;
+  constant C_mismatch_tx_arb_lost_count    : integer := 3;
+  constant C_mismatch_tx_bit_error_count   : integer := 4;
+  constant C_mismatch_tx_retransmit_count  : integer := 5;
+  constant C_mismatch_rx_msg_recv_count    : integer := 6;
+  constant C_mismatch_rx_crc_error_count   : integer := 7;
+  constant C_mismatch_rx_form_error_count  : integer := 8;
+  constant C_mismatch_rx_stuff_error_count : integer := 9;
+  constant C_MISMATCH_WIDTH                : integer := 10;
   signal s_mismatch_vector                 : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
   -- Register mismatch outputs from counters
@@ -130,6 +134,22 @@ begin  -- architecture struct
       COUNT_UP       => TX_MSG_SENT_COUNT_UP,
       COUNT_OUT      => TX_MSG_SENT_COUNT_VALUE,
       MISMATCH       => s_mismatch_vector(C_mismatch_tx_msg_sent_count));
+
+  INST_tx_failed_counter: entity work.up_counter_tmr_wrapper
+    generic map (
+      BIT_WIDTH             => G_COUNTER_WIDTH,
+      IS_SATURATING         => G_SATURATING_COUNTERS,
+      VERBOSE               => false,
+      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+    port map (
+      CLK            => CLK,
+      RESET          => RESET,
+      CLEAR          => CLEAR_TX_FAILED_COUNT,
+      COUNT_UP       => TX_FAILED_COUNT_UP,
+      COUNT_OUT      => TX_FAILED_COUNT_VALUE,
+      MISMATCH       => s_mismatch_vector(C_mismatch_tx_failed_count));
 
   INST_tx_ack_error_counter: entity work.up_counter_tmr_wrapper
     generic map (

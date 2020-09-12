@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-09-04
+-- Last update: 2020-09-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -78,6 +78,7 @@ entity canola_top is
     -- Signals that can be used to count up external status counters
     -- (e.g. in canola_counters.vhd)
     TX_MSG_SENT_COUNT_UP    : out std_logic;
+    TX_FAILED_COUNT_UP      : out std_logic;
     TX_ACK_ERROR_COUNT_UP   : out std_logic;
     TX_ARB_LOST_COUNT_UP    : out std_logic;
     TX_BIT_ERROR_COUNT_UP   : out std_logic;
@@ -191,6 +192,7 @@ begin  -- architecture struct
   -- Some of these signals are already available on a different output port
   -- But for clarity each counter has been given a dedicated port signal
   TX_MSG_SENT_COUNT_UP    <= TX_DONE;
+  TX_FAILED_COUNT_UP      <= TX_FAILED;
   TX_ACK_ERROR_COUNT_UP   <= s_eml_tx_ack_error;
   TX_ARB_LOST_COUNT_UP    <= s_tx_fsm_arb_lost;
   TX_BIT_ERROR_COUNT_UP   <= s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm;

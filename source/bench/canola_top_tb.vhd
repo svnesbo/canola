@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-08-30
+-- Last update: 2020-09-12
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -123,6 +123,7 @@ architecture tb of canola_top_tb is
 
   -- Count up signals
   signal s_can_ctrl1_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl1_tx_failed_count_up      : std_logic;
   signal s_can_ctrl1_tx_ack_error_count_up   : std_logic;
   signal s_can_ctrl1_tx_arb_lost_count_up    : std_logic;
   signal s_can_ctrl1_tx_bit_error_count_up   : std_logic;
@@ -134,6 +135,7 @@ architecture tb of canola_top_tb is
 
   -- Counters
   signal s_can_ctrl1_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl1_reg_tx_failed_count      : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl1_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
@@ -172,6 +174,7 @@ architecture tb of canola_top_tb is
 
   -- Count up signals
   signal s_can_ctrl2_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl2_tx_failed_count_up      : std_logic;
   signal s_can_ctrl2_tx_ack_error_count_up   : std_logic;
   signal s_can_ctrl2_tx_arb_lost_count_up    : std_logic;
   signal s_can_ctrl2_tx_bit_error_count_up   : std_logic;
@@ -183,6 +186,7 @@ architecture tb of canola_top_tb is
 
   -- Counters
   signal s_can_ctrl2_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl2_reg_tx_failed_count      : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl2_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
@@ -220,6 +224,7 @@ architecture tb of canola_top_tb is
 
   -- Count up signals
   signal s_can_ctrl3_tx_msg_sent_count_up    : std_logic;
+  signal s_can_ctrl3_tx_failed_count_up      : std_logic;
   signal s_can_ctrl3_tx_ack_error_count_up   : std_logic;
   signal s_can_ctrl3_tx_arb_lost_count_up    : std_logic;
   signal s_can_ctrl3_tx_bit_error_count_up   : std_logic;
@@ -231,6 +236,7 @@ architecture tb of canola_top_tb is
 
   -- Counters
   signal s_can_ctrl3_reg_tx_msg_sent_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
+  signal s_can_ctrl3_reg_tx_failed_count      : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_tx_ack_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_tx_arb_lost_count    : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
   signal s_can_ctrl3_reg_tx_bit_error_count   : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
@@ -343,6 +349,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl1_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl1_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl1_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl1_tx_bit_error_count_up,
@@ -394,6 +401,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl2_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl2_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl2_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl2_tx_bit_error_count_up,
@@ -445,6 +453,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl3_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl3_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl3_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl3_tx_bit_error_count_up,
@@ -467,6 +476,7 @@ begin
         RESET => s_can_ctrl1_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -477,6 +487,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl1_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl1_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl1_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl1_tx_bit_error_count_up,
@@ -487,6 +498,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl1_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl1_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl1_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl1_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_bit_error_count,
@@ -509,6 +521,7 @@ begin
         RESET => s_can_ctrl2_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -519,6 +532,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl2_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl2_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl2_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl2_tx_bit_error_count_up,
@@ -529,6 +543,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl2_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl2_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl2_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl2_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_bit_error_count,
@@ -551,6 +566,7 @@ begin
         RESET => s_can_ctrl3_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -561,6 +577,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl3_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl3_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl3_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl3_tx_bit_error_count_up,
@@ -571,6 +588,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl3_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl3_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl3_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl3_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_bit_error_count,
@@ -680,6 +698,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl1_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl1_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl1_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl1_tx_bit_error_count_up,
@@ -727,6 +746,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl2_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl2_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl2_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl2_tx_bit_error_count_up,
@@ -774,6 +794,7 @@ begin
 
         -- Counter signals
         TX_MSG_SENT_COUNT_UP       => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP         => s_can_ctrl3_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP      => s_can_ctrl3_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP       => s_can_ctrl3_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP      => s_can_ctrl3_tx_bit_error_count_up,
@@ -793,6 +814,7 @@ begin
         RESET => s_can_ctrl1_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -803,6 +825,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl1_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl1_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl1_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl1_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl1_tx_bit_error_count_up,
@@ -813,6 +836,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl1_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl1_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl1_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl1_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl1_reg_tx_bit_error_count,
@@ -832,6 +856,7 @@ begin
         RESET => s_can_ctrl2_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -842,6 +867,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl2_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl2_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl2_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl2_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl2_tx_bit_error_count_up,
@@ -852,6 +878,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl2_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl2_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl2_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl2_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl2_reg_tx_bit_error_count,
@@ -871,6 +898,7 @@ begin
         RESET => s_can_ctrl3_reset,
 
         CLEAR_TX_MSG_SENT_COUNT    => '0',
+        CLEAR_TX_FAILED_COUNT      => '0',
         CLEAR_TX_ACK_ERROR_COUNT   => '0',
         CLEAR_TX_ARB_LOST_COUNT    => '0',
         CLEAR_TX_BIT_ERROR_COUNT   => '0',
@@ -881,6 +909,7 @@ begin
         CLEAR_RX_STUFF_ERROR_COUNT => '0',
 
         TX_MSG_SENT_COUNT_UP    => s_can_ctrl3_tx_msg_sent_count_up,
+        TX_FAILED_COUNT_UP      => s_can_ctrl3_tx_failed_count_up,
         TX_ACK_ERROR_COUNT_UP   => s_can_ctrl3_tx_ack_error_count_up,
         TX_ARB_LOST_COUNT_UP    => s_can_ctrl3_tx_arb_lost_count_up,
         TX_BIT_ERROR_COUNT_UP   => s_can_ctrl3_tx_bit_error_count_up,
@@ -891,6 +920,7 @@ begin
         RX_STUFF_ERROR_COUNT_UP => s_can_ctrl3_rx_stuff_error_count_up,
 
         TX_MSG_SENT_COUNT_VALUE    => s_can_ctrl3_reg_tx_msg_sent_count,
+        TX_FAILED_COUNT_VALUE      => s_can_ctrl3_reg_tx_failed_count,
         TX_ACK_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_ack_error_count,
         TX_ARB_LOST_COUNT_VALUE    => s_can_ctrl3_reg_tx_arb_lost_count,
         TX_BIT_ERROR_COUNT_VALUE   => s_can_ctrl3_reg_tx_bit_error_count,
