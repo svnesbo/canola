@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-08-26
+-- Last update: 2020-09-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -417,7 +417,7 @@ begin  -- architecture rtl
   -- type   : sequential
   -- inputs : CLK, RESET, CAN_RX, TIME_QUANTA_PULSE
   -- outputs: CAN_RX_BIT_VALUE, CAN_RX_BIT_VALID, s_quanta_sampled_bits
-  proc_sample_rx_bit : process (CLK, RESET) is
+  proc_sample_rx_bit : process (CLK) is
     variable v_sampled_bit : std_logic;
   begin  -- process proc_sample_rx_bit
     if rising_edge(CLK) then
