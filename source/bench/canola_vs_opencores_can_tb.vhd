@@ -311,7 +311,7 @@ begin
       clkout_o   => open,
       wb_clk_i   => s_clk,
       wb_rst_i   => s_opcores_can_reset,
-    wb_dat_i   => wbm_opcores_can_if.dat_o,
+      wb_dat_i   => wbm_opcores_can_if.dat_o,
       wb_dat_o   => wbm_opcores_can_if.dat_i,
       wb_cyc_i   => wbm_opcores_can_if.cyc_o,
       wb_stb_i   => wbm_opcores_can_if.stb_o,
