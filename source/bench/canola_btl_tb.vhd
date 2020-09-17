@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2020-08-26
+-- Last update: 2020-09-17
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -389,7 +389,7 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    set_log_file_name("log/canola_bsp_tb_log.txt");
+    set_log_file_name("log/canola_btl_tb_log.txt");
 
 
     -----------------------------------------------------------------------------------------------
