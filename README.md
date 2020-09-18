@@ -31,6 +31,7 @@ The UVVM framework has already been added to the repo as a submodule. To fetch i
 
 ``
 git submodule init
+git submodule update
 ``
 
 Assuming that `vsim` is in your path, running `make` from the top-level directory of the repository will run the testbench.
