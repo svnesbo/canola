@@ -4,6 +4,24 @@ A radiation-tolerant CAN bus controller for FPGA's written in VHDL.
 
 ![Canola CAN Controller Block Diagram](doc/canola_block_diagram.png)
 
+A simplified block diagram of the controller is shown in the figure above. The controller offers a simple interface to send and receive messages. All of the main logic of the controller (in green) has been fully implemented and tested, and *can be configured* to use Triple Modular Redundancy (TMR) to achieve radiation tolerance. A simple direct interface to send and receive messages is available, as well as an AXI-slave. (Note: the AXI-slave is not triplicated).
+
+Some common features found in CAN controllers, such as acceptance filtering and Rx/Tx queues, have not been implemented (those are marked in red in the diagram). Those features are not necessary in many applications, and have currently been omitted in order to minimize the size of the logic (and hence the radiation cross-section).
+
+The controller aims to be fully CAN 2.0B compliant (though it has not been tested with Bosch's VHDL Reference CAN).
+
+
+## A note on radiation tolerance
+
+To achieve the radiation tolerance whole blocks of logic are triplicated (Block-TMR), and outputs from the blocks are voted. A combination of single-output and triple-output majority voters are used. In order to reduce the logic size, most non-critical signals use single-output voters. But in certain places triple-output voters are used, such as for the FSM state registers and the CRC calculation. The FSM state register and CRC registers are also updated based on the majority voted value on every clock cycle, so single bit errors in these registers are effectively corrected on every clock cycle.
+
+This mitigation strategy is suitable for SRAM-based FPGAs combined with scrubbing of the configuration memory. In principle it should also work for flash-based FPGAs where scrubbing is not necessary, but the Block-TMR approach may not be optimal in that case. A suggestion for flash-based FPGAs is to use the non-triplicated version of the controller and allow the synthesis tools to perform TMR at the register-level.
+
+Note: As of September 2020 the radiation tolerance of the controller has not been beam-tested.
+
+And as a final remark it should be mentioned that **the controller is fully usable for normal applications and the triplication can be disabled in its entirety**.
+
+
 ## Simulating
 
 Simulating the CAN controller requires modelsim and the UVVM framework to be present:
