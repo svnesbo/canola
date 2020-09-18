@@ -6,6 +6,7 @@ quietly set lib_name "work"
 quietly set part_name "can_controller"
 # path from mpf-file in sim
 quietly set util_part_path "../extern/$part_name"
+quietly set bench_path "../source/bench"
 quietly set current_path [pwd]/../sim
 quietly set run_path [pwd]/
 
@@ -40,4 +41,4 @@ eval vlog  $compdirectives_vlog   $util_part_path/can_btl.v
 eval vlog  $compdirectives_vlog   $util_part_path/can_fifo.v
 eval vlog  $compdirectives_vlog   $util_part_path/can_registers.v
 eval vlog  $compdirectives_vlog   $util_part_path/can_top.v
-eval vcom  $compdirectives_vhdl   $util_part_path/can_register_pkg.vhd
+eval vcom  $compdirectives_vhdl   $bench_path/can_register_pkg.vhd
