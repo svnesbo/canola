@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-09-12
+-- Last update: 2020-09-18
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -47,8 +47,9 @@ end canola_vs_opencores_can_tb;
 
 architecture tb of canola_vs_opencores_can_tb is
 
-  constant C_CLK_PERIOD : time       := 25 ns; -- 40 Mhz
-  constant C_CLK_FREQ   : integer    := 1e9 ns / C_CLK_PERIOD;
+  constant C_CLK_PERIOD : time    := 6.25 ns;  -- 160 Mhz
+  constant C_CLK_FREQ   : integer := 1e9 ns / C_CLK_PERIOD;
+  signal s_clk_period   : time    := C_CLK_PERIOD;
 
   constant WB_DATA_WIDTH : natural := 8;
   constant WB_ADDR_WIDTH : natural := 8;
@@ -59,34 +60,42 @@ architecture tb of canola_vs_opencores_can_tb is
     clock_period             => C_CLK_PERIOD,
     clock_period_margin      => 0 ns,
     clock_margin_severity    => TB_ERROR,
-    setup_time               => 5 ns,
-    hold_time                => 5 ns,
+    setup_time               => 1 ns,
+    hold_time                => 1 ns,
     id_for_bfm               => ID_BFM,
     id_for_bfm_wait          => ID_BFM_WAIT,
     id_for_bfm_poll          => ID_BFM_POLL);
 
-  constant C_CAN_BAUD_PERIOD  : time    := 1000 ns;  -- 1 MHz
-  constant C_CAN_BAUD_FREQ    : integer := 1e9 ns / C_CAN_BAUD_PERIOD;
+  constant C_CAN_BAUD_PERIOD_250kbit  : time    := 4000 ns;  -- 250 kHz
+  constant C_CAN_BAUD_FREQ_250kbit    : integer := 1e9 ns / C_CAN_BAUD_PERIOD_250kbit;
 
-  constant C_CAN_CTRL1_TO_CTRL2_DELAY : time := 0.5*(C_CAN_BAUD_PERIOD/10);
+  constant C_CAN_BAUD_PERIOD_1000kbit  : time    := 1000 ns;  -- 250 kHz
+  constant C_CAN_BAUD_FREQ_1000kbit    : integer := 1e9 ns / C_CAN_BAUD_PERIOD_1000kbit;
+
+  signal s_can_baud_period : time    := C_CAN_BAUD_PERIOD_1000kbit;
+  signal s_can_baud_freq   : integer := C_CAN_BAUD_FREQ_1000kbit;
+
+  signal s_can_ctrl1_to_ctrl2_delay : time := 0 ns;
 
   -- Indicates where in a bit the Rx sample point should be
   -- Real value from 0.0 to 1.0.
   constant C_CAN_SAMPLE_POINT : real    := 0.7;
 
-  constant C_TIME_QUANTA_CLOCK_SCALE_VAL : natural := 3;
+  constant C_TIME_QUANTA_CLOCK_SCALE_250kbit  : natural := 63;
+  constant C_TIME_QUANTA_CLOCK_SCALE_1000kbit : natural := 15;
+  constant C_TIME_QUANTA_CLOCK_SCALE_WIDTH    : natural := integer(ceil(log2(1.0+real(C_TIME_QUANTA_CLOCK_SCALE_250kbit))));
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
   constant C_NUM_ITERATIONS  : natural := 1000;
 
   constant C_COUNTER_WIDTH : natural := 16;
 
-  -- Generate a clock with a given period,
-  -- based on clock_gen from Bitvis IRQC testbench
+  -- Generate a clock with a period that may change.
+  -- Based on clock_gen from Bitvis IRQC testbench
   procedure clock_gen(
-    signal clock_signal          : inout std_logic;
-    signal clock_ena             : in    boolean;
-    constant clock_period        : in    time
+    signal clock_signal : inout std_logic;
+    signal clock_ena    : in    boolean;
+    signal clock_period : in    time
     ) is
     variable v_first_half_clk_period : time;
   begin
@@ -123,6 +132,7 @@ architecture tb of canola_vs_opencores_can_tb is
   signal s_can_ctrl1_phase_seg1      : std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0) := "0111";
   signal s_can_ctrl1_phase_seg2      : std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0) := "0111";
 
+  signal s_can_ctrl1_clk_scale       : unsigned(C_TIME_QUANTA_CLOCK_SCALE_WIDTH-1 downto 0);
   signal s_can_ctrl1_sync_jump_width : unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0)
     := to_unsigned(2, C_SYNC_JUMP_WIDTH_BITSIZE);
 
@@ -192,13 +202,16 @@ architecture tb of canola_vs_opencores_can_tb is
 begin
 
   -- Set up clock generators
-  clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
-  clock_gen(s_can_baud_clk, s_clock_ena, C_CAN_BAUD_PERIOD);
+  clock_gen(s_clk, s_clock_ena, s_clk_period);
+  clock_gen(s_can_baud_clk, s_clock_ena, s_can_baud_period);
+
+  s_can_ctrl1_to_ctrl2_delay <= 0.5*(s_can_baud_period/10);
 
   -- Bus signal at controller 1 and BFM
   s_can_bus_signal1 <= 'H';
   s_can_bus_signal1 <= '0' when s_can_ctrl1_tx = '0' else 'Z';
-  s_can_bus_signal1 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_opcores_can_tx  = '0' else 'Z';
+  s_can_bus_signal1 <= transport '0' after s_can_ctrl1_to_ctrl2_delay when s_opcores_can_tx = '0'
+                       else 'Z' after s_can_ctrl1_to_ctrl2_delay;
   s_can_bus_signal1 <= '0' when s_can_bfm_tx  = '0' else 'Z';
   s_can_ctrl1_rx    <= '1' ?= s_can_bus_signal1;
   s_can_bfm_rx      <= '1' ?= s_can_bus_signal1;
@@ -206,11 +219,13 @@ begin
   -- Bus signal at controller 2 (open cores)
   s_can_bus_signal2 <= 'H';
   s_can_bus_signal2 <= '0' when s_opcores_can_tx  = '0' else 'Z';
-  s_can_bus_signal2 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_can_ctrl1_tx  = '0' else 'Z';
-  s_can_bus_signal2 <= transport '0' after C_CAN_CTRL1_TO_CTRL2_DELAY when s_can_bfm_tx    = '0' else 'Z';
+  s_can_bus_signal2 <= transport '0' after s_can_ctrl1_to_ctrl2_delay when s_can_ctrl1_tx  = '0' else 'Z';
+  s_can_bus_signal2 <= transport '0' after s_can_ctrl1_to_ctrl2_delay when s_can_bfm_tx    = '0' else 'Z';
   s_opcores_can_rx       <= '1' ?= s_can_bus_signal2;
 
   INST_canola_top_1 : entity work.canola_top
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_CLOCK_SCALE_WIDTH)
     port map (
       CLK   => s_clk,
       RESET => s_can_ctrl1_reset,
@@ -237,8 +252,7 @@ begin
       BTL_PHASE_SEG2              => s_can_ctrl1_phase_seg2,
       BTL_SYNC_JUMP_WIDTH         => s_can_ctrl1_sync_jump_width,
 
-      TIME_QUANTA_CLOCK_SCALE     => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                                 C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
+      TIME_QUANTA_CLOCK_SCALE     => s_can_ctrl1_clk_scale,
 
       -- Error state and counters
       TRANSMIT_ERROR_COUNT => s_can_ctrl1_transmit_error_count,
@@ -499,9 +513,17 @@ begin
 
     procedure can_ctrl_enable_basic_mode_operation (
       constant acceptance_code : in std_logic_vector(7 downto 0);
-      constant acceptance_mask : in std_logic_vector(7 downto 0)
-      ) is
+      constant acceptance_mask : in std_logic_vector(7 downto 0);
+      constant baud_freq       : in natural)
+    is
+      -- Using 10 quantas per baud
+      constant clk_scale    : natural := (C_CLK_FREQ/(20*baud_freq))-1;
+      variable v_btr0_value : std_logic_vector(7 downto 0);
     begin
+      -- First two bits: max sync jump width
+      -- Last six bits: clock scale
+      v_btr0_value := "00" & std_logic_vector(to_unsigned(clk_scale, 6));
+
       log(ID_LOG_HDR, "Check that CAN controller is in RESET mode", C_SCOPE);
       ------------------------------------------------------------
       wb_check(C_CAN_CMR, x"FF", error, "Reading CMR should return FF in basic mode", wbm_opcores_can_if);
@@ -519,10 +541,10 @@ begin
 
       log(ID_LOG_HDR, "Setting up CAN controller bus timing register for 1Mbps", C_SCOPE);
       ------------------------------------------------------------
-      wb_write(C_CAN_BTR0, x"01", "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_write(C_CAN_BTR0, v_btr0_value, "Set up baud prescale and use minimum synch jump width time", wbm_opcores_can_if);
       wb_write(C_CAN_BTR1, x"25", "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3", wbm_opcores_can_if);
 
-      wb_check(C_CAN_BTR0, x"01", error, "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_check(C_CAN_BTR0, v_btr0_value, error, "Set up baud prescale and use minimum synch jump width time", wbm_opcores_can_if);
       wb_check(C_CAN_BTR1, x"25", error, "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3, for CAN0", wbm_opcores_can_if);
 
 
@@ -535,8 +557,17 @@ begin
 
     procedure can_ctrl_enable_ext_mode_operation(
       constant acceptance_code : in std_logic_vector(28 downto 0);
-      constant acceptance_mask : in std_logic_vector(28 downto 0)) is
+      constant acceptance_mask : in std_logic_vector(28 downto 0);
+      constant baud_freq       : in natural)
+    is
+      -- Using 10 quantas per baud
+      constant clk_scale    : natural := (C_CLK_FREQ/(20*baud_freq))-1;
+      variable v_btr0_value : std_logic_vector(7 downto 0);
     begin
+      -- First two bits: max sync jump width
+      -- Last six bits: clock scale
+      v_btr0_value := "00" & std_logic_vector(to_unsigned(clk_scale, 6));
+
       log(ID_LOG_HDR, "Check that CAN controller is in RESET mode", C_SCOPE);
       ------------------------------------------------------------
       wb_check(C_CAN_CMR, x"FF", error, "Reading CMR should return FF (basic mode) after reset", wbm_opcores_can_if);
@@ -577,10 +608,10 @@ begin
 
       log(ID_LOG_HDR, "Setting up CAN controller bus timing register for 1Mbps", C_SCOPE);
       ------------------------------------------------------------
-      wb_write(C_CAN_BTR0, x"01", "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_write(C_CAN_BTR0, v_btr0_value, "Set up baud prescale and use minimum synch jump width time", wbm_opcores_can_if);
       wb_write(C_CAN_BTR1, x"25", "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3", wbm_opcores_can_if);
 
-      wb_check(C_CAN_BTR0, x"01", error, "4x baud prescale and minimum synch jump width time", wbm_opcores_can_if);
+      wb_check(C_CAN_BTR0, v_btr0_value, error, "Set up baud prescale and use minimum synch jump width time", wbm_opcores_can_if);
       wb_check(C_CAN_BTR1, x"25", error, "7 baud clocks before and 3 after sampling point, tSEG1=6 and tSEG2=3, for CAN0", wbm_opcores_can_if);
 
 
@@ -958,294 +989,322 @@ begin
     set_log_file_name("log/canola_vs_opencores_can_tb_log.txt");
 
 
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate basic-frame from OpenCores --> Canola controller", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
+    for testbench_pass_num in 0 to 1 loop
 
-    s_clock_ena <= true;                -- to start clock generator
-    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      if testbench_pass_num = 0 then
+        -------------------------------------------------------------------------------------------
+        log(ID_LOG_HDR, "Run testbench at 1 Mbit baud clock", C_SCOPE);
+        -------------------------------------------------------------------------------------------
+        s_can_ctrl1_clk_scale <= to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_1000kbit,
+                                             C_TIME_QUANTA_CLOCK_SCALE_WIDTH);
+        s_can_baud_period       <= C_CAN_BAUD_PERIOD_1000kbit;
+        s_can_baud_freq         <= C_CAN_BAUD_FREQ_1000kbit;
+      else
+        -------------------------------------------------------------------------------------------
+        log(ID_LOG_HDR, "Run testbench at 250 kbit baud clock", C_SCOPE);
+        -------------------------------------------------------------------------------------------
+        s_can_ctrl1_clk_scale <= to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_250kbit,
+                                             C_TIME_QUANTA_CLOCK_SCALE_WIDTH);
+        s_can_baud_period       <= C_CAN_BAUD_PERIOD_250kbit;
+        s_can_baud_freq         <= C_CAN_BAUD_FREQ_250kbit;
+      end if;
 
-    can_ctrl_enable_basic_mode_operation(x"AA", x"FF");
 
-    ---------------------------------------------------------------------------
-    -- Test basic-frame transmission from OpenCores CAN controller to Canola
-    ---------------------------------------------------------------------------
-    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
-      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+      ---------------------------------------------------------------------------------------------
+      log(ID_LOG_HDR, "Simulate basic-frame from OpenCores --> Canola controller", C_SCOPE);
+      ---------------------------------------------------------------------------------------------
 
-      wait for 200 ns;
+      s_clock_ena <= true;              -- to start clock generator
+      pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
-      log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
-      ------------------------------------------------------------
-      generate_random_can_message (v_xmit_arb_id,
-                                   v_xmit_data,
-                                   v_xmit_data_length,
-                                   v_xmit_remote_frame,
-                                   '0');
+      can_ctrl_enable_basic_mode_operation(x"AA", x"FF", s_can_baud_freq);
 
-      can_ctrl_send_basic_mode(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+      ---------------------------------------------------------------------------
+      -- Test basic-frame transmission from OpenCores CAN controller to Canola
+      ---------------------------------------------------------------------------
+      for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+        log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+
+        wait for 200 ns;
+
+        log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
+        ------------------------------------------------------------
+        generate_random_can_message (v_xmit_arb_id,
+                                     v_xmit_data,
+                                     v_xmit_data_length,
+                                     v_xmit_remote_frame,
+                                     '0');
+        v_xmit_ext_id := '0';
+
+        can_ctrl_send_basic_mode(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                                 v_xmit_data,
+                                 v_xmit_data_length,
+                                 v_xmit_remote_frame,
+                                 "Send msg with OpenCores CAN controller");
+
+
+        log(ID_SEQUENCER, "Receive random message with Canola controller", C_SCOPE);
+        ------------------------------------------------------------
+
+        wait until s_msg_ctrl1_received = '1' for 300*s_can_baud_period;
+        wait until s_opcores_can_irq_n = '0' for 300*s_can_baud_period;
+
+        check_value(s_opcores_can_irq_n, '0', error, "Check that OC Controller finished transmit.");
+        check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
+        check_value(s_msg_ctrl1.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+
+        if v_xmit_ext_id = '1' then
+          v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
+          v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
+          check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+        else
+          -- Only check the relevant ID bits for non-extended ID
+          check_value(s_msg_ctrl1.arb_id_a,
+                      v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                      error,
+                      "Check received ID");
+        end if;
+
+        check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+
+        check_value(s_msg_ctrl1.data_length,
+                    std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                    error, "Check data length");
+
+        -- Don't check data for remote frame requests
+        if v_xmit_remote_frame = '0' then
+          for idx in 0 to v_xmit_data_length-1 loop
+            check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
+          end loop;
+        end if;
+
+        pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
+        log(ID_SEQUENCER, "", C_SCOPE);
+
+      end loop;
+
+
+      ---------------------------------------------------------------------------------------------
+      log(ID_LOG_HDR, "Simulate basic-frame from Canola --> OpenCores controller", C_SCOPE);
+      ---------------------------------------------------------------------------------------------
+      s_clock_ena <= true;              -- to start clock generator
+      pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+
+      can_ctrl_enable_basic_mode_operation(x"AA", x"FF", s_can_baud_freq);
+
+      -- The OpenCores controller waits for 11 recessive bits before it is ready
+      -- (see SJA1000 datasheet)
+      wait for 11*s_can_baud_period;
+
+      ---------------------------------------------------------------------------
+      -- Test basic-frame transmission from Canola to OpenCores CAN controller
+      ---------------------------------------------------------------------------
+      for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+        log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+
+        wait for 200 ns;
+
+        log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
+        ------------------------------------------------------------
+        generate_random_can_message (v_xmit_arb_id,
+                                     v_xmit_data,
+                                     v_xmit_data_length,
+                                     v_xmit_remote_frame,
+                                     '0');
+
+        s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+        s_can_ctrl1_tx_msg.arb_id_b       <= (others => '0');
+        s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+        s_can_ctrl1_tx_msg.ext_id         <= '0';
+        s_can_ctrl1_tx_msg.data           <= work.canola_pkg.can_payload_t(v_xmit_data);
+        s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+
+        wait until rising_edge(s_clk);
+        s_can_ctrl1_tx_start <= '1';
+        wait until rising_edge(s_clk);
+        s_can_ctrl1_tx_start <= '0';
+        wait until rising_edge(s_clk);
+
+        log(ID_SEQUENCER, "Receive random message with OpenCores controller", C_SCOPE);
+        ------------------------------------------------------------
+        v_recv_arb_id       := (others => '0');
+        v_recv_data         := (others => x"00");
+        v_recv_data_length  := 0;
+        v_recv_remote_frame := '0';
+
+        can_ctrl_recv_basic_mode(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                                 v_recv_data,
+                                 v_recv_data_length,
+                                 v_recv_remote_frame,
+                                 "Receive message with OpenCores controller");
+
+        -- Only check the relevant ID bits for non-extended ID
+        check_value(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                    error, "Check received ID");
+
+        check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
+        check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
+
+        -- Don't check data for remote frame requests
+        if v_xmit_remote_frame = '0' then
+          for idx in 0 to v_xmit_data_length-1 loop
+            check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
+          end loop;
+        end if;
+
+        log(ID_SEQUENCER, "", C_SCOPE);
+
+      end loop;
+
+
+      ---------------------------------------------------------------------------------------------
+      log(ID_LOG_HDR, "Simulate ext-frame from OpenCores --> Canola controller", C_SCOPE);
+      ---------------------------------------------------------------------------------------------
+      s_clock_ena <= true;              -- to start clock generator
+      pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+
+      -- Accept any ID code
+      can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1', s_can_baud_freq);
+
+      ---------------------------------------------------------------------------
+      -- Test extended-frame transmission from OpenCores CAN controller to Canola
+      ---------------------------------------------------------------------------
+      for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+        log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+
+        wait for 200 ns;
+
+        log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
+        ------------------------------------------------------------
+        generate_random_can_message (v_xmit_arb_id,
+                                     v_xmit_data,
+                                     v_xmit_data_length,
+                                     v_xmit_remote_frame,
+                                     '1');
+
+        can_ctrl_send_ext_mode(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                               v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
                                v_xmit_data,
                                v_xmit_data_length,
                                v_xmit_remote_frame,
                                "Send msg with OpenCores CAN controller");
 
 
-      log(ID_SEQUENCER, "Receive random message with Canola controller", C_SCOPE);
-      ------------------------------------------------------------
+        log(ID_SEQUENCER, "Receive random message with Canola controller", C_SCOPE);
+        ------------------------------------------------------------
 
-      wait until s_msg_ctrl1_received = '1' for 300*C_CAN_BAUD_PERIOD;
+        wait until s_msg_ctrl1_received = '1' for 300*s_can_baud_period;
+        wait until s_opcores_can_irq_n = '0' for 300*s_can_baud_period;
 
-      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
-      check_value(s_msg_ctrl1.ext_id, v_xmit_ext_id, error, "Check extended ID bit");
+        check_value(s_opcores_can_irq_n, '0', error, "Check that OC Controller finished transmit.");
+        check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
+        check_value(s_msg_ctrl1.ext_id, '1', error, "Check extended ID bit");
 
-      if v_xmit_ext_id = '1' then
         v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
         v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
         check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
-      else
-        -- Only check the relevant ID bits for non-extended ID
-        check_value(s_msg_ctrl1.arb_id_a,
-                    v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
-                    error,
-                    "Check received ID");
-      end if;
 
-      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
+        check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
 
-      check_value(s_msg_ctrl1.data_length,
-                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
-                  error, "Check data length");
+        check_value(s_msg_ctrl1.data_length,
+                    std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
+                    error, "Check data length");
 
-      -- Don't check data for remote frame requests
-      if v_xmit_remote_frame = '0' then
-        for idx in 0 to v_xmit_data_length-1 loop
-          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
-        end loop;
-      end if;
+        -- Don't check data for remote frame requests
+        if v_xmit_remote_frame = '0' then
+          for idx in 0 to v_xmit_data_length-1 loop
+            check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
+          end loop;
+        end if;
 
-      pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
-      log(ID_SEQUENCER, "", C_SCOPE);
+        pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
+        log(ID_SEQUENCER, "", C_SCOPE);
 
-    end loop;
+      end loop;
 
 
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate basic-frame from Canola --> OpenCores controller", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
-    s_clock_ena <= true;                -- to start clock generator
-    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      ---------------------------------------------------------------------------------------------
+      log(ID_LOG_HDR, "Simulate ext-frame from Canola --> OpenCores controller", C_SCOPE);
+      ---------------------------------------------------------------------------------------------
+      s_clock_ena <= true;              -- to start clock generator
+      pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
-    can_ctrl_enable_basic_mode_operation(x"AA", x"FF");
+      -- Accept any ID code
+      can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1', s_can_baud_freq);
 
-    -- The OpenCores controller waits for 11 recessive bits before it is ready
-    -- (see SJA1000 datasheet)
-    wait for 11*C_CAN_BAUD_PERIOD;
+      -- The OpenCores controller waits for 11 recessive bits before it is ready
+      -- (see SJA1000 datasheet)
+      wait for 11*s_can_baud_period;
 
-    ---------------------------------------------------------------------------
-    -- Test basic-frame transmission from Canola to OpenCores CAN controller
-    ---------------------------------------------------------------------------
-    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
-      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
+      ---------------------------------------------------------------------------
+      -- Test ext-frame transmission from Canola to OpenCores CAN controller
+      ---------------------------------------------------------------------------
+      for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
+        log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
 
-      wait for 200 ns;
+        wait for 200 ns;
 
-      log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
-      ------------------------------------------------------------
-      generate_random_can_message (v_xmit_arb_id,
-                                   v_xmit_data,
-                                   v_xmit_data_length,
-                                   v_xmit_remote_frame,
-                                   '0');
+        log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
+        ------------------------------------------------------------
+        v_xmit_ext_id := '1';
 
-      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl1_tx_msg.arb_id_b       <= (others => '0');
-      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
-      s_can_ctrl1_tx_msg.ext_id         <= '0';
-      s_can_ctrl1_tx_msg.data           <= work.canola_pkg.can_payload_t(v_xmit_data);
-      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
+        generate_random_can_message (v_xmit_arb_id,
+                                     v_xmit_data,
+                                     v_xmit_data_length,
+                                     v_xmit_remote_frame,
+                                     v_xmit_ext_id);
 
-      wait until rising_edge(s_clk);
-      s_can_ctrl1_tx_start <= '1';
-      wait until rising_edge(s_clk);
-      s_can_ctrl1_tx_start <= '0';
-      wait until rising_edge(s_clk);
+        s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
+        s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
+        s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
+        s_can_ctrl1_tx_msg.ext_id         <= '1';
+        s_can_ctrl1_tx_msg.data           <= work.canola_pkg.can_payload_t(v_xmit_data);
+        s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
 
-      log(ID_SEQUENCER, "Receive random message with OpenCores controller", C_SCOPE);
-      ------------------------------------------------------------
-      v_recv_arb_id       := (others => '0');
-      v_recv_data         := (others => x"00");
-      v_recv_data_length  := 0;
-      v_recv_remote_frame := '0';
+        wait until rising_edge(s_clk);
+        s_can_ctrl1_tx_start <= '1';
+        wait until rising_edge(s_clk);
+        s_can_ctrl1_tx_start <= '0';
+        wait until rising_edge(s_clk);
 
-      can_ctrl_recv_basic_mode(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+        log(ID_SEQUENCER, "Receive random message with OpenCores controller", C_SCOPE);
+        ------------------------------------------------------------
+        v_recv_arb_id       := (others => '0');
+        v_recv_data         := (others => x"00");
+        v_recv_data_length  := 0;
+        v_recv_remote_frame := '0';
+        v_recv_ext_id       := '0';
+
+        can_ctrl_recv_ext_mode(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
+                               v_recv_arb_id(C_ID_B_LENGTH-1 downto 0),
                                v_recv_data,
                                v_recv_data_length,
+                               v_recv_ext_id,
                                v_recv_remote_frame,
                                "Receive message with OpenCores controller");
 
-      -- Only check the relevant ID bits for non-extended ID
-      check_value(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
-                  v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
-                  error, "Check received ID");
+        check_value(v_recv_ext_id, v_xmit_ext_id, error, "Check that ext. msg was received.");
+        check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
+        check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
+        check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
 
-      check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
-      check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
+        -- Don't check data for remote frame requests
+        if v_xmit_remote_frame = '0' then
+          for idx in 0 to v_xmit_data_length-1 loop
+            check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
+          end loop;
+        end if;
 
-      -- Don't check data for remote frame requests
-      if v_xmit_remote_frame = '0' then
-        for idx in 0 to v_xmit_data_length-1 loop
-          check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
-        end loop;
-      end if;
+        log(ID_SEQUENCER, "", C_SCOPE);
 
-      log(ID_SEQUENCER, "", C_SCOPE);
+      end loop;
 
-    end loop;
-
-
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate ext-frame from OpenCores --> Canola controller", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
-    s_clock_ena <= true;                -- to start clock generator
-    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-
-    -- Accept any ID code
-    can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1');
-
-    ---------------------------------------------------------------------------
-    -- Test extended-frame transmission from OpenCores CAN controller to Canola
-    ---------------------------------------------------------------------------
-    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
-      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
-
-      wait for 200 ns;
-
-      log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
-      ------------------------------------------------------------
-      generate_random_can_message (v_xmit_arb_id,
-                                   v_xmit_data,
-                                   v_xmit_data_length,
-                                   v_xmit_remote_frame,
-                                   '1');
-
-      can_ctrl_send_ext_mode(v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
-                             v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0),
-                             v_xmit_data,
-                             v_xmit_data_length,
-                             v_xmit_remote_frame,
-                             "Send msg with OpenCores CAN controller");
-
-
-      log(ID_SEQUENCER, "Receive random message with Canola controller", C_SCOPE);
-      ------------------------------------------------------------
-
-      wait until s_msg_ctrl1_received = '1' for 300*C_CAN_BAUD_PERIOD;
-
-      check_value(s_msg_ctrl1_received, '1', error, "Check that CAN controller received msg.");
-      check_value(s_msg_ctrl1.ext_id, '1', error, "Check extended ID bit");
-
-      v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH) := s_msg_ctrl1.arb_id_a;
-      v_recv_arb_id(C_ID_B_LENGTH-1 downto 0)                           := s_msg_ctrl1.arb_id_b;
-      check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
-
-      check_value(s_msg_ctrl1.remote_request, v_xmit_remote_frame, error, "Check received RTR bit");
-
-      check_value(s_msg_ctrl1.data_length,
-                  std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH)),
-                  error, "Check data length");
-
-      -- Don't check data for remote frame requests
-      if v_xmit_remote_frame = '0' then
-        for idx in 0 to v_xmit_data_length-1 loop
-          check_value(s_msg_ctrl1.data(idx), v_xmit_data(idx), error, "Check received data");
-        end loop;
-      end if;
-
-      pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
-      log(ID_SEQUENCER, "", C_SCOPE);
-
-    end loop;
-
-
-    -----------------------------------------------------------------------------------------------
-    log(ID_LOG_HDR, "Simulate ext-frame from Canola --> OpenCores controller", C_SCOPE);
-    -----------------------------------------------------------------------------------------------
-    s_clock_ena <= true;                -- to start clock generator
-    pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-    pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-
-    -- Accept any ID code
-    can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1');
-
-    -- The OpenCores controller waits for 11 recessive bits before it is ready
-    -- (see SJA1000 datasheet)
-    wait for 11*C_CAN_BAUD_PERIOD;
-
-    ---------------------------------------------------------------------------
-    -- Test ext-frame transmission from Canola to OpenCores CAN controller
-    ---------------------------------------------------------------------------
-    for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
-      log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
-
-      wait for 200 ns;
-
-      log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
-      ------------------------------------------------------------
-      v_xmit_ext_id := '1';
-
-      generate_random_can_message (v_xmit_arb_id,
-                                   v_xmit_data,
-                                   v_xmit_data_length,
-                                   v_xmit_remote_frame,
-                                   v_xmit_ext_id);
-
-      s_can_ctrl1_tx_msg.arb_id_a       <= v_xmit_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH);
-      s_can_ctrl1_tx_msg.arb_id_b       <= v_xmit_arb_id(C_ID_B_LENGTH-1 downto 0);
-      s_can_ctrl1_tx_msg.remote_request <= v_xmit_remote_frame;
-      s_can_ctrl1_tx_msg.ext_id         <= '1';
-      s_can_ctrl1_tx_msg.data           <= work.canola_pkg.can_payload_t(v_xmit_data);
-      s_can_ctrl1_tx_msg.data_length    <= std_logic_vector(to_unsigned(v_xmit_data_length, C_DLC_LENGTH));
-
-      wait until rising_edge(s_clk);
-      s_can_ctrl1_tx_start <= '1';
-      wait until rising_edge(s_clk);
-      s_can_ctrl1_tx_start <= '0';
-      wait until rising_edge(s_clk);
-
-      log(ID_SEQUENCER, "Receive random message with OpenCores controller", C_SCOPE);
-      ------------------------------------------------------------
-      v_recv_arb_id       := (others => '0');
-      v_recv_data         := (others => x"00");
-      v_recv_data_length  := 0;
-      v_recv_remote_frame := '0';
-      v_recv_ext_id       := '0';
-
-      can_ctrl_recv_ext_mode(v_recv_arb_id(C_ID_A_LENGTH+C_ID_B_LENGTH-1 downto C_ID_B_LENGTH),
-                             v_recv_arb_id(C_ID_B_LENGTH-1 downto 0),
-                             v_recv_data,
-                             v_recv_data_length,
-                             v_recv_ext_id,
-                             v_recv_remote_frame,
-                             "Receive message with OpenCores controller");
-
-      check_value(v_recv_ext_id, v_xmit_ext_id, error, "Check that ext. msg was received.");
-      check_value(v_recv_arb_id, v_xmit_arb_id, error, "Check received ID");
-      check_value(v_recv_remote_frame, v_xmit_remote_frame, error, "Check received RTR bit");
-      check_value(v_recv_data_length, v_xmit_data_length, error, "Check data length");
-
-      -- Don't check data for remote frame requests
-      if v_xmit_remote_frame = '0' then
-        for idx in 0 to v_xmit_data_length-1 loop
-          check_value(v_recv_data(idx), v_xmit_data(idx), error, "Check received data");
-        end loop;
-      end if;
-
-      log(ID_SEQUENCER, "", C_SCOPE);
-
-    end loop;
+    end loop;  -- testbench_pass_num
 
     -----------------------------------------------------------------------------------------------
     -- Simulation complete
