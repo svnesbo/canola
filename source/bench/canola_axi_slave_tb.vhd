@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-05-29
+-- Last update: 2020-08-26
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -650,9 +650,9 @@ begin
                   resize_data(c_canola_axi_slave_rw_regs.BTL_SYNC_JUMP_WIDTH),
                   "Check BTL_SYNC_JUMP_WIDTH register");
 
-    axilite_check(C_ADDR_BTL_TIME_QUANTA_CLOCK_SCALE,
-                  resize_data(c_canola_axi_slave_rw_regs.BTL_TIME_QUANTA_CLOCK_SCALE),
-                  "Check BTL_TIME_QUANTA_CLOCK_SCALE register");
+    axilite_check(C_ADDR_TIME_QUANTA_CLOCK_SCALE,
+                  resize_data(c_canola_axi_slave_rw_regs.TIME_QUANTA_CLOCK_SCALE),
+                  "Check TIME_QUANTA_CLOCK_SCALE register");
 
     axilite_check(C_ADDR_TRANSMIT_ERROR_COUNT,
                   resize_data(c_canola_axi_slave_ro_regs.TRANSMIT_ERROR_COUNT),

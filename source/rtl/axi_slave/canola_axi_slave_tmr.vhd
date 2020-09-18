@@ -65,9 +65,10 @@ architecture behavior of canola_axi_slave_tmr is
   signal s_can_tx_msg      : can_msg_t;
   signal s_can_error_state : can_error_state_t;
 
-  constant C_INTERNAL_REG_WIDTH : natural := 16;
+  constant C_COUNTER_REG_WIDTH : natural := 32;
 
   signal s_tx_msg_sent_count_up    : std_logic;
+  signal s_tx_failed_count_up      : std_logic;
   signal s_tx_ack_error_count_up   : std_logic;
   signal s_tx_arb_lost_count_up    : std_logic;
   signal s_tx_bit_error_count_up   : std_logic;
@@ -146,12 +147,12 @@ begin
       TX_DONE          => CAN_TX_DONE_IRQ,
       TX_FAILED        => CAN_TX_FAILED_IRQ,
 
-      BTL_TRIPLE_SAMPLING         => axi_rw_regs.CONFIG.BTL_TRIPLE_SAMPLING_EN,
-      BTL_PROP_SEG                => axi_rw_regs.BTL_PROP_SEG(C_PROP_SEG_WIDTH-1 downto 0),
-      BTL_PHASE_SEG1              => axi_rw_regs.BTL_PHASE_SEG1(C_PHASE_SEG1_WIDTH-1 downto 0),
-      BTL_PHASE_SEG2              => axi_rw_regs.BTL_PHASE_SEG2(C_PHASE_SEG2_WIDTH-1 downto 0),
-      BTL_SYNC_JUMP_WIDTH         => unsigned(axi_rw_regs.BTL_SYNC_JUMP_WIDTH),
-      BTL_TIME_QUANTA_CLOCK_SCALE => unsigned(axi_rw_regs.BTL_TIME_QUANTA_CLOCK_SCALE(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0)),
+      BTL_TRIPLE_SAMPLING     => axi_rw_regs.CONFIG.BTL_TRIPLE_SAMPLING_EN,
+      BTL_PROP_SEG            => axi_rw_regs.BTL_PROP_SEG(C_PROP_SEG_WIDTH-1 downto 0),
+      BTL_PHASE_SEG1          => axi_rw_regs.BTL_PHASE_SEG1(C_PHASE_SEG1_WIDTH-1 downto 0),
+      BTL_PHASE_SEG2          => axi_rw_regs.BTL_PHASE_SEG2(C_PHASE_SEG2_WIDTH-1 downto 0),
+      BTL_SYNC_JUMP_WIDTH     => unsigned(axi_rw_regs.BTL_SYNC_JUMP_WIDTH),
+      TIME_QUANTA_CLOCK_SCALE => unsigned(axi_rw_regs.TIME_QUANTA_CLOCK_SCALE(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0)),
 
       -- Error state and counters
       std_logic_vector(TRANSMIT_ERROR_COUNT) => axi_ro_regs.TRANSMIT_ERROR_COUNT(C_ERROR_COUNT_LENGTH-1 downto 0),
@@ -160,6 +161,7 @@ begin
 
       -- Counter signals
       TX_MSG_SENT_COUNT_UP       => s_tx_msg_sent_count_up,
+      TX_FAILED_COUNT_UP         => s_tx_failed_count_up,
       TX_ACK_ERROR_COUNT_UP      => s_tx_ack_error_count_up,
       TX_ARB_LOST_COUNT_UP       => s_tx_arb_lost_count_up,
       TX_BIT_ERROR_COUNT_UP      => s_tx_bit_error_count_up,
@@ -176,13 +178,14 @@ begin
     generic map (
       G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-      G_COUNTER_WIDTH       => C_INTERNAL_REG_WIDTH,
+      G_COUNTER_WIDTH       => C_COUNTER_REG_WIDTH,
       G_SATURATING_COUNTERS => true)
     port map (
       CLK   => AXI_CLK,
       RESET => AXI_RESET,
 
       CLEAR_TX_MSG_SENT_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_MSG_SENT_COUNTER,
+      CLEAR_TX_FAILED_COUNT      => axi_pulse_regs.CONTROL.RESET_TX_FAILED_COUNTER,
       CLEAR_TX_ACK_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_TX_ACK_ERROR_COUNTER,
       CLEAR_TX_ARB_LOST_COUNT    => axi_pulse_regs.CONTROL.RESET_TX_ARB_LOST_COUNTER,
       CLEAR_TX_BIT_ERROR_COUNT   => axi_pulse_regs.CONTROL.RESET_TX_BIT_ERROR_COUNTER,
@@ -193,6 +196,7 @@ begin
       CLEAR_RX_STUFF_ERROR_COUNT => axi_pulse_regs.CONTROL.RESET_RX_STUFF_ERROR_COUNTER,
 
       TX_MSG_SENT_COUNT_UP    => s_tx_msg_sent_count_up,
+      TX_FAILED_COUNT_UP      => s_tx_failed_count_up,
       TX_ACK_ERROR_COUNT_UP   => s_tx_ack_error_count_up,
       TX_ARB_LOST_COUNT_UP    => s_tx_arb_lost_count_up,
       TX_BIT_ERROR_COUNT_UP   => s_tx_bit_error_count_up,
@@ -203,6 +207,7 @@ begin
       RX_STUFF_ERROR_COUNT_UP => s_rx_stuff_error_count_up,
 
       TX_MSG_SENT_COUNT_VALUE    => axi_ro_regs.TX_MSG_SENT_COUNT,
+      TX_FAILED_COUNT_VALUE      => axi_ro_regs.TX_FAILED_COUNT,
       TX_ACK_ERROR_COUNT_VALUE   => axi_ro_regs.TX_ACK_ERROR_COUNT,
       TX_ARB_LOST_COUNT_VALUE    => axi_ro_regs.TX_ARB_LOST_COUNT,
       TX_BIT_ERROR_COUNT_VALUE   => axi_ro_regs.TX_BIT_ERROR_COUNT,

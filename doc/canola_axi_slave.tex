@@ -49,7 +49,7 @@ AXI-Lite slave for Canola CAN Controller
       \hline
       0 & STATUS & RO & \texttt{0x00000000} & FIELDS & 6 & \texttt{0x0} \\
       \hline
-      1 & CONTROL & PULSE & \texttt{0x00000004} & FIELDS & 10 & \texttt{0x0} \\
+      1 & CONTROL & PULSE & \texttt{0x00000004} & FIELDS & 11 & \texttt{0x0} \\
       \hline
       2 & CONFIG & RW & \texttt{0x00000008} & FIELDS & 2 & \texttt{0x0} \\
       \hline
@@ -61,45 +61,47 @@ AXI-Lite slave for Canola CAN Controller
       \hline
       6 & BTL{\_}SYNC{\_}JUMP{\_}WIDTH & RW & \texttt{0x0000002C} & SLV & 3 & \texttt{0x1} \\
       \hline
-      7 & BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0xF} \\
+      7 & TIME{\_}QUANTA{\_}CLOCK{\_}SCALE & RW & \texttt{0x00000030} & SLV & 8 & \texttt{0xF} \\
       \hline
       8 & TRANSMIT{\_}ERROR{\_}COUNT & RO & \texttt{0x00000034} & SLV & 16 & \texttt{0x0} \\
       \hline
       9 & RECEIVE{\_}ERROR{\_}COUNT & RO & \texttt{0x00000038} & SLV & 16 & \texttt{0x0} \\
       \hline
-      10 & TX{\_}MSG{\_}SENT{\_}COUNT & RO & \texttt{0x0000003C} & SLV & 16 & \texttt{0x0} \\
+      10 & TX{\_}MSG{\_}SENT{\_}COUNT & RO & \texttt{0x0000003C} & SLV & 32 & \texttt{0x0} \\
       \hline
-      11 & TX{\_}ACK{\_}ERROR{\_}COUNT & RO & \texttt{0x00000040} & SLV & 16 & \texttt{0x0} \\
+      11 & TX{\_}FAILED{\_}COUNT & RO & \texttt{0x00000040} & SLV & 32 & \texttt{0x0} \\
       \hline
-      12 & TX{\_}ARB{\_}LOST{\_}COUNT & RO & \texttt{0x00000044} & SLV & 16 & \texttt{0x0} \\
+      12 & TX{\_}ACK{\_}ERROR{\_}COUNT & RO & \texttt{0x00000044} & SLV & 32 & \texttt{0x0} \\
       \hline
-      13 & TX{\_}BIT{\_}ERROR{\_}COUNT & RO & \texttt{0x00000048} & SLV & 16 & \texttt{0x0} \\
+      13 & TX{\_}ARB{\_}LOST{\_}COUNT & RO & \texttt{0x00000048} & SLV & 32 & \texttt{0x0} \\
       \hline
-      14 & TX{\_}RETRANSMIT{\_}COUNT & RO & \texttt{0x0000004C} & SLV & 16 & \texttt{0x0} \\
+      14 & TX{\_}BIT{\_}ERROR{\_}COUNT & RO & \texttt{0x0000004C} & SLV & 32 & \texttt{0x0} \\
       \hline
-      15 & RX{\_}MSG{\_}RECV{\_}COUNT & RO & \texttt{0x00000050} & SLV & 16 & \texttt{0x0} \\
+      15 & TX{\_}RETRANSMIT{\_}COUNT & RO & \texttt{0x00000050} & SLV & 32 & \texttt{0x0} \\
       \hline
-      16 & RX{\_}CRC{\_}ERROR{\_}COUNT & RO & \texttt{0x00000054} & SLV & 16 & \texttt{0x0} \\
+      16 & RX{\_}MSG{\_}RECV{\_}COUNT & RO & \texttt{0x00000054} & SLV & 32 & \texttt{0x0} \\
       \hline
-      17 & RX{\_}FORM{\_}ERROR{\_}COUNT & RO & \texttt{0x00000058} & SLV & 16 & \texttt{0x0} \\
+      17 & RX{\_}CRC{\_}ERROR{\_}COUNT & RO & \texttt{0x00000058} & SLV & 32 & \texttt{0x0} \\
       \hline
-      18 & RX{\_}STUFF{\_}ERROR{\_}COUNT & RO & \texttt{0x0000005C} & SLV & 16 & \texttt{0x0} \\
+      18 & RX{\_}FORM{\_}ERROR{\_}COUNT & RO & \texttt{0x0000005C} & SLV & 32 & \texttt{0x0} \\
       \hline
-      19 & TX{\_}MSG{\_}ID & RW & \texttt{0x00000060} & FIELDS & 31 & \texttt{0x0} \\
+      19 & RX{\_}STUFF{\_}ERROR{\_}COUNT & RO & \texttt{0x00000060} & SLV & 32 & \texttt{0x0} \\
       \hline
-      20 & TX{\_}PAYLOAD{\_}LENGTH & RW & \texttt{0x00000064} & SLV & 4 & \texttt{0x0} \\
+      20 & TX{\_}MSG{\_}ID & RW & \texttt{0x00000064} & FIELDS & 31 & \texttt{0x0} \\
       \hline
-      21 & TX{\_}PAYLOAD{\_}0 & RW & \texttt{0x00000068} & FIELDS & 32 & \texttt{0x0} \\
+      21 & TX{\_}PAYLOAD{\_}LENGTH & RW & \texttt{0x00000068} & SLV & 4 & \texttt{0x0} \\
       \hline
-      22 & TX{\_}PAYLOAD{\_}1 & RW & \texttt{0x0000006C} & FIELDS & 32 & \texttt{0x0} \\
+      22 & TX{\_}PAYLOAD{\_}0 & RW & \texttt{0x0000006C} & FIELDS & 32 & \texttt{0x0} \\
       \hline
-      23 & RX{\_}MSG{\_}ID & RO & \texttt{0x00000070} & FIELDS & 31 & \texttt{0x0} \\
+      23 & TX{\_}PAYLOAD{\_}1 & RW & \texttt{0x00000070} & FIELDS & 32 & \texttt{0x0} \\
       \hline
-      24 & RX{\_}PAYLOAD{\_}LENGTH & RO & \texttt{0x00000074} & SLV & 4 & \texttt{0x0} \\
+      24 & RX{\_}MSG{\_}ID & RO & \texttt{0x00000074} & FIELDS & 31 & \texttt{0x0} \\
       \hline
-      25 & RX{\_}PAYLOAD{\_}0 & RO & \texttt{0x00000078} & FIELDS & 32 & \texttt{0x0} \\
+      25 & RX{\_}PAYLOAD{\_}LENGTH & RO & \texttt{0x00000078} & SLV & 4 & \texttt{0x0} \\
       \hline
-      26 & RX{\_}PAYLOAD{\_}1 & RO & \texttt{0x0000007C} & FIELDS & 32 & \texttt{0x0} \\
+      26 & RX{\_}PAYLOAD{\_}0 & RO & \texttt{0x0000007C} & FIELDS & 32 & \texttt{0x0} \\
+      \hline
+      27 & RX{\_}PAYLOAD{\_}1 & RO & \texttt{0x00000080} & FIELDS & 32 & \texttt{0x0} \\
       \hline
     \end{tabularx}
   \end{center}
@@ -122,20 +124,21 @@ AXI-Lite slave for Canola CAN Controller
 
 \begin{register}{H}{CONTROL - PULSE for 1 cycles - }{0x00000004}  \par Control register \regnewline
   \label{CONTROL}
-  \regfield{unused}{22}{10}{-}
-  \regfield{RESET{\_}RX{\_}STUFF{\_}ERROR{\_}COUNTER}{1}{9}{0}
-  \regfield{RESET{\_}RX{\_}FORM{\_}ERROR{\_}COUNTER}{1}{8}{0}
-  \regfield{RESET{\_}RX{\_}CRC{\_}ERROR{\_}COUNTER}{1}{7}{0}
-  \regfield{RESET{\_}RX{\_}MSG{\_}RECV{\_}COUNTER}{1}{6}{0}
-  \regfield{RESET{\_}TX{\_}RETRANSMIT{\_}COUNTER}{1}{5}{0}
-  \regfield{RESET{\_}TX{\_}BIT{\_}ERROR{\_}COUNTER}{1}{4}{0}
-  \regfield{RESET{\_}TX{\_}ARB{\_}LOST{\_}COUNTER}{1}{3}{0}
-  \regfield{RESET{\_}TX{\_}ACK{\_}ERROR{\_}COUNTER}{1}{2}{0}
+  \regfield{unused}{21}{11}{-}
+  \regfield{RESET{\_}RX{\_}STUFF{\_}ERROR{\_}COUNTER}{1}{10}{0}
+  \regfield{RESET{\_}RX{\_}FORM{\_}ERROR{\_}COUNTER}{1}{9}{0}
+  \regfield{RESET{\_}RX{\_}CRC{\_}ERROR{\_}COUNTER}{1}{8}{0}
+  \regfield{RESET{\_}RX{\_}MSG{\_}RECV{\_}COUNTER}{1}{7}{0}
+  \regfield{RESET{\_}TX{\_}RETRANSMIT{\_}COUNTER}{1}{6}{0}
+  \regfield{RESET{\_}TX{\_}BIT{\_}ERROR{\_}COUNTER}{1}{5}{0}
+  \regfield{RESET{\_}TX{\_}ARB{\_}LOST{\_}COUNTER}{1}{4}{0}
+  \regfield{RESET{\_}TX{\_}ACK{\_}ERROR{\_}COUNTER}{1}{3}{0}
+  \regfield{RESET{\_}TX{\_}FAILED{\_}COUNTER}{1}{2}{0}
   \regfield{RESET{\_}TX{\_}MSG{\_}SENT{\_}COUNTER}{1}{1}{0}
   \regfield{TX{\_}START}{1}{0}{0}
 \reglabel{Reset}\regnewline
   \begin{regdesc}\begin{reglist}[RESET{\_}RX{\_}STUFF{\_}ERROR{\_}COUNTER]
-    \item [TX{\_}START] Start transmitting message    \item [RESET{\_}TX{\_}MSG{\_}SENT{\_}COUNTER] Reset messages transmitted counter    \item [RESET{\_}TX{\_}ACK{\_}ERROR{\_}COUNTER] Reset Tx acknowledge error counter    \item [RESET{\_}TX{\_}ARB{\_}LOST{\_}COUNTER] Reset Tx arbitration lost counter    \item [RESET{\_}TX{\_}BIT{\_}ERROR{\_}COUNTER] Reset Tx bit error counter    \item [RESET{\_}TX{\_}RETRANSMIT{\_}COUNTER] Reset Tx retransmit counter    \item [RESET{\_}RX{\_}MSG{\_}RECV{\_}COUNTER] Reset messages received counter    \item [RESET{\_}RX{\_}CRC{\_}ERROR{\_}COUNTER] Reset Rx CRC error counter    \item [RESET{\_}RX{\_}FORM{\_}ERROR{\_}COUNTER] Reset Rx form error counter    \item [RESET{\_}RX{\_}STUFF{\_}ERROR{\_}COUNTER] Reset Rx stuff error counter  \end{reglist}\end{regdesc}
+    \item [TX{\_}START] Start transmitting message    \item [RESET{\_}TX{\_}MSG{\_}SENT{\_}COUNTER] Reset messages transmitted counter    \item [RESET{\_}TX{\_}FAILED{\_}COUNTER] Reset transmit failed counter    \item [RESET{\_}TX{\_}ACK{\_}ERROR{\_}COUNTER] Reset Tx acknowledge error counter    \item [RESET{\_}TX{\_}ARB{\_}LOST{\_}COUNTER] Reset Tx arbitration lost counter    \item [RESET{\_}TX{\_}BIT{\_}ERROR{\_}COUNTER] Reset Tx bit error counter    \item [RESET{\_}TX{\_}RETRANSMIT{\_}COUNTER] Reset Tx retransmit counter    \item [RESET{\_}RX{\_}MSG{\_}RECV{\_}COUNTER] Reset messages received counter    \item [RESET{\_}RX{\_}CRC{\_}ERROR{\_}COUNTER] Reset Rx CRC error counter    \item [RESET{\_}RX{\_}FORM{\_}ERROR{\_}COUNTER] Reset Rx form error counter    \item [RESET{\_}RX{\_}STUFF{\_}ERROR{\_}COUNTER] Reset Rx stuff error counter  \end{reglist}\end{regdesc}
 \end{register}
 
 \begin{register}{H}{CONFIG - RW}{0x00000008}  \par Configuration register \regnewline
@@ -176,8 +179,8 @@ AXI-Lite slave for Canola CAN Controller
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{BTL{\_}TIME{\_}QUANTA{\_}CLOCK{\_}SCALE - RW}{0x00000030}  \par Clock prescale ratio for time quanta generator \regnewline
-  \label{BTL_TIME_QUANTA_CLOCK_SCALE}
+\begin{register}{H}{TIME{\_}QUANTA{\_}CLOCK{\_}SCALE - RW}{0x00000030}  \par Clock prescale ratio for time quanta generator \regnewline
+  \label{TIME_QUANTA_CLOCK_SCALE}
   \regfield{unused}{24}{8}{-}
   \regfield{}{8}{0}{{0xF}}
 \reglabel{Reset}\regnewline
@@ -199,68 +202,65 @@ AXI-Lite slave for Canola CAN Controller
 
 \begin{register}{H}{TX{\_}MSG{\_}SENT{\_}COUNT - RO}{0x0000003C}  \par Number of successfully transmitted messages \regnewline
   \label{TX_MSG_SENT_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}ACK{\_}ERROR{\_}COUNT - RO}{0x00000040}  \par Number of transmitted messages where ACK was missing \regnewline
+\begin{register}{H}{TX{\_}FAILED{\_}COUNT - RO}{0x00000040}  \par Number of successfully transmitted messages \regnewline
+  \label{TX_FAILED_COUNT}
+  \regfield{}{32}{0}{{0x0}}
+\reglabel{Reset}\regnewline
+\end{register}
+
+\begin{register}{H}{TX{\_}ACK{\_}ERROR{\_}COUNT - RO}{0x00000044}  \par Number of transmitted messages where ACK was missing \regnewline
   \label{TX_ACK_ERROR_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}ARB{\_}LOST{\_}COUNT - RO}{0x00000044}  \par Number of times arbitration was lost while attempting to send message \regnewline
+\begin{register}{H}{TX{\_}ARB{\_}LOST{\_}COUNT - RO}{0x00000048}  \par Number of times arbitration was lost while attempting to send message \regnewline
   \label{TX_ARB_LOST_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}BIT{\_}ERROR{\_}COUNT - RO}{0x00000048}  \par Number of transmit bit errors (read-back bit didn't match transmitted bit) \regnewline
+\begin{register}{H}{TX{\_}BIT{\_}ERROR{\_}COUNT - RO}{0x0000004C}  \par Number of transmit bit errors (read-back bit didn't match transmitted bit) \regnewline
   \label{TX_BIT_ERROR_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}RETRANSMIT{\_}COUNT - RO}{0x0000004C}  \par Number attempts at retransmitting messages that failed to send. \regnewline
+\begin{register}{H}{TX{\_}RETRANSMIT{\_}COUNT - RO}{0x00000050}  \par Number attempts at retransmitting messages that failed to send. \regnewline
   \label{TX_RETRANSMIT_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{RX{\_}MSG{\_}RECV{\_}COUNT - RO}{0x00000050}  \par Number of messages that were successfully received \regnewline
+\begin{register}{H}{RX{\_}MSG{\_}RECV{\_}COUNT - RO}{0x00000054}  \par Number of messages that were successfully received \regnewline
   \label{RX_MSG_RECV_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{RX{\_}CRC{\_}ERROR{\_}COUNT - RO}{0x00000054}  \par Number of received messages with CRC error \regnewline
+\begin{register}{H}{RX{\_}CRC{\_}ERROR{\_}COUNT - RO}{0x00000058}  \par Number of received messages with CRC error \regnewline
   \label{RX_CRC_ERROR_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{RX{\_}FORM{\_}ERROR{\_}COUNT - RO}{0x00000058}  \par Number of received messages with form error \regnewline
+\begin{register}{H}{RX{\_}FORM{\_}ERROR{\_}COUNT - RO}{0x0000005C}  \par Number of received messages with form error \regnewline
   \label{RX_FORM_ERROR_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{RX{\_}STUFF{\_}ERROR{\_}COUNT - RO}{0x0000005C}  \par Number of received messages with stuff error \regnewline
+\begin{register}{H}{RX{\_}STUFF{\_}ERROR{\_}COUNT - RO}{0x00000060}  \par Number of received messages with stuff error \regnewline
   \label{RX_STUFF_ERROR_COUNT}
-  \regfield{unused}{16}{16}{-}
-  \regfield{}{16}{0}{{0x0}}
+  \regfield{}{32}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}MSG{\_}ID - RW}{0x00000060}  \par Number of received messages with stuff error \regnewline
+\begin{register}{H}{TX{\_}MSG{\_}ID - RW}{0x00000064}  \par Number of received messages with stuff error \regnewline
   \label{TX_MSG_ID}
   \regfield{unused}{1}{31}{-}
   \regfield{ARB{\_}ID{\_}A}{11}{20}{{0x0}}
@@ -272,14 +272,14 @@ AXI-Lite slave for Canola CAN Controller
     \item [EXT{\_}ID{\_}EN] Transmit message with extended ID    \item [RTR{\_}EN] Remote Transmission Request    \item [ARB{\_}ID{\_}B] Arbitration ID B (extended only)    \item [ARB{\_}ID{\_}A] Arbitration ID A  \end{reglist}\end{regdesc}
 \end{register}
 
-\begin{register}{H}{TX{\_}PAYLOAD{\_}LENGTH - RW}{0x00000064}  \par Transmit payload length \regnewline
+\begin{register}{H}{TX{\_}PAYLOAD{\_}LENGTH - RW}{0x00000068}  \par Transmit payload length \regnewline
   \label{TX_PAYLOAD_LENGTH}
   \regfield{unused}{28}{4}{-}
   \regfield{}{4}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{TX{\_}PAYLOAD{\_}0 - RW}{0x00000068}  \par Tx payload bytes 0 to 3 \regnewline
+\begin{register}{H}{TX{\_}PAYLOAD{\_}0 - RW}{0x0000006C}  \par Tx payload bytes 0 to 3 \regnewline
   \label{TX_PAYLOAD_0}
   \regfield{PAYLOAD{\_}BYTE{\_}3}{8}{24}{{0x0}}
   \regfield{PAYLOAD{\_}BYTE{\_}2}{8}{16}{{0x0}}
@@ -290,7 +290,7 @@ AXI-Lite slave for Canola CAN Controller
     \item [PAYLOAD{\_}BYTE{\_}0] Payload byte 0    \item [PAYLOAD{\_}BYTE{\_}1] Payload byte 1    \item [PAYLOAD{\_}BYTE{\_}2] Payload byte 2    \item [PAYLOAD{\_}BYTE{\_}3] Payload byte 3  \end{reglist}\end{regdesc}
 \end{register}
 
-\begin{register}{H}{TX{\_}PAYLOAD{\_}1 - RW}{0x0000006C}  \par Tx payload bytes 4 to 7 \regnewline
+\begin{register}{H}{TX{\_}PAYLOAD{\_}1 - RW}{0x00000070}  \par Tx payload bytes 4 to 7 \regnewline
   \label{TX_PAYLOAD_1}
   \regfield{PAYLOAD{\_}BYTE{\_}7}{8}{24}{{0x0}}
   \regfield{PAYLOAD{\_}BYTE{\_}6}{8}{16}{{0x0}}
@@ -301,7 +301,7 @@ AXI-Lite slave for Canola CAN Controller
     \item [PAYLOAD{\_}BYTE{\_}4] Payload byte 4    \item [PAYLOAD{\_}BYTE{\_}5] Payload byte 5    \item [PAYLOAD{\_}BYTE{\_}6] Payload byte 6    \item [PAYLOAD{\_}BYTE{\_}7] Payload byte 7  \end{reglist}\end{regdesc}
 \end{register}
 
-\begin{register}{H}{RX{\_}MSG{\_}ID - RO}{0x00000070}  \par Number of received messages with stuff error \regnewline
+\begin{register}{H}{RX{\_}MSG{\_}ID - RO}{0x00000074}  \par Number of received messages with stuff error \regnewline
   \label{RX_MSG_ID}
   \regfield{unused}{1}{31}{-}
   \regfield{ARB{\_}ID{\_}A}{11}{20}{{0x0}}
@@ -313,14 +313,14 @@ AXI-Lite slave for Canola CAN Controller
     \item [EXT{\_}ID{\_}EN] Received message with extended ID    \item [RTR{\_}EN] Received Remote Transmission Request (RTR)    \item [ARB{\_}ID{\_}B] Received Arbitration ID B (extended only)    \item [ARB{\_}ID{\_}A] Received Arbitration ID A  \end{reglist}\end{regdesc}
 \end{register}
 
-\begin{register}{H}{RX{\_}PAYLOAD{\_}LENGTH - RO}{0x00000074}  \par Received payload length \regnewline
+\begin{register}{H}{RX{\_}PAYLOAD{\_}LENGTH - RO}{0x00000078}  \par Received payload length \regnewline
   \label{RX_PAYLOAD_LENGTH}
   \regfield{unused}{28}{4}{-}
   \regfield{}{4}{0}{{0x0}}
 \reglabel{Reset}\regnewline
 \end{register}
 
-\begin{register}{H}{RX{\_}PAYLOAD{\_}0 - RO}{0x00000078}  \par Rx payload bytes 0 to 3 \regnewline
+\begin{register}{H}{RX{\_}PAYLOAD{\_}0 - RO}{0x0000007C}  \par Rx payload bytes 0 to 3 \regnewline
   \label{RX_PAYLOAD_0}
   \regfield{PAYLOAD{\_}BYTE{\_}3}{8}{24}{{0x0}}
   \regfield{PAYLOAD{\_}BYTE{\_}2}{8}{16}{{0x0}}
@@ -331,7 +331,7 @@ AXI-Lite slave for Canola CAN Controller
     \item [PAYLOAD{\_}BYTE{\_}0] Payload byte 0    \item [PAYLOAD{\_}BYTE{\_}1] Payload byte 1    \item [PAYLOAD{\_}BYTE{\_}2] Payload byte 2    \item [PAYLOAD{\_}BYTE{\_}3] Payload byte 3  \end{reglist}\end{regdesc}
 \end{register}
 
-\begin{register}{H}{RX{\_}PAYLOAD{\_}1 - RO}{0x0000007C}  \par Rx payload bytes 4 to 7 \regnewline
+\begin{register}{H}{RX{\_}PAYLOAD{\_}1 - RO}{0x00000080}  \par Rx payload bytes 4 to 7 \regnewline
   \label{RX_PAYLOAD_1}
   \regfield{PAYLOAD{\_}BYTE{\_}7}{8}{24}{{0x0}}
   \regfield{PAYLOAD{\_}BYTE{\_}6}{8}{16}{{0x0}}

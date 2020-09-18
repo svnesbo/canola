@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-02-13
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -51,7 +51,6 @@ entity canola_eml_tmr_wrapper is
     RX_DOMINANT_BIT_AFTER_ERROR_FLAG : in std_logic;
     TX_BIT_ERROR                     : in std_logic;
     TX_ACK_ERROR                     : in std_logic;
-    TX_ACK_PASSIVE_ERROR             : in std_logic;
     TX_ACTIVE_ERROR_FLAG_BIT_ERROR   : in std_logic;
     TRANSMIT_SUCCESS                 : in std_logic;
     RECEIVE_SUCCESS                  : in std_logic;
@@ -112,7 +111,6 @@ begin  -- architecture structural
         RX_DOMINANT_BIT_AFTER_ERROR_FLAG => RX_DOMINANT_BIT_AFTER_ERROR_FLAG,
         TX_BIT_ERROR                     => TX_BIT_ERROR,
         TX_ACK_ERROR                     => TX_ACK_ERROR,
-        TX_ACK_PASSIVE_ERROR             => TX_ACK_PASSIVE_ERROR,
         TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => TX_ACTIVE_ERROR_FLAG_BIT_ERROR,
         TRANSMIT_SUCCESS                 => TRANSMIT_SUCCESS,
         RECEIVE_SUCCESS                  => RECEIVE_SUCCESS,
@@ -235,7 +233,6 @@ begin  -- architecture structural
             RX_DOMINANT_BIT_AFTER_ERROR_FLAG => RX_DOMINANT_BIT_AFTER_ERROR_FLAG,
             TX_BIT_ERROR                     => TX_BIT_ERROR,
             TX_ACK_ERROR                     => TX_ACK_ERROR,
-            TX_ACK_PASSIVE_ERROR             => TX_ACK_PASSIVE_ERROR,
             TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => TX_ACTIVE_ERROR_FLAG_BIT_ERROR,
             TRANSMIT_SUCCESS                 => TRANSMIT_SUCCESS,
             RECEIVE_SUCCESS                  => RECEIVE_SUCCESS,

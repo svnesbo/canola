@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <simon@simon-ThinkPad-T450s>
 -- Company    :
 -- Created    : 2018-06-20
--- Last update: 2020-02-10
+-- Last update: 2020-08-30
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -314,7 +314,7 @@ package body can_uvvm_bfm_pkg is
 
 
     if timeout = '1' then
-      alert(config.max_wait_cycles_severity, v_proc_call.all & "Failed, timeout.", scope);
+      alert(config.max_wait_cycles_severity, "can_uvvm_read()=> Failed, timeout.", scope);
     else
       write(v_proc_call, to_string("can_uvvm_read()=> ID:"));
 

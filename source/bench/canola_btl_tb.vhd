@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-16
--- Last update: 2020-05-29
+-- Last update: 2020-09-17
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -114,6 +114,10 @@ architecture tb of canola_btl_tb is
   signal s_clk              : std_logic := '0';
   signal s_can_tx, s_can_rx : std_logic;
 
+  signal s_time_quanta_pulse   : std_logic := '0';
+  signal s_time_quanta_restart : std_logic := '0';
+  signal s_time_quanta_count   : std_logic_vector(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0);
+
   signal s_btl_tx_bit_value   : std_logic := '0';
   signal s_btl_tx_bit_valid   : std_logic := '0';
   signal s_btl_tx_rdy         : std_logic;
@@ -155,6 +159,20 @@ begin
   clock_gen(s_clk, s_clock_ena, C_CLK_PERIOD);
   clock_error_gen(s_can_baud_clk, s_clock_ena, C_CAN_BAUD_PERIOD, s_can_baud_error);
 
+  -- Generates a 1 (system) clock cycle pulse for each time quanta
+  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_SCALE_WIDTH_DEFAULT)
+    port map (
+      CLK               => s_clk,
+      RESET             => s_reset,
+      RESTART           => s_time_quanta_restart,
+      CLK_SCALE         => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                       C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
+      TIME_QUANTA_PULSE => s_time_quanta_pulse,
+      COUNT_OUT         => s_time_quanta_count,
+      COUNT_IN          => s_time_quanta_count);
+
   INST_canola_btl : entity work.canola_btl
     generic map (
       G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_SCALE_WIDTH_DEFAULT)
@@ -176,8 +194,8 @@ begin
       PHASE_SEG1              => s_phase_seg1,
       PHASE_SEG2              => s_phase_seg2,
       SYNC_JUMP_WIDTH         => s_sync_jump_width,
-      TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                             C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
+      TIME_QUANTA_PULSE       => s_time_quanta_pulse,
+      TIME_QUANTA_RESTART     => s_time_quanta_restart,
       SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
       SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
 
@@ -371,7 +389,7 @@ begin
     report_msg_id_panel(VOID);
 
     enable_log_msg(ALL_MESSAGES);
-    set_log_file_name("log/canola_bsp_tb_log.txt");
+    set_log_file_name("log/canola_btl_tb_log.txt");
 
 
     -----------------------------------------------------------------------------------------------

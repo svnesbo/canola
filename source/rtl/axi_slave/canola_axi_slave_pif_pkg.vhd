@@ -18,26 +18,27 @@ package canola_axi_slave_pif_pkg is
   constant C_ADDR_BTL_PHASE_SEG1 : t_canola_axi_slave_addr := 32X"24";
   constant C_ADDR_BTL_PHASE_SEG2 : t_canola_axi_slave_addr := 32X"28";
   constant C_ADDR_BTL_SYNC_JUMP_WIDTH : t_canola_axi_slave_addr := 32X"2C";
-  constant C_ADDR_BTL_TIME_QUANTA_CLOCK_SCALE : t_canola_axi_slave_addr := 32X"30";
+  constant C_ADDR_TIME_QUANTA_CLOCK_SCALE : t_canola_axi_slave_addr := 32X"30";
   constant C_ADDR_TRANSMIT_ERROR_COUNT : t_canola_axi_slave_addr := 32X"34";
   constant C_ADDR_RECEIVE_ERROR_COUNT : t_canola_axi_slave_addr := 32X"38";
   constant C_ADDR_TX_MSG_SENT_COUNT : t_canola_axi_slave_addr := 32X"3C";
-  constant C_ADDR_TX_ACK_ERROR_COUNT : t_canola_axi_slave_addr := 32X"40";
-  constant C_ADDR_TX_ARB_LOST_COUNT : t_canola_axi_slave_addr := 32X"44";
-  constant C_ADDR_TX_BIT_ERROR_COUNT : t_canola_axi_slave_addr := 32X"48";
-  constant C_ADDR_TX_RETRANSMIT_COUNT : t_canola_axi_slave_addr := 32X"4C";
-  constant C_ADDR_RX_MSG_RECV_COUNT : t_canola_axi_slave_addr := 32X"50";
-  constant C_ADDR_RX_CRC_ERROR_COUNT : t_canola_axi_slave_addr := 32X"54";
-  constant C_ADDR_RX_FORM_ERROR_COUNT : t_canola_axi_slave_addr := 32X"58";
-  constant C_ADDR_RX_STUFF_ERROR_COUNT : t_canola_axi_slave_addr := 32X"5C";
-  constant C_ADDR_TX_MSG_ID : t_canola_axi_slave_addr := 32X"60";
-  constant C_ADDR_TX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"64";
-  constant C_ADDR_TX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"68";
-  constant C_ADDR_TX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"6C";
-  constant C_ADDR_RX_MSG_ID : t_canola_axi_slave_addr := 32X"70";
-  constant C_ADDR_RX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"74";
-  constant C_ADDR_RX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"78";
-  constant C_ADDR_RX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"7C";
+  constant C_ADDR_TX_FAILED_COUNT : t_canola_axi_slave_addr := 32X"40";
+  constant C_ADDR_TX_ACK_ERROR_COUNT : t_canola_axi_slave_addr := 32X"44";
+  constant C_ADDR_TX_ARB_LOST_COUNT : t_canola_axi_slave_addr := 32X"48";
+  constant C_ADDR_TX_BIT_ERROR_COUNT : t_canola_axi_slave_addr := 32X"4C";
+  constant C_ADDR_TX_RETRANSMIT_COUNT : t_canola_axi_slave_addr := 32X"50";
+  constant C_ADDR_RX_MSG_RECV_COUNT : t_canola_axi_slave_addr := 32X"54";
+  constant C_ADDR_RX_CRC_ERROR_COUNT : t_canola_axi_slave_addr := 32X"58";
+  constant C_ADDR_RX_FORM_ERROR_COUNT : t_canola_axi_slave_addr := 32X"5C";
+  constant C_ADDR_RX_STUFF_ERROR_COUNT : t_canola_axi_slave_addr := 32X"60";
+  constant C_ADDR_TX_MSG_ID : t_canola_axi_slave_addr := 32X"64";
+  constant C_ADDR_TX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"68";
+  constant C_ADDR_TX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"6C";
+  constant C_ADDR_TX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"70";
+  constant C_ADDR_RX_MSG_ID : t_canola_axi_slave_addr := 32X"74";
+  constant C_ADDR_RX_PAYLOAD_LENGTH : t_canola_axi_slave_addr := 32X"78";
+  constant C_ADDR_RX_PAYLOAD_0 : t_canola_axi_slave_addr := 32X"7C";
+  constant C_ADDR_RX_PAYLOAD_1 : t_canola_axi_slave_addr := 32X"80";
   
   -- RW Register Record Definitions
   
@@ -73,7 +74,7 @@ package canola_axi_slave_pif_pkg is
     BTL_PHASE_SEG1 : std_logic_vector(15 downto 0);
     BTL_PHASE_SEG2 : std_logic_vector(15 downto 0);
     BTL_SYNC_JUMP_WIDTH : std_logic_vector(2 downto 0);
-    BTL_TIME_QUANTA_CLOCK_SCALE : std_logic_vector(7 downto 0);
+    TIME_QUANTA_CLOCK_SCALE : std_logic_vector(7 downto 0);
     TX_MSG_ID : t_canola_axi_slave_rw_TX_MSG_ID;
     TX_PAYLOAD_LENGTH : std_logic_vector(3 downto 0);
     TX_PAYLOAD_0 : t_canola_axi_slave_rw_TX_PAYLOAD_0;
@@ -90,7 +91,7 @@ package canola_axi_slave_pif_pkg is
     BTL_PHASE_SEG1 => 16X"7",
     BTL_PHASE_SEG2 => 16X"7",
     BTL_SYNC_JUMP_WIDTH => 3X"1",
-    BTL_TIME_QUANTA_CLOCK_SCALE => 8X"F",
+    TIME_QUANTA_CLOCK_SCALE => 8X"F",
     TX_MSG_ID => (
       EXT_ID_EN => '0',
       RTR_EN => '0',
@@ -143,15 +144,16 @@ package canola_axi_slave_pif_pkg is
     STATUS : t_canola_axi_slave_ro_STATUS;
     TRANSMIT_ERROR_COUNT : std_logic_vector(15 downto 0);
     RECEIVE_ERROR_COUNT : std_logic_vector(15 downto 0);
-    TX_MSG_SENT_COUNT : std_logic_vector(15 downto 0);
-    TX_ACK_ERROR_COUNT : std_logic_vector(15 downto 0);
-    TX_ARB_LOST_COUNT : std_logic_vector(15 downto 0);
-    TX_BIT_ERROR_COUNT : std_logic_vector(15 downto 0);
-    TX_RETRANSMIT_COUNT : std_logic_vector(15 downto 0);
-    RX_MSG_RECV_COUNT : std_logic_vector(15 downto 0);
-    RX_CRC_ERROR_COUNT : std_logic_vector(15 downto 0);
-    RX_FORM_ERROR_COUNT : std_logic_vector(15 downto 0);
-    RX_STUFF_ERROR_COUNT : std_logic_vector(15 downto 0);
+    TX_MSG_SENT_COUNT : t_canola_axi_slave_data;
+    TX_FAILED_COUNT : t_canola_axi_slave_data;
+    TX_ACK_ERROR_COUNT : t_canola_axi_slave_data;
+    TX_ARB_LOST_COUNT : t_canola_axi_slave_data;
+    TX_BIT_ERROR_COUNT : t_canola_axi_slave_data;
+    TX_RETRANSMIT_COUNT : t_canola_axi_slave_data;
+    RX_MSG_RECV_COUNT : t_canola_axi_slave_data;
+    RX_CRC_ERROR_COUNT : t_canola_axi_slave_data;
+    RX_FORM_ERROR_COUNT : t_canola_axi_slave_data;
+    RX_STUFF_ERROR_COUNT : t_canola_axi_slave_data;
     RX_MSG_ID : t_canola_axi_slave_ro_RX_MSG_ID;
     RX_PAYLOAD_LENGTH : std_logic_vector(3 downto 0);
     RX_PAYLOAD_0 : t_canola_axi_slave_ro_RX_PAYLOAD_0;
@@ -170,6 +172,7 @@ package canola_axi_slave_pif_pkg is
     TRANSMIT_ERROR_COUNT => (others => '0'),
     RECEIVE_ERROR_COUNT => (others => '0'),
     TX_MSG_SENT_COUNT => (others => '0'),
+    TX_FAILED_COUNT => (others => '0'),
     TX_ACK_ERROR_COUNT => (others => '0'),
     TX_ARB_LOST_COUNT => (others => '0'),
     TX_BIT_ERROR_COUNT => (others => '0'),
@@ -199,6 +202,7 @@ package canola_axi_slave_pif_pkg is
   type t_canola_axi_slave_pulse_CONTROL is record
     TX_START : std_logic;
     RESET_TX_MSG_SENT_COUNTER : std_logic;
+    RESET_TX_FAILED_COUNTER : std_logic;
     RESET_TX_ACK_ERROR_COUNTER : std_logic;
     RESET_TX_ARB_LOST_COUNTER : std_logic;
     RESET_TX_BIT_ERROR_COUNTER : std_logic;
@@ -219,6 +223,7 @@ package canola_axi_slave_pif_pkg is
     CONTROL => (
       TX_START => '0',
       RESET_TX_MSG_SENT_COUNTER => '0',
+      RESET_TX_FAILED_COUNTER => '0',
       RESET_TX_ACK_ERROR_COUNTER => '0',
       RESET_TX_ARB_LOST_COUNTER => '0',
       RESET_TX_BIT_ERROR_COUNTER => '0',

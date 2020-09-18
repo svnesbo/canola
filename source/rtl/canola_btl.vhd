@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-06-05
+-- Last update: 2020-09-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -62,7 +62,8 @@ entity canola_btl is
     PHASE_SEG2              : in  std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
     SYNC_JUMP_WIDTH         : in  unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
 
-    TIME_QUANTA_CLOCK_SCALE : in  unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+    TIME_QUANTA_PULSE       : in  std_logic;
+    TIME_QUANTA_RESTART     : out std_logic;
 
     -- Sync FSM state register output/input - for triplication and voting of state
     SYNC_FSM_STATE_O       : out std_logic_vector(C_BTL_SYNC_FSM_STATE_BITSIZE-1 downto 0);
@@ -117,9 +118,8 @@ architecture rtl of canola_btl is
   -- states: ST_PROP_SEG, ST_PHASE1_SEG, or ST_PHASE2_SEG.
   -- During those states it is right shifted 1 time per time quanta pulse
   -- until there are no 1s left, at which point we continue to the next segment.
-  signal s_segment         : std_logic_vector(C_SEGMENT_WIDTH_MAX-1 downto 0);
+  signal s_segment              : std_logic_vector(C_SEGMENT_WIDTH_MAX-1 downto 0);
 
-  signal s_frame_hard_sync      : std_logic;
   signal s_resync_allowed       : std_logic;
   signal s_resync_done          : std_logic;
   signal s_phase_error          : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
@@ -127,17 +127,10 @@ architecture rtl of canola_btl is
   signal s_sample_point_tx      : std_logic;
   signal s_sample_point_rx_done : std_logic;
   signal s_sample_point_tx_done : std_logic;
-  signal s_output_rx_bit_pulse  : std_logic;
-  signal s_time_quanta_pulse    : std_logic;
 
   -- Indicates that we detected a falling edge transition on CAN_RX
   -- for the bit that is currently being processed
   signal s_got_rx_bit_falling_edge : std_logic;
-
-  -- Actual bit sampled at the Rx sample point, will be processed as part of
-  -- CANbus frame (In the case of triple sampling, this is the majority voted
-  -- value of the 3 most recent CAN_RX samples)
-  signal s_sampled_bit : std_logic;
 
   -- Previous 2 bit values - for triple sampling and for falling edge detection
   signal s_quanta_sampled_bits : std_logic_vector(1 downto 0);
@@ -147,9 +140,6 @@ architecture rtl of canola_btl is
   signal s_clk_sampled_bit   : std_logic_vector(1 downto 0);
 
   signal s_sync_jump_width : natural;
-
-  -- Number of bauds that the bus has been "idle" (no transitions)
-  signal s_bus_idle_count : integer range 0 to C_EOF_LENGTH;
 
   -- Number of bits in a row that has been dominant (0) or recessive (1)
   signal s_dominant_bit_count  : unsigned(3 downto 0);
@@ -168,17 +158,6 @@ begin  -- architecture rtl
   -- Convert voted sync FSM state register input from std_logic_vector to btl_sync_fsm_state_t
   s_sync_fsm_state_voted <= btl_sync_fsm_state_t'val(to_integer(unsigned(SYNC_FSM_STATE_VOTED_I)));
 
-  -- Generates a 1 (system) clock cycle pulse for each time quanta
-  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
-    generic map (
-      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
-    port map (
-      CLK               => CLK,
-      RESET             => RESET,
-      RESTART           => s_frame_hard_sync,
-      COUNT_VAL         => TIME_QUANTA_CLOCK_SCALE,
-      TIME_QUANTA_PULSE => s_time_quanta_pulse);
-
   proc_rx_sync_fsm : process(CLK) is
     variable v_phase_error             : natural range 0 to C_SYNC_JUMP_WIDTH_MAX;
     variable v_got_rx_bit_falling_edge : std_logic;
@@ -189,16 +168,15 @@ begin  -- architecture rtl
       -- Sync jump width should be at least one, but not greater than C_SYNC_JUMP_WIDTH_MAX
       s_sync_jump_width <= maximum(maximum(1, to_integer(SYNC_JUMP_WIDTH)), C_SYNC_JUMP_WIDTH_MAX);
 
+      TIME_QUANTA_RESTART  <= '0';
+
       -- Synchronous reset
       if RESET = '1' then
         BTL_RX_SYNCED             <= '0';
-        s_frame_hard_sync         <= '0';
         s_resync_allowed          <= '0';
         s_resync_done             <= '0';
         s_got_rx_bit_falling_edge <= '0';
       else
-        s_frame_hard_sync      <= '0';
-
         if s_clk_sampled_bit(1) = '1' and s_clk_sampled_bit(0) = '0' then
           v_got_rx_bit_falling_edge := '1';
         else
@@ -230,7 +208,7 @@ begin  -- architecture rtl
           -- BTL_RX_SYNCED and s_got_rx_bit_falling_edge should both be '1' by then,
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
-            s_frame_hard_sync     <= '1';
+            TIME_QUANTA_RESTART   <= '1';
             s_sync_fsm_state_out  <= ST_SYNC_SEG;
 
           -- Hard sync is not allowed when we are transmitting,
@@ -241,7 +219,7 @@ begin  -- architecture rtl
         -- FSM logic for bit synchronization within a CAN frame
         -- Note: FSM is processed only on time quanta pulses
         -----------------------------------------------------------------------
-        elsif s_time_quanta_pulse = '1' then
+        elsif TIME_QUANTA_PULSE = '1' then
           case s_sync_fsm_state_voted is
             when ST_SYNC_SEG =>
 
@@ -364,7 +342,7 @@ begin  -- architecture rtl
 
           end case;
 
-        end if; -- s_time_quanta_pulse = '1'
+        end if; -- TIME_QUANTA_PULSE = '1'
       end if; -- RESET = '0'
     end if; -- rising_edge(CLK)
   end process proc_rx_sync_fsm;
@@ -435,39 +413,21 @@ begin  -- architecture rtl
   end process proc_sample_points;
 
 
-  -- Detect if there are no transitions when we are receiving frame
-  -- If we detect too many bits with no transitions in a row we end
-  -- the frame
-  proc_bus_idle_counter : process(CLK) is
-  begin
-    if rising_edge(CLK) then
-      -- Synchronize to time quantas
-      if s_time_quanta_pulse = '1' then
-        if CAN_RX /= s_quanta_sampled_bits(0) then
-          s_bus_idle_count <= 0;
-        elsif s_bus_idle_count < C_EOF_LENGTH then
-          s_bus_idle_count <= s_bus_idle_count + 1;
-        end if;
-      end if;
-    end if;
-  end process proc_bus_idle_counter;
-
-
   -- purpose: Sample received bits
   -- type   : sequential
-  -- inputs : CLK, RESET, CAN_RX
-  -- outputs: s_quanta_sampled_bits
-  proc_sample_rx_bit : process (CLK, RESET) is
+  -- inputs : CLK, RESET, CAN_RX, TIME_QUANTA_PULSE
+  -- outputs: CAN_RX_BIT_VALUE, CAN_RX_BIT_VALID, s_quanta_sampled_bits
+  proc_sample_rx_bit : process (CLK) is
     variable v_sampled_bit : std_logic;
   begin  -- process proc_sample_rx_bit
     if rising_edge(CLK) then
+      BTL_RX_BIT_VALID <= '0';
+
       if RESET = '1' then
         s_quanta_sampled_bits <= (others => '0');
         s_dominant_bit_count  <= (others => '0');
         s_recessive_bit_count <= (others => '0');
-        s_output_rx_bit_pulse <= '0';
       else
-        s_output_rx_bit_pulse <= '0';
         -----------------------------------------------------------------------
         -- Sample bits @ system clock
         -- Used to detect falling edge transition when we are not in sync
@@ -481,7 +441,7 @@ begin  -- architecture rtl
         -- and also for triple sampling (majority vote determines value)
         -- The actual value of a received bit is sampled at the Rx sample point
         -----------------------------------------------------------------------
-        if s_time_quanta_pulse = '1' then
+        if TIME_QUANTA_PULSE = '1' then
           -- Sample and store 2 previous values of CAN_RX,
           -- used for triple sampling and for falling edge
           -- detection in proc_sync_fsm
@@ -498,7 +458,7 @@ begin  -- architecture rtl
             v_sampled_bit := CAN_RX;
           end if;
 
-          if v_sampled_bit /= s_sampled_bit then
+          if v_sampled_bit /= BTL_RX_BIT_VALUE then
             s_recessive_bit_count <= (others => '0');
             s_dominant_bit_count  <= (others => '0');
           end if;
@@ -509,34 +469,11 @@ begin  -- architecture rtl
             s_dominant_bit_count <= s_dominant_bit_count + 1;
           end if;
 
-          s_sampled_bit         <= v_sampled_bit;
-          s_output_rx_bit_pulse <= '1';
+          BTL_RX_BIT_VALUE <= v_sampled_bit;
+          BTL_RX_BIT_VALID <= '1';
         end if;
       end if;
     end if;
   end process proc_sample_rx_bit;
-
-
-  -- purpose: Output received bit value output from BTL (this module)
-  -- type   : sequential
-  -- inputs : CLK, RESET, s_sampled_bit, s_output_rx_bit_pulse
-  -- outputs: BTL_RX_BIT_VALUE, BTL_RX_BIT_VALID
-  proc_rx_bit_output : process(CLK) is
-  begin
-    if rising_edge(CLK) then
-      if RESET = '1' then
-        BTL_RX_BIT_VALID <= '0';
-        BTL_RX_BIT_VALUE <= '0';
-      else
-        BTL_RX_BIT_VALID <= '0';
-
-        if s_output_rx_bit_pulse = '1' then
-          BTL_RX_BIT_VALID <= '1';
-          BTL_RX_BIT_VALUE <= s_sampled_bit;
-        end if;
-      end if;
-    end if;
-  end process proc_rx_bit_output;
-
 
 end architecture rtl;

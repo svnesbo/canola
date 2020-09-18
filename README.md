@@ -4,6 +4,24 @@ A radiation-tolerant CAN bus controller for FPGA's written in VHDL.
 
 ![Canola CAN Controller Block Diagram](doc/canola_block_diagram.png)
 
+A simplified block diagram of the controller is shown in the figure above. The controller offers a simple interface to send and receive messages. All of the main logic of the controller (in green) has been fully implemented and tested, and *can be configured* to use Triple Modular Redundancy (TMR) to achieve radiation tolerance. A simple direct interface to send and receive messages is available, as well as an AXI-slave. (Note: the AXI-slave is not triplicated).
+
+Some common features found in CAN controllers, such as acceptance filtering and Rx/Tx queues, have not been implemented (those are marked in red in the diagram). Those features are not necessary in many applications, and have currently been omitted in order to minimize the size of the logic (and hence the radiation cross-section).
+
+The controller aims to be fully CAN 2.0B compliant (though it has not been tested with Bosch's VHDL Reference CAN).
+
+
+## A note on radiation tolerance
+
+To achieve the radiation tolerance whole blocks of logic are triplicated (Block-TMR), and outputs from the blocks are voted. A combination of single-output and triple-output majority voters are used. In order to reduce the logic size, most non-critical signals use single-output voters. But in certain places triple-output voters are used, such as for the FSM state registers and the CRC calculation. The FSM state register and CRC registers are also updated based on the majority voted value on every clock cycle, so single bit errors in these registers are effectively corrected on every clock cycle.
+
+This mitigation strategy is suitable for SRAM-based FPGAs combined with scrubbing of the configuration memory. In principle it should also work for flash-based FPGAs where scrubbing is not necessary, but the Block-TMR approach may not be optimal in that case. A suggestion for flash-based FPGAs is to use the non-triplicated version of the controller and allow the synthesis tools to perform TMR at the register-level.
+
+Note: As of September 2020 the radiation tolerance of the controller has not been beam-tested.
+
+And as a final remark it should be mentioned that **the controller is fully usable for normal applications and the triplication can be disabled in its entirety**.
+
+
 ## Simulating
 
 Simulating the CAN controller requires modelsim and the UVVM framework to be present:
@@ -13,6 +31,7 @@ The UVVM framework has already been added to the repo as a submodule. To fetch i
 
 ``
 git submodule init
+git submodule update
 ``
 
 Assuming that `vsim` is in your path, running `make` from the top-level directory of the repository will run the testbench.
@@ -65,6 +84,10 @@ https://github.com/UVVM/UVVM_Community_VIPs/tree/3a8ec8a82a50bcef1fcd291a885cfd4
 
 Unfortunately the compile scripts in the UVVM framework expects the VIPs to be located in the UVVM directory, so I was not able to add the Community VIPs as a submodule in a reasonable manner. Instead, copy the bitvis_vip_wishbone_BETA directory from the Community VIP to the extern/UVVM directory, and rename it bitvis_vip_wishbone.
 
+The .v files for the CAN controller from opencores.org should be placed in extern/can_controller/.
+
+You also have to uncomment this line `// `define   CAN_WISHBONE_IF` in can_defines.v to enable the wishbone interface to the CAN controller.
+    
 
 ### Simulation logs
 
@@ -196,9 +219,9 @@ From Xilinx SDK, choose File -> New -> Board Support Package to create a new BSP
 
 The settings should be as in the image shown above. Choose to have the project created in the default location, and give the project the name "canola_test_bsp", because this is what the project for the actual Zynq firmware expects. 
 
-Click Finish, and in then OK in the next window for the Board Support Package Settings (shown in the image below). The test project does not use any of the additional support libraries.
+Click Finish, and then OK in the next window for the Board Support Package Settings (shown in the image below). The test project does not use any of the additional support libraries.
 
-![Board Support Package Settings](doc/zynq/xilinx_sdk_create_bsp.png "Board Support Package Settings")
+![Board Support Package Settings](doc/zynq/xilinx_sdk_bsp_settings.png "Board Support Package Settings")
 
 
 #### Step 4 - Import Canola test project in Xilinx SDK

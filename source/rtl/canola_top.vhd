@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-10
--- Last update: 2020-02-17
+-- Last update: 2020-09-12
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -35,7 +35,8 @@ use work.canola_pkg.all;
 
 entity canola_top is
   generic (
-    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT);
+    G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT;
+    G_RETRANSMIT_COUNT_MAX    : natural := C_RETRANSMIT_COUNT_MAX_DEFAULT);
   port (
     CLK   : in std_logic;
     RESET : in std_logic;
@@ -57,12 +58,14 @@ entity canola_top is
     TX_FAILED        : out std_logic;
 
     -- BTL configuration
-    BTL_TRIPLE_SAMPLING         : in std_logic;
-    BTL_PROP_SEG                : in std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
-    BTL_PHASE_SEG1              : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
-    BTL_PHASE_SEG2              : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
-    BTL_SYNC_JUMP_WIDTH         : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
-    BTL_TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+    BTL_TRIPLE_SAMPLING : in std_logic;
+    BTL_PROP_SEG        : in std_logic_vector(C_PROP_SEG_WIDTH-1 downto 0);
+    BTL_PHASE_SEG1      : in std_logic_vector(C_PHASE_SEG1_WIDTH-1 downto 0);
+    BTL_PHASE_SEG2      : in std_logic_vector(C_PHASE_SEG2_WIDTH-1 downto 0);
+    BTL_SYNC_JUMP_WIDTH : in unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0);
+
+    -- Clock scale value to divide system CLK by to generate time quantas
+    TIME_QUANTA_CLOCK_SCALE : in unsigned(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
 
     -- Error state and counters
     -- Note: transmit/receive error counters do not hold absolute of the
@@ -75,6 +78,7 @@ entity canola_top is
     -- Signals that can be used to count up external status counters
     -- (e.g. in canola_counters.vhd)
     TX_MSG_SENT_COUNT_UP    : out std_logic;
+    TX_FAILED_COUNT_UP      : out std_logic;
     TX_ACK_ERROR_COUNT_UP   : out std_logic;
     TX_ARB_LOST_COUNT_UP    : out std_logic;
     TX_BIT_ERROR_COUNT_UP   : out std_logic;
@@ -90,10 +94,8 @@ end entity canola_top;
 architecture struct of canola_top is
 
   -- Signals for Tx Frame FSM
-  signal s_tx_fsm_ack_recv                    : std_logic;  -- Acknowledge was received
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
   signal s_tx_fsm_arb_won                     : std_logic;  -- Arbitration was won
-  signal s_tx_fsm_failed                      : std_logic;  -- Failed to send message
   signal s_tx_fsm_retransmitting              : std_logic;  -- Attempting retransmit
 
   -- BSP interface to Tx Frame FSM
@@ -139,19 +141,21 @@ architecture struct of canola_top is
   signal s_btl_rx_synced       : std_logic;
   signal s_btl_rx_stop         : std_logic;
 
+  -- Time Quanta Generator signals
+  signal s_time_quanta_pulse   : std_logic;
+  signal s_time_quanta_restart : std_logic;
+  signal s_time_quanta_count   : std_logic_vector(G_TIME_QUANTA_SCALE_WIDTH-1 downto 0);
+
   -- EML signals
   signal s_eml_rx_stuff_error                   : std_logic;
   signal s_eml_rx_crc_error                     : std_logic;
   signal s_eml_rx_form_error                    : std_logic;
   signal s_eml_rx_active_error_flag_bit_error   : std_logic;
-  signal s_eml_rx_overload_flag_bit_error       : std_logic;
-  signal s_eml_rx_dominant_bit_after_error_flag : std_logic;
-  signal s_eml_tx_bit_error                     : std_logic;
+  signal s_eml_tx_bit_error_rx_fsm              : std_logic;
+  signal s_eml_tx_bit_error_tx_fsm              : std_logic;
   signal s_eml_tx_ack_error                     : std_logic;
   signal s_eml_tx_arb_stuff_error               : std_logic;
   signal s_eml_tx_active_error_flag_bit_error   : std_logic;
-  signal s_eml_transmit_success                 : std_logic;
-  signal s_eml_receive_success                  : std_logic;
   signal s_eml_recv_11_recessive_bits           : std_logic;
   signal s_eml_error_state                      : std_logic_vector(C_CAN_ERROR_STATE_BITSIZE-1 downto 0);
 
@@ -188,9 +192,10 @@ begin  -- architecture struct
   -- Some of these signals are already available on a different output port
   -- But for clarity each counter has been given a dedicated port signal
   TX_MSG_SENT_COUNT_UP    <= TX_DONE;
+  TX_FAILED_COUNT_UP      <= TX_FAILED;
   TX_ACK_ERROR_COUNT_UP   <= s_eml_tx_ack_error;
   TX_ARB_LOST_COUNT_UP    <= s_tx_fsm_arb_lost;
-  TX_BIT_ERROR_COUNT_UP   <= s_eml_tx_bit_error;
+  TX_BIT_ERROR_COUNT_UP   <= s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm;
   TX_RETRANSMIT_COUNT_UP  <= s_tx_fsm_retransmitting;
   RX_MSG_RECV_COUNT_UP    <= RX_MSG_VALID;
   RX_CRC_ERROR_COUNT_UP   <= s_eml_rx_crc_error;
@@ -205,6 +210,8 @@ begin  -- architecture struct
 
   -- Transmit state machine
   INST_canola_frame_tx_fsm : entity work.canola_frame_tx_fsm
+    generic map (
+      G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
@@ -215,7 +222,7 @@ begin  -- architecture struct
       TX_DONE                            => TX_DONE,
       TX_ARB_LOST                        => s_tx_fsm_arb_lost,
       TX_ARB_WON                         => s_tx_fsm_arb_won,
-      TX_FAILED                          => s_tx_fsm_failed,
+      TX_FAILED                          => TX_FAILED,
       TX_RETRANSMITTING                  => s_tx_fsm_retransmitting,
       BSP_TX_DATA                        => s_bsp_tx_data,
       BSP_TX_DATA_COUNT                  => s_bsp_tx_data_count,
@@ -231,7 +238,7 @@ begin  -- architecture struct
       BSP_SEND_ERROR_FLAG                => s_bsp_send_error_flag_tx_fsm,
       BSP_ERROR_FLAG_DONE                => s_bsp_error_flag_done,
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
-      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error,
+      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_tx_fsm,
       EML_TX_ACK_ERROR                   => s_eml_tx_ack_error,
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
@@ -264,6 +271,7 @@ begin  -- architecture struct
       BSP_ACTIVE_ERROR_FLAG_BIT_ERROR    => s_bsp_active_error_flag_bit_error,
       BTL_RX_BIT_VALUE                   => s_btl_rx_bit_value,
       BTL_RX_BIT_VALID                   => s_btl_rx_bit_valid,
+      EML_TX_BIT_ERROR                   => s_eml_tx_bit_error_rx_fsm,
       EML_RX_STUFF_ERROR                 => s_eml_rx_stuff_error,
       EML_RX_CRC_ERROR                   => s_eml_rx_crc_error,
       EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
@@ -348,9 +356,23 @@ begin  -- architecture struct
       PHASE_SEG1              => BTL_PHASE_SEG1,
       PHASE_SEG2              => BTL_PHASE_SEG2,
       SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
-      TIME_QUANTA_CLOCK_SCALE => BTL_TIME_QUANTA_CLOCK_SCALE,
+      TIME_QUANTA_PULSE       => s_time_quanta_pulse,
+      TIME_QUANTA_RESTART     => s_time_quanta_restart,
       SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
       SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
+
+  -- Generates a 1 (system) clock cycle pulse for each time quanta
+  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
+    port map (
+      CLK               => CLK,
+      RESET             => RESET,
+      RESTART           => s_time_quanta_restart,
+      CLK_SCALE         => TIME_QUANTA_CLOCK_SCALE,
+      TIME_QUANTA_PULSE => s_time_quanta_pulse,
+      COUNT_OUT         => s_time_quanta_count,
+      COUNT_IN          => s_time_quanta_count);
 
   -- Error Management Logic (EML)
   -- Keeps track of errors occuring in other modules,
@@ -365,11 +387,10 @@ begin  -- architecture struct
       RX_CRC_ERROR                     => s_eml_rx_crc_error,
       RX_FORM_ERROR                    => s_eml_rx_form_error,
       RX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_rx_active_error_flag_bit_error,
-      RX_OVERLOAD_FLAG_BIT_ERROR       => s_eml_rx_overload_flag_bit_error,
-      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => s_eml_rx_dominant_bit_after_error_flag,
-      TX_BIT_ERROR                     => s_eml_tx_bit_error,
+      RX_OVERLOAD_FLAG_BIT_ERROR       => '0', -- Note: Overload flag not implemented
+      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => '0', -- Todo: Not detected yet
+      TX_BIT_ERROR                     => s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
-      TX_ACK_PASSIVE_ERROR             => '0',
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,
       TRANSMIT_SUCCESS                 => TX_DONE,
       RECEIVE_SUCCESS                  => RX_MSG_VALID,

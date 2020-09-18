@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-02-12
+-- Last update: 2020-09-04
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -84,8 +84,10 @@ package canola_pkg is
 
   constant C_ACCEPTANCE_FILTERS_MAX : natural := 256;
 
-  -- TODO: Set this to whatever value the CANbus standard specifies
-  constant C_RETRANSMIT_COUNT_MAX : natural := 4;
+  -- Maximum number of retransmit attempts after a message failed to send
+  -- (default and value to use to attempt retransmits forever until it succeeds)
+  constant C_RETRANSMIT_COUNT_MAX_DEFAULT : natural := 4;
+  constant C_RETRANSMIT_COUNT_FOREVER     : natural := 0;
 
   type can_payload_t is array (0 to 7) of std_logic_vector(7 downto 0);
 
@@ -149,9 +151,6 @@ package canola_pkg is
   -- Transmit Error Counter (TEC) increase on ack error
   constant C_TEC_ACK_ERROR_INCREASE : natural := 8;
 
-  -- Transmit Error Counter (TEC) increase on ack error
-  constant C_TEC_ACK_PASSIVE_ERROR_INCREASE : natural := 8;
-
   -- Transmit Error Counter (TEC) increase on active error flag bit error
   constant C_TEC_ACTIVE_ERR_FLAG_BIT_ERROR_INCREASE : natural := 8;
 
@@ -203,37 +202,35 @@ package canola_pkg is
 
   -- Type definition for Rx Frame FSM state register
   type can_frame_rx_fsm_state_t is (ST_IDLE,
-                              ST_RECV_SOF,
-                              ST_RECV_ID_A,
-                              ST_RECV_SRR_RTR,
-                              ST_RECV_IDE,
-                              ST_RECV_ID_B,
-                              ST_RECV_EXT_FRAME_RTR,
-                              ST_RECV_R1,
-                              ST_RECV_R0,
-                              ST_RECV_DLC,
-                              ST_RECV_DATA,
-                              ST_RECV_CRC,
-                              ST_RECV_CRC_DELIM,
-                              ST_SEND_RECV_ACK,
-                              ST_RECV_ACK_DELIM,
-                              ST_RECV_EOF,
-                              ST_CRC_ERROR,
-                              ST_STUFF_ERROR,
-                              ST_FORM_ERROR,
-                              ST_WAIT_ERROR_FLAG,
-                              ST_DONE,
-                              ST_WAIT_BUS_IDLE);
+                                    ST_RECV_SOF,
+                                    ST_RECV_ID_A,
+                                    ST_RECV_SRR_RTR,
+                                    ST_RECV_IDE,
+                                    ST_RECV_ID_B,
+                                    ST_RECV_EXT_FRAME_RTR,
+                                    ST_RECV_R1,
+                                    ST_RECV_R0,
+                                    ST_RECV_DLC,
+                                    ST_RECV_DATA,
+                                    ST_RECV_CRC,
+                                    ST_RECV_CRC_DELIM,
+                                    ST_SEND_RECV_ACK,
+                                    ST_RECV_ACK_DELIM,
+                                    ST_RECV_EOF,
+                                    ST_ERROR,
+                                    ST_WAIT_ERROR_FLAG,
+                                    ST_DONE,
+                                    ST_WAIT_BUS_IDLE);
 
   -- Type definition for Tx Frame FSM state register
   type can_frame_tx_fsm_state_t is (ST_IDLE,
                               ST_WAIT_FOR_BUS_IDLE,
                               ST_SETUP_SOF,
                               ST_SETUP_ID_A,
-                              ST_SETUP_SRR,
+                              ST_SETUP_SRR_RTR,
                               ST_SETUP_IDE,
                               ST_SETUP_ID_B,
-                              ST_SETUP_RTR,
+                              ST_SETUP_EXT_RTR,
                               ST_SETUP_R1,
                               ST_SETUP_R0,
                               ST_SETUP_DLC,
@@ -246,10 +243,10 @@ package canola_pkg is
                               ST_SETUP_ERROR_FLAG,
                               ST_SEND_SOF,
                               ST_SEND_ID_A,
-                              ST_SEND_SRR,
+                              ST_SEND_SRR_RTR,
                               ST_SEND_IDE,
                               ST_SEND_ID_B,
-                              ST_SEND_RTR,
+                              ST_SEND_EXT_RTR,
                               ST_SEND_R1,
                               ST_SEND_R0,
                               ST_SEND_DLC,

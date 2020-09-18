@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2019-07-20
--- Last update: 2020-05-29
+-- Last update: 2020-08-26
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -149,6 +149,10 @@ architecture tb of canola_bsp_tb is
   signal s_sync_jump_width : unsigned(C_SYNC_JUMP_WIDTH_BITSIZE-1 downto 0)
     := to_unsigned(2, C_SYNC_JUMP_WIDTH_BITSIZE);
 
+  signal s_time_quanta_pulse   : std_logic := '0';
+  signal s_time_quanta_restart : std_logic := '0';
+  signal s_time_quanta_count   : std_logic_vector(C_TIME_QUANTA_SCALE_WIDTH_DEFAULT-1 downto 0);
+
   signal can_bus_signal    : std_logic;
 
   signal s_rx_tx_mismatch_rst       : std_logic := '0';
@@ -241,10 +245,24 @@ begin
       PHASE_SEG1              => s_phase_seg1,
       PHASE_SEG2              => s_phase_seg2,
       SYNC_JUMP_WIDTH         => s_sync_jump_width,
-      TIME_QUANTA_CLOCK_SCALE => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
-                                             C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
+      TIME_QUANTA_PULSE       => s_time_quanta_pulse,
+      TIME_QUANTA_RESTART     => s_time_quanta_restart,
       SYNC_FSM_STATE_O        => s_btl_sync_fsm_state,
       SYNC_FSM_STATE_VOTED_I  => s_btl_sync_fsm_state);
+
+  -- Generates a 1 (system) clock cycle pulse for each time quanta
+  INST_canola_time_quanta_gen : entity work.canola_time_quanta_gen
+    generic map (
+      G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_SCALE_WIDTH_DEFAULT)
+    port map (
+      CLK               => s_clk,
+      RESET             => s_reset,
+      RESTART           => s_time_quanta_restart,
+      CLK_SCALE         => to_unsigned(C_TIME_QUANTA_CLOCK_SCALE_VAL,
+                                       C_TIME_QUANTA_SCALE_WIDTH_DEFAULT),
+      TIME_QUANTA_PULSE => s_time_quanta_pulse,
+      COUNT_OUT         => s_time_quanta_count,
+      COUNT_IN          => s_time_quanta_count);
 
   -- Detect if BSP_TX_RX_MISMATCH or BSP_TX_RX_STUFF_MISMATCH goes high
   p_rx_tx_mismatch_detect: process (s_clk) is
