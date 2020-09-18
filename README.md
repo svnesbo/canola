@@ -219,9 +219,9 @@ From Xilinx SDK, choose File -> New -> Board Support Package to create a new BSP
 
 The settings should be as in the image shown above. Choose to have the project created in the default location, and give the project the name "canola_test_bsp", because this is what the project for the actual Zynq firmware expects. 
 
-Click Finish, and in then OK in the next window for the Board Support Package Settings (shown in the image below). The test project does not use any of the additional support libraries.
+Click Finish, and then OK in the next window for the Board Support Package Settings (shown in the image below). The test project does not use any of the additional support libraries.
 
-![Board Support Package Settings](doc/zynq/xilinx_sdk_create_bsp.png "Board Support Package Settings")
+![Board Support Package Settings](doc/zynq/xilinx_sdk_bsp_settings.png "Board Support Package Settings")
 
 
 #### Step 4 - Import Canola test project in Xilinx SDK
