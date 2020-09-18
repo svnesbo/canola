@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-09-04
+-- Last update: 2020-09-17
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -428,15 +428,20 @@ begin  -- architecture rtl
             -- No bit stuffing for EOF (End of Frame)
             BSP_RX_BIT_DESTUFF_EN <= '0';
 
-            if s_bsp_rx_data_count < C_EOF_LENGTH then
-              -- Check for bit errors in EOF in the first 6 bits of EOF
-              -- Note: Last bit of EOF is don't care for the receiver
-              -- See CAN specification 2.0B: 5 Message Validation
+            -- Check for bit errors in the first 6 bits of EOF.
+            -- Last bit of EOF is skipped because the it is allowed by the
+            -- of CAN specification for the receiver (see CAN 2.0B section
+            -- 5 Message Validation).
+            -- Also if a transmitter sends next package immediately after
+            -- 7x EOF bits + IFS bits, due to clock skew we may receive the
+            -- first bit during the last bit of IFS. Ignoring bit 7 of EOF
+            -- solves that problem.
+            if s_bsp_rx_data_count < (C_EOF_LENGTH-1) then
               if BTL_RX_BIT_VALID = '1' and BTL_RX_BIT_VALUE /= C_EOF_VALUE then
                 s_rx_form_error <= '1';
                 s_fsm_state_out <= ST_ERROR;
               end if;
-            elsif s_bsp_rx_data_count = C_EOF_LENGTH and BSP_RX_DATA_CLEAR = '0' then
+            elsif s_bsp_rx_data_count = (C_EOF_LENGTH-1) and BSP_RX_DATA_CLEAR = '0' then
               BSP_RX_DATA_CLEAR <= '1';
               s_fsm_state_out   <= ST_DONE;
             end if;

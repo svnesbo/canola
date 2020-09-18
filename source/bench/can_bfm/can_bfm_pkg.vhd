@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo  <svn@hvl.no>
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2018-05-24
--- Last update: 2020-02-28
+-- Last update: 2020-09-17
 -- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -292,7 +292,7 @@ package body can_bfm_pkg is
         -- CRC delimiter
         -- ACK delimiter
         -- EOF (the first 6 bits)
-        rand_int := natural(round(rand_real * real(8)));
+        rand_int := natural(round(rand_real * real(7)));
 
         if rand_int = 0 then
           report "Generating form error in CRC delimiter";
@@ -301,6 +301,7 @@ package body can_bfm_pkg is
           report "Generating form error in ACK delimiter";
           form_error_index := crc_start_index+C_ACK_DELIM_INDEX;
         else
+          --report "Generating form error in EOF";
           report "Generating form error in EOF";
           form_error_index := crc_start_index+C_EOF_INDEX+rand_int-2;
 
@@ -370,7 +371,7 @@ package body can_bfm_pkg is
         -- CRC delimiter
         -- ACK delimiter
         -- EOF (the first 6 bits)
-        rand_int := natural(round(rand_real * real(9)));
+        rand_int := natural(round(rand_real * real(8)));
 
         if bit_buffer(crc_start_index+C_CRC_DELIM_INDEX-4 to
                       crc_start_index+C_CRC_DELIM_INDEX-1) = "0000" and
