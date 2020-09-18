@@ -83,6 +83,10 @@ https://github.com/UVVM/UVVM_Community_VIPs/tree/3a8ec8a82a50bcef1fcd291a885cfd4
 
 Unfortunately the compile scripts in the UVVM framework expects the VIPs to be located in the UVVM directory, so I was not able to add the Community VIPs as a submodule in a reasonable manner. Instead, copy the bitvis_vip_wishbone_BETA directory from the Community VIP to the extern/UVVM directory, and rename it bitvis_vip_wishbone.
 
+The .v files for the CAN controller from opencores.org should be placed in extern/can_controller/.
+
+You also have to uncomment this line `// `define   CAN_WISHBONE_IF` in can_defines.v to enable the wishbone interface to the CAN controller.
+    
 
 ### Simulation logs
 
