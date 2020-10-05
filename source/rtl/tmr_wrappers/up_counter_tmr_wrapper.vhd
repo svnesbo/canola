@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-02-14
+-- Last update: 2020-10-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -84,7 +84,7 @@ begin
       type t_count_value_tmr is array (0 to C_K_TMR-1) of std_logic_vector(BIT_WIDTH-1 downto 0);
 
       signal s_counter_out   : t_count_value_tmr;
-      signal s_counter_voted : std_logic_vector(BIT_WIDTH-1 downto 0);
+      signal s_counter_voted : t_count_value_tmr;
 
       attribute DONT_TOUCH                    : string;
       attribute DONT_TOUCH of s_counter_out   : signal is "TRUE";
@@ -105,22 +105,24 @@ begin
             CLEAR          => CLEAR,
             COUNT_UP       => COUNT_UP,
             COUNT_OUT      => s_counter_out(i),
-            COUNT_VOTED_IN => s_counter_voted);
+            COUNT_VOTED_IN => s_counter_voted(i));
       end generate for_TMR_generate;
 
-      INST_upcount_voter : entity work.tmr_voter_array
+      INST_upcount_voter : entity work.tmr_voter_triplicated_array
         generic map (
           G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
           G_MISMATCH_OUTPUT_REG => G_MISMATCH_OUTPUT_REG)
         port map (
-          CLK       => CLK,
-          INPUT_A   => s_counter_out(0),
-          INPUT_B   => s_counter_out(1),
-          INPUT_C   => s_counter_out(2),
-          VOTER_OUT => s_counter_voted,
-          MISMATCH  => MISMATCH);
+          CLK         => CLK,
+          INPUT_A     => s_counter_out(0),
+          INPUT_B     => s_counter_out(1),
+          INPUT_C     => s_counter_out(2),
+          VOTER_OUT_A => s_counter_voted(0),
+          VOTER_OUT_B => s_counter_voted(1),
+          VOTER_OUT_C => s_counter_voted(2),
+          MISMATCH    => MISMATCH);
 
-      COUNT_OUT <= s_counter_voted;
+      COUNT_OUT <= s_counter_voted(0);
 
     end block tmr_block;
   end generate if_TMR_generate;
