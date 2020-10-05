@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-06-26
--- Last update: 2020-09-04
+-- Last update: 2020-10-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -99,6 +99,10 @@ package canola_pkg is
     data           : can_payload_t;
     data_length    : std_logic_vector(C_DLC_LENGTH-1 downto 0);
   end record can_msg_t;
+
+  -- Number of bits in can_msg_t
+  constant C_CAN_MSG_LENGTH : natural := C_ID_A_LENGTH + C_ID_B_LENGTH +
+                                         1 + 1 + (8*8) + C_DLC_LENGTH;
 
 
   -----------------------------------------------------------------------------
@@ -296,4 +300,89 @@ package canola_pkg is
   -- Todo: Maybe this should go in tmr_pkg.vhd instead
   type t_eml_counter_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0);
 
+
+  -----------------------------------------------------------------------------
+  -- Functions
+  -----------------------------------------------------------------------------
+  function serialize_can_msg (msg : can_msg_t)
+    return std_logic_vector;
+
+  function deserialize_can_msg (msg_slv : std_logic_vector(C_CAN_MSG_LENGTH-1 downto 0))
+    return can_msg_t;
+
 end canola_pkg;
+
+
+package body canola_pkg is
+
+  procedure deserialize_slv(
+    constant source : in    std_logic_vector;
+    index           : inout integer;
+    field           : out   std_logic_vector) is
+  begin
+    assert not source'ascending report "Only downto direcion supported" severity error;
+    assert not field'ascending report "Only downto direcion supported" severity error;
+    assert index + field'length <= source'length report "Error in deserializing vector, field is out of bounds" severity error;
+    for i in field'range loop
+      field(i) := source(index + i - field'low);
+    end loop;
+    index := index + field'length;
+  end procedure deserialize_slv;
+
+  procedure deserialize_slv(
+    constant source : in    std_logic_vector;
+    index           : inout integer;
+    field           : out   std_logic) is
+  begin
+    assert not source'ascending report "Only downto direcion supported" severity error;
+    assert index + 1 <= source'length report "Error in deserializing vector, field is out of bounds" severity error;
+    field            := source(index);
+    index            := index + 1;
+  end procedure deserialize_slv;
+
+  function serialize_can_msg (msg : can_msg_t)
+    return std_logic_vector
+  is
+    variable msg_slv : std_logic_vector(C_CAN_MSG_LENGTH-1 downto 0);
+  begin
+    msg_slv := msg.arb_id_a &
+               msg.arb_id_b &
+               msg.remote_request &
+               msg.ext_id &
+               msg.data(0) &
+               msg.data(1) &
+               msg.data(2) &
+               msg.data(3) &
+               msg.data(4) &
+               msg.data(5) &
+               msg.data(6) &
+               msg.data(7) &
+               msg.data_length;
+    return msg_slv;
+  end function serialize_can_msg;
+
+  function deserialize_can_msg (msg_slv : std_logic_vector(C_CAN_MSG_LENGTH-1 downto 0))
+    return can_msg_t
+  is
+    variable msg   : can_msg_t;
+    variable index : natural := 0;
+  begin
+    -- Extract fields from serialized std_logic_vector
+    -- in reverse order (the serialized vector has downto range)
+    deserialize_slv(msg_slv, index, msg.data_length);
+    deserialize_slv(msg_slv, index, msg.data(7));
+    deserialize_slv(msg_slv, index, msg.data(6));
+    deserialize_slv(msg_slv, index, msg.data(5));
+    deserialize_slv(msg_slv, index, msg.data(4));
+    deserialize_slv(msg_slv, index, msg.data(3));
+    deserialize_slv(msg_slv, index, msg.data(2));
+    deserialize_slv(msg_slv, index, msg.data(1));
+    deserialize_slv(msg_slv, index, msg.data(0));
+    deserialize_slv(msg_slv, index, msg.ext_id);
+    deserialize_slv(msg_slv, index, msg.remote_request);
+    deserialize_slv(msg_slv, index, msg.arb_id_b);
+    deserialize_slv(msg_slv, index, msg.arb_id_a);
+    return msg;
+  end function deserialize_can_msg;
+
+end package body canola_pkg;
