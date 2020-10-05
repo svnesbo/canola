@@ -2,11 +2,11 @@
 -- Title      : Bit Stream Processor (BSP) for CAN bus - TMR Wrapper
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : canola_bsp.vhd
+-- File       : canola_bsp_tmr_wrapper.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-02-13
+-- Last update: 2020-10-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------

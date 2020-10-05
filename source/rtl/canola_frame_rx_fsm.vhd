@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-06
--- Last update: 2020-09-17
+-- Last update: 2020-09-23
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -388,6 +388,8 @@ begin  -- architecture rtl
                   s_fsm_state_out <= ST_RECV_ACK_DELIM;
                 end if;
               else
+                -- Either CRC mismatch (error flag is sent in next state),
+                -- or successfully read back the ACK we sent and all is good.
                 s_fsm_state_out <= ST_RECV_ACK_DELIM;
               end if;
             end if;

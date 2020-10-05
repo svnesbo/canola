@@ -2,11 +2,11 @@
 -- Title      : Time quanta generator for CAN bus - TMR Wrapper
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : can_time_quanta_gen.vhd
+-- File       : can_time_quanta_gen_tmr_wrapper.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-08-26
--- Last update: 2020-08-26
+-- Last update: 2020-10-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------

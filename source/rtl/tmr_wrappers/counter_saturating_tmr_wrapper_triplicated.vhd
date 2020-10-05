@@ -2,11 +2,11 @@
 -- Title      : Saturating counter TMR wrapper
 -- Project    : Canola CAN Controller
 -------------------------------------------------------------------------------
--- File       : counter_tmr_wrapper_triplicated.vhd
+-- File       : counter_saturating_tmr_wrapper_triplicated.vhd
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-02-14
+-- Last update: 2020-10-05
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
