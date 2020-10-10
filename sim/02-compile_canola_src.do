@@ -35,7 +35,9 @@ quietly set compdirectives_vlog "-mixedsvvh s -93 -suppress 1346,1236 -quiet -wo
 
 echo "\n\n\n=== Compiling Canola sources\n"
 
+eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/mismatch.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/tmr_pkg.vhd
+eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/tmr_voter_pkg.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/tmr_voter.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/tmr_voter_triplicated.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_voters/tmr_voter_array.vhd
@@ -64,6 +66,7 @@ eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_eml_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_frame_rx_fsm_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_frame_tx_fsm_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/tmr_wrapper_cfg.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/canola_top_tmr.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/canola_counters_tmr.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/axi_slave/canola_axi_slave_tmr.vhd

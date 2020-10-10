@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-12-17
--- Last update: 2020-08-26
+-- Last update: 2020-10-10
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -17,8 +17,9 @@
 -- Copyright (c) 2019
 -------------------------------------------------------------------------------
 -- Revisions  :
--- Date        Version  Author                  Description
--- 2019-12-17  1.0      svn                     Created
+-- Date        Version  Author  Description
+-- 2019-12-17  1.0      svn     Created
+-- 2020-10-10  1.1      svn     Modified to use updated voters
 -------------------------------------------------------------------------------
 
 use std.textio.all;
@@ -46,7 +47,7 @@ use work.can_uvvm_bfm_pkg.all;
 entity canola_axi_slave_tb is
   generic (
     G_TMR_TOP_MODULE_EN : boolean := false;  -- Use canola_axi_slave_tmr instead of canola_axi_slave
-    G_SEE_MITIGATION_EN : boolean := false); -- Enable TMR in canola_axi_slave_tmr
+    G_SEE_MITIGATION_EN : integer := 0);  -- Enable TMR in canola_axi_slave_tmr
 end canola_axi_slave_tb;
 
 architecture tb of canola_axi_slave_tb is
@@ -245,8 +246,10 @@ begin
   if_TMR_generate : if G_TMR_TOP_MODULE_EN generate
     INST_canola_axi_slave_tmr : entity work.canola_axi_slave_tmr
       generic map (
-        G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
-        G_MISMATCH_OUTPUT_EN => false
+        G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+        G_MISMATCH_OUTPUT_EN     => 0,
+        G_MISMATCH_OUTPUT_2ND_EN => 0,
+        G_MISMATCH_OUTPUT_REG    => 0
         )
       port map (
         CAN_RX                  => s_can_ctrl_rx,
@@ -254,8 +257,10 @@ begin
         CAN_RX_VALID_IRQ        => s_can_rx_valid_irq,
         CAN_TX_DONE_IRQ         => s_can_tx_done_irq,
         CAN_TX_FAILED_IRQ       => s_can_tx_failed_irq,
-        VOTER_MISMATCH_LOGIC    => open,
-        VOTER_MISMATCH_COUNTERS => open,
+        MISMATCH_LOGIC          => open,
+        MISMATCH_LOGIC_2ND      => open,
+        MISMATCH_COUNTERS       => open,
+        MISMATCH_COUNTERS_2ND   => open,
         axi_clk                 => s_can_axi_clk,
         axi_reset               => s_reset,
         axi_aresetn             => s_can_axi_areset_n,
@@ -594,9 +599,9 @@ begin
 
     enable_log_msg(ALL_MESSAGES);
 
-    if G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN then
+    if G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN = 1 then
       set_log_file_name("log/canola_axi_slave_tb_tmr_wrap_tmr_log.txt");
-    elsif G_TMR_TOP_MODULE_EN and not G_SEE_MITIGATION_EN then
+    elsif G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN = 0 then
       set_log_file_name("log/canola_axi_slave_tb_tmr_wrap_no_tmr_log.txt");
     else
       set_log_file_name("log/canola_axi_slave_tb_no_tmr_log.txt");

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-09-12
+-- Last update: 2020-10-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -24,6 +24,7 @@
 -- Date        Version  Author  Description
 -- 2019-02-05  1.0      svn     Created
 -- 2020-02-12  1.1      svn     Made counters external
+-- 2020-10-09  1.2      svn     Modified to use updated wrappers and voters
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -36,8 +37,10 @@ use work.canola_pkg.all;
 
 entity canola_top_tmr is
   generic (
-    G_SEE_MITIGATION_EN       : boolean := true;  -- Enable TMR
-    G_MISMATCH_OUTPUT_EN      : boolean := true;  -- Enable TMR voter mismatch output
+    G_SEE_MITIGATION_EN       : integer := 1;  -- Enable TMR
+    G_MISMATCH_OUTPUT_EN      : integer := 0;  -- Enable TMR voter mismatch output
+    G_MISMATCH_OUTPUT_2ND_EN  : integer := 0;  -- Enable additional mismatch output
+    G_MISMATCH_OUTPUT_REG     : integer := 0;  -- Use register on mismatch output
     G_TIME_QUANTA_SCALE_WIDTH : natural := C_TIME_QUANTA_SCALE_WIDTH_DEFAULT;
     G_RETRANSMIT_COUNT_MAX    : natural := C_RETRANSMIT_COUNT_MAX_DEFAULT);
   port (
@@ -91,7 +94,8 @@ entity canola_top_tmr is
     RX_FORM_ERROR_COUNT_UP  : out std_logic;
     RX_STUFF_ERROR_COUNT_UP : out std_logic;
 
-    VOTER_MISMATCH : out std_logic
+    MISMATCH     : out std_logic; -- Voter mismatch output
+    MISMATCH_2ND : out std_logic  -- Additional mismatch output
     );
 
 end entity canola_top_tmr;
@@ -196,27 +200,10 @@ architecture struct of canola_top_tmr is
   constant C_mismatch_tec             : integer := 7;
   constant C_mismatch_recessive_count : integer := 8;
   constant C_MISMATCH_WIDTH           : integer := 9;
-  signal s_mismatch_vector            : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
-
-  -- Register mismatch outputs from counters
-  constant C_MISMATCH_OUTPUT_REG : boolean := true;
+  signal s_mismatch_array             : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
+  signal s_mismatch_2nd_array         : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
 begin  -- architecture struct
-
-  -- Register mismatch output when TMR is enabled
-  if_TMR_gen : if G_SEE_MITIGATION_EN generate
-    proc_mismatch_reg : process (CLK) is
-    begin
-      if rising_edge(CLK) then
-        VOTER_MISMATCH <= or_reduce(s_mismatch_vector);
-      end if;
-    end process proc_mismatch_reg;
-  end generate if_TMR_gen;
-
-  if_not_TMR_gen : if not G_SEE_MITIGATION_EN generate
-    VOTER_MISMATCH <= '0';
-  end generate if_not_TMR_gen;
-
 
   -- Some of these signals are already available on a different output port
   -- But for clarity each counter has been given a dedicated port signal
@@ -238,11 +225,13 @@ begin  -- architecture struct
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
   -- Transmit state machine
-  INST_canola_frame_tx_fsm_tmr : entity work.canola_frame_tx_fsm_tmr_wrapper
+  INST_canola_frame_tx_fsm_tmr : configuration work.canola_frame_tx_fsm_tmr_wrapper_cfg
     generic map (
-      G_SEE_MITIGATION_EN    => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN   => G_MISMATCH_OUTPUT_EN,
-      G_RETRANSMIT_COUNT_MAX => G_RETRANSMIT_COUNT_MAX)
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG,
+      G_RETRANSMIT_COUNT_MAX   => G_RETRANSMIT_COUNT_MAX)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
@@ -274,13 +263,16 @@ begin  -- architecture struct
       EML_TX_ARB_STUFF_ERROR             => s_eml_tx_arb_stuff_error,
       EML_TX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_tx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      VOTER_MISMATCH                     => s_mismatch_vector(C_mismatch_frame_tx));
+      MISMATCH                           => s_mismatch_array(C_mismatch_frame_tx),
+      MISMATCH_2ND                       => s_mismatch_2nd_array(C_mismatch_frame_tx));
 
   -- Receive state machine
-  INST_canola_frame_rx_fsm_tmr : entity work.canola_frame_rx_fsm_tmr_wrapper
+  INST_canola_frame_rx_fsm_tmr : configuration work.canola_frame_rx_fsm_tmr_wrapper_cfg
     generic map (
-      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
       CLK                                => CLK,
       RESET                              => RESET,
@@ -310,16 +302,19 @@ begin  -- architecture struct
       EML_RX_FORM_ERROR                  => s_eml_rx_form_error,
       EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR => s_eml_rx_active_error_flag_bit_error,
       EML_ERROR_STATE                    => s_eml_error_state,
-      VOTER_MISMATCH                     => s_mismatch_vector(C_mismatch_frame_rx));
+      MISMATCH                           => s_mismatch_array(C_mismatch_frame_rx),
+      MISMATCH_2ND                       => s_mismatch_2nd_array(C_mismatch_frame_rx));
 
   -- Bit Stream Processor (BSP)
   -- Responsible for bit stuffing/destuffing and
   -- CRC calculation of larger stream of bits.
   -- Acts as a layer between the BTL and Tx/Rx state machines
-  INST_canola_bsp_tmr : entity work.canola_bsp_tmr_wrapper
+  INST_canola_bsp_tmr : configuration work.canola_bsp_tmr_wrapper_cfg
     generic map (
-      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
       CLK                             => CLK,
       RESET                           => RESET,
@@ -357,46 +352,52 @@ begin  -- architecture struct
       BTL_RX_BIT_VALID                => s_btl_rx_bit_valid,
       BTL_RX_SYNCED                   => s_btl_rx_synced,
       BTL_RX_STOP                     => s_btl_rx_stop,
-      VOTER_MISMATCH                  => s_mismatch_vector(C_mismatch_bsp));
+      MISMATCH                        => s_mismatch_array(C_mismatch_bsp),
+      MISMATCH_2ND                    => s_mismatch_2nd_array(C_mismatch_bsp));
 
   s_btl_tx_active <= s_bsp_tx_active;
 
   -- Bit Timing Logic (BTL)
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
-  INST_canola_btl_tmr : entity work.canola_btl_tmr_wrapper
+  INST_canola_btl_tmr : configuration work.canola_btl_tmr_wrapper_cfg
     generic map (
       G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN  => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG     => G_MISMATCH_OUTPUT_REG,
       G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
     port map (
-      CLK                     => CLK,
-      RESET                   => RESET,
-      CAN_TX                  => CAN_TX,
-      CAN_RX                  => CAN_RX,
-      BTL_TX_BIT_VALUE        => s_btl_tx_bit_value,
-      BTL_TX_BIT_VALID        => s_btl_tx_bit_valid,
-      BTL_TX_RDY              => s_btl_tx_rdy,
-      BTL_TX_DONE             => s_btl_tx_done,
-      BTL_TX_ACTIVE           => s_btl_tx_active,
-      BTL_RX_BIT_VALUE        => s_btl_rx_bit_value,
-      BTL_RX_BIT_VALID        => s_btl_rx_bit_valid,
-      BTL_RX_SYNCED           => s_btl_rx_synced,
-      BTL_RX_STOP             => s_btl_rx_stop,
-      TRIPLE_SAMPLING         => BTL_TRIPLE_SAMPLING,
-      PROP_SEG                => BTL_PROP_SEG,
-      PHASE_SEG1              => BTL_PHASE_SEG1,
-      PHASE_SEG2              => BTL_PHASE_SEG2,
-      SYNC_JUMP_WIDTH         => BTL_SYNC_JUMP_WIDTH,
-      TIME_QUANTA_PULSE       => s_time_quanta_pulse,
-      TIME_QUANTA_RESTART     => s_time_quanta_restart,
-      VOTER_MISMATCH          => s_mismatch_vector(C_mismatch_btl));
+      CLK                 => CLK,
+      RESET               => RESET,
+      CAN_TX              => CAN_TX,
+      CAN_RX              => CAN_RX,
+      BTL_TX_BIT_VALUE    => s_btl_tx_bit_value,
+      BTL_TX_BIT_VALID    => s_btl_tx_bit_valid,
+      BTL_TX_RDY          => s_btl_tx_rdy,
+      BTL_TX_DONE         => s_btl_tx_done,
+      BTL_TX_ACTIVE       => s_btl_tx_active,
+      BTL_RX_BIT_VALUE    => s_btl_rx_bit_value,
+      BTL_RX_BIT_VALID    => s_btl_rx_bit_valid,
+      BTL_RX_SYNCED       => s_btl_rx_synced,
+      BTL_RX_STOP         => s_btl_rx_stop,
+      TRIPLE_SAMPLING     => BTL_TRIPLE_SAMPLING,
+      PROP_SEG            => BTL_PROP_SEG,
+      PHASE_SEG1          => BTL_PHASE_SEG1,
+      PHASE_SEG2          => BTL_PHASE_SEG2,
+      SYNC_JUMP_WIDTH     => BTL_SYNC_JUMP_WIDTH,
+      TIME_QUANTA_PULSE   => s_time_quanta_pulse,
+      TIME_QUANTA_RESTART => s_time_quanta_restart,
+      MISMATCH            => s_mismatch_array(C_mismatch_btl),
+      MISMATCH_2ND        => s_mismatch_2nd_array(C_mismatch_btl));
 
   -- Generates a 1 (system) clock cycle pulse for each time quanta
-  INST_canola_time_quanta_gen_tmr : entity work.canola_time_quanta_gen_tmr_wrapper
+  INST_canola_time_quanta_gen_tmr : configuration work.canola_time_quanta_gen_tmr_wrapper_cfg
     generic map (
       G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN  => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG     => G_MISMATCH_OUTPUT_REG,
       G_TIME_QUANTA_SCALE_WIDTH => G_TIME_QUANTA_SCALE_WIDTH)
     port map (
       CLK               => CLK,
@@ -404,17 +405,20 @@ begin  -- architecture struct
       RESTART           => s_time_quanta_restart,
       CLK_SCALE         => TIME_QUANTA_CLOCK_SCALE,
       TIME_QUANTA_PULSE => s_time_quanta_pulse,
-      VOTER_MISMATCH    => s_mismatch_vector(C_mismatch_time_quanta_gen));
+      MISMATCH          => s_mismatch_array(C_mismatch_time_quanta_gen),
+      MISMATCH_2ND      => s_mismatch_2nd_array(C_mismatch_time_quanta_gen));
 
   -- Error Management Logic (EML)
   -- Keeps track of errors occuring in other modules,
   -- and calculates an "error state" for the whole system,
   -- which determines to what degree the controller is allowed to interface
   -- with the BUS.
-  INST_canola_eml_tmr: entity work.canola_eml_tmr_wrapper
+  INST_canola_eml_tmr: configuration work.canola_eml_tmr_wrapper_cfg
     generic map (
-      G_SEE_MITIGATION_EN  => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN => G_MISMATCH_OUTPUT_EN)
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
       CLK                              => CLK,
       RESET                            => RESET,
@@ -422,8 +426,8 @@ begin  -- architecture struct
       RX_CRC_ERROR                     => s_eml_rx_crc_error,
       RX_FORM_ERROR                    => s_eml_rx_form_error,
       RX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_rx_active_error_flag_bit_error,
-      RX_OVERLOAD_FLAG_BIT_ERROR       => '0', -- Note: Overload flag not implemented
-      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => '0', -- Todo: Not detected yet
+      RX_OVERLOAD_FLAG_BIT_ERROR       => '0',  -- Note: Overload flag not implemented
+      RX_DOMINANT_BIT_AFTER_ERROR_FLAG => '0',  -- Todo: Not detected yet
       TX_BIT_ERROR                     => s_eml_tx_bit_error_rx_fsm or s_eml_tx_bit_error_tx_fsm,
       TX_ACK_ERROR                     => s_eml_tx_ack_error,
       TX_ACTIVE_ERROR_FLAG_BIT_ERROR   => s_eml_tx_active_error_flag_bit_error,
@@ -448,7 +452,8 @@ begin  -- architecture struct
       RECESSIVE_BIT_COUNT_UP           => s_eml_recessive_bit_count_up,
       RECESSIVE_BIT_COUNT_CLEAR        => s_eml_recessive_bit_count_clear,
       ERROR_STATE                      => s_eml_error_state,
-      VOTER_MISMATCH                   => s_mismatch_vector(C_mismatch_eml));
+      MISMATCH                         => s_mismatch_array(C_mismatch_eml),
+      MISMATCH_2ND                     => s_mismatch_2nd_array(C_mismatch_eml));
 
 
   -----------------------------------------------------------------------------
@@ -456,66 +461,90 @@ begin  -- architecture struct
   -----------------------------------------------------------------------------
 
   -- Receive Error Counter (REC) used by EML
-  INST_receive_error_counter : entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_receive_error_counter : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
     generic map (
-      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
-      INCR_WIDTH            => C_ERROR_COUNT_INCR_LENGTH,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+      BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH               => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
-      CLK         => CLK,
-      RESET       => RESET,
-      CLEAR       => s_eml_rec_clear,
-      SET         => s_eml_rec_set,
-      SET_VALUE   => s_eml_rec_set_value,
-      COUNT_UP    => s_eml_rec_count_up,
-      COUNT_DOWN  => s_eml_rec_count_down,
-      COUNT_INCR  => s_eml_rec_count_incr,
-      COUNT_OUT_A => s_eml_rec_count_value(0),
-      COUNT_OUT_B => s_eml_rec_count_value(1),
-      COUNT_OUT_C => s_eml_rec_count_value(2),
-      MISMATCH    => s_mismatch_vector(C_mismatch_rec));
+      CLK          => CLK,
+      RESET        => RESET,
+      CLEAR        => s_eml_rec_clear,
+      SET          => s_eml_rec_set,
+      SET_VALUE    => s_eml_rec_set_value,
+      COUNT_UP     => s_eml_rec_count_up,
+      COUNT_DOWN   => s_eml_rec_count_down,
+      COUNT_INCR   => s_eml_rec_count_incr,
+      COUNT_OUT_A  => s_eml_rec_count_value(0),
+      COUNT_OUT_B  => s_eml_rec_count_value(1),
+      COUNT_OUT_C  => s_eml_rec_count_value(2),
+      MISMATCH     => s_mismatch_array(C_mismatch_rec),
+      MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec));
 
   -- Transmit Error Counter (TEC) used by EML
-  INST_transmit_error_counter : entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_transmit_error_counter : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
     generic map (
-      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
-      INCR_WIDTH            => C_ERROR_COUNT_INCR_LENGTH,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+      BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
+      INCR_WIDTH               => C_ERROR_COUNT_INCR_LENGTH,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
-      CLK         => CLK,
-      RESET       => RESET,
-      CLEAR       => s_eml_tec_clear,
-      SET         => s_eml_tec_set,
-      SET_VALUE   => s_eml_tec_set_value,
-      COUNT_UP    => s_eml_tec_count_up,
-      COUNT_DOWN  => s_eml_tec_count_down,
-      COUNT_INCR  => s_eml_tec_count_incr,
-      COUNT_OUT_A => s_eml_tec_count_value(0),
-      COUNT_OUT_B => s_eml_tec_count_value(1),
-      COUNT_OUT_C => s_eml_tec_count_value(2),
-      MISMATCH    => s_mismatch_vector(C_mismatch_tec));
+      CLK          => CLK,
+      RESET        => RESET,
+      CLEAR        => s_eml_tec_clear,
+      SET          => s_eml_tec_set,
+      SET_VALUE    => s_eml_tec_set_value,
+      COUNT_UP     => s_eml_tec_count_up,
+      COUNT_DOWN   => s_eml_tec_count_down,
+      COUNT_INCR   => s_eml_tec_count_incr,
+      COUNT_OUT_A  => s_eml_tec_count_value(0),
+      COUNT_OUT_B  => s_eml_tec_count_value(1),
+      COUNT_OUT_C  => s_eml_tec_count_value(2),
+      MISMATCH     => s_mismatch_array(C_mismatch_tec),
+      MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tec));
 
   -- Counter for sequences of 11 recessive bits used by EML
-  INST_recessive_bit_counter : entity work.up_counter_tmr_wrapper
+  INST_recessive_bit_counter : configuration work.up_counter_tmr_wrapper_cfg
     generic map (
-      BIT_WIDTH             => C_ERROR_COUNT_LENGTH,
-      IS_SATURATING         => true,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-      G_MISMATCH_OUTPUT_REG => C_MISMATCH_OUTPUT_REG)
+      BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
+      IS_SATURATING            => true,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
     port map (
-      CLK       => CLK,
-      RESET     => RESET,
-      CLEAR     => s_eml_recessive_bit_count_clear,
-      COUNT_UP  => s_eml_recessive_bit_count_up,
-      COUNT_OUT => s_eml_recessive_bit_count_value,
-      MISMATCH  => s_mismatch_vector(C_mismatch_recessive_count));
+      CLK          => CLK,
+      RESET        => RESET,
+      CLEAR        => s_eml_recessive_bit_count_clear,
+      COUNT_UP     => s_eml_recessive_bit_count_up,
+      COUNT_OUT    => s_eml_recessive_bit_count_value,
+      MISMATCH     => s_mismatch_array(C_mismatch_recessive_count),
+      MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_recessive_count));
+
+
+  -------------------------------------------------------------------------
+  -- Mismatch in voted signals
+  -------------------------------------------------------------------------
+  INST_mismatch : entity work.mismatch
+    generic map(
+      G_SEE_MITIGATION_TECHNIQUE => G_SEE_MITIGATION_EN,
+      G_MISMATCH_EN              => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_REGISTERED      => G_MISMATCH_OUTPUT_REG,
+      G_ADDITIONAL_MISMATCH      => G_MISMATCH_OUTPUT_2ND_EN)
+    port map(
+      CLK                  => CLK,
+      RST                  => RESET,
+      mismatch_array_i     => s_mismatch_array,
+      mismatch_2nd_array_i => s_mismatch_2nd_array,
+      MISMATCH_O           => MISMATCH,
+      MISMATCH_2ND_O       => MISMATCH_2ND);
 
 end architecture struct;

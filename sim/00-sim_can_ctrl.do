@@ -78,7 +78,7 @@ if {$tb_name == "main_tb_no_tmr" || $tb_name == "all_tb"} {
 
 # Simulate top-level canola_top_tmr with triplication disabled
 if {$tb_name == "main_tb_tmr_wrap_no_tmr" || $tb_name == "all_tb"} {
-    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=false work.canola_top_tb
+    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=0 work.canola_top_tb
     do 00-wave_can_ctrl.do
     run -all
     if {$sim_coverage == "true"} {
@@ -88,7 +88,7 @@ if {$tb_name == "main_tb_tmr_wrap_no_tmr" || $tb_name == "all_tb"} {
 
 # Simulate top-level canola_top_tmr with triplication enabled
 if {$tb_name == "main_tb_tmr_wrap_tmr" || $tb_name == "all_tb"} {
-    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=true work.canola_top_tb
+    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=1 work.canola_top_tb
     do 00-wave_can_ctrl.do
     run -all
     if {$sim_coverage == "true"} {
@@ -108,7 +108,7 @@ if {$tb_name == "axi_tb_no_tmr" || $tb_name == "all_tb"} {
 
 # Simulate canola_axi_slave_tmr that with triplication disabled
 if {$tb_name == "axi_tb_tmr_wrap_no_tmr" || $tb_name == "all_tb"} {
-    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=false work.canola_axi_slave_tb
+    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=0 work.canola_axi_slave_tb
     do 00-wave_can_ctrl.do
     run -all
     if {$sim_coverage == "true"} {
@@ -118,7 +118,7 @@ if {$tb_name == "axi_tb_tmr_wrap_no_tmr" || $tb_name == "all_tb"} {
 
 # Simulate canola_axi_slave_tmr that with triplication enabled
 if {$tb_name == "axi_tb_tmr_wrap_tmr" || $tb_name == "all_tb"} {
-    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=true work.canola_axi_slave_tb
+    vsim $coverage_option $debug_db_option -gui -t ps -novopt -gG_TMR_TOP_MODULE_EN=true -gG_SEE_MITIGATION_EN=1 work.canola_axi_slave_tb
     do 00-wave_can_ctrl.do
     run -all
     if {$sim_coverage == "true"} {

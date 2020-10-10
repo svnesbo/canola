@@ -1,3 +1,28 @@
+-------------------------------------------------------------------------------
+-- Title      : AXI Bus slave for Canola CAN controller (with TMR)
+-- Project    : Canola CAN Controller
+-------------------------------------------------------------------------------
+-- File       : canola_axi_slave_tmr.vhd
+-- Author     : Simon Voigt Nesbø  <svn@hvl.no>
+-- Company    :
+-- Created    : 2020-02-06
+-- Last update: 2020-10-10
+-- Platform   :
+-- Standard   : VHDL'08
+-------------------------------------------------------------------------------
+-- Description: AXI Bus slave for the Canola CAN controller.
+--              The Canola CAN controller can be protected using Triple Modular
+--              Redundancy (TMR) with this version of the AXI slave.
+--              Note: Only the CAN controller will be triplicated when TMR
+--                    is enabled. The AXI register interface will not be.
+-------------------------------------------------------------------------------
+-- Copyright (c) 2020
+-------------------------------------------------------------------------------
+-- Revisions  :
+-- Date        Version  Author  Description
+-- 2020-02-06  1.0      svn     Created
+-- 2020-10-09  1.1      svn     Modified to use updated voters
+-------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -11,15 +36,16 @@ use work.canola_axi_slave_pif_pkg.all;
 use work.canola_pkg.all;
 
 entity canola_axi_slave_tmr is
-
   generic (
     -- User Generics Start
-
+    G_SEE_MITIGATION_EN      : integer := 1;  -- Enable TMR
+    G_MISMATCH_OUTPUT_EN     : integer := 1;  -- Enable TMR voter mismatch output
+    G_MISMATCH_OUTPUT_2ND_EN : integer := 0;  -- Enable additional mismatch output
+    G_MISMATCH_OUTPUT_REG    : integer := 0;  -- Use register on mismatch output
     -- User Generics End
+
     -- AXI Bus Interface Generics
-    G_AXI_BASEADDR            : std_logic_vector(31 downto 0) := X"00000000";
-    G_SEE_MITIGATION_EN       : boolean                       := true;  -- Enable TMR
-    G_MISMATCH_OUTPUT_EN      : boolean                       := true  -- Enable TMR voter mismatch output
+    G_AXI_BASEADDR : std_logic_vector(31 downto 0) := X"00000000"
     );
   port (
     -- User Ports Start
@@ -30,8 +56,10 @@ entity canola_axi_slave_tmr is
     CAN_TX_DONE_IRQ   : out std_logic;
     CAN_TX_FAILED_IRQ : out std_logic;
 
-    VOTER_MISMATCH_LOGIC     : out std_logic; -- Mismatch in main logic
-    VOTER_MISMATCH_COUNTERS  : out std_logic; -- Mismatch in status counters
+    MISMATCH_LOGIC        : out std_logic;  -- Mismatch in main logic
+    MISMATCH_LOGIC_2ND    : out std_logic;  -- Additional mismatch output (logic)
+    MISMATCH_COUNTERS     : out std_logic;  -- Mismatch in status counters
+    MISMATCH_COUNTERS_2ND : out std_logic;  -- Additional mistmach output (counters)
 
     -- User Ports End
     -- AXI Bus Interface Ports
@@ -126,6 +154,8 @@ begin
     generic map (
       G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN  => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG     => G_MISMATCH_OUTPUT_REG,
       G_TIME_QUANTA_SCALE_WIDTH => C_TIME_QUANTA_SCALE_WIDTH_DEFAULT)
     port map (
       CLK   => AXI_CLK,
@@ -171,15 +201,18 @@ begin
       RX_FORM_ERROR_COUNT_UP     => s_rx_form_error_count_up,
       RX_STUFF_ERROR_COUNT_UP    => s_rx_stuff_error_count_up,
 
-      VOTER_MISMATCH => VOTER_MISMATCH_LOGIC
+      MISMATCH     => MISMATCH_LOGIC,
+      MISMATCH_2ND => MISMATCH_LOGIC_2ND
       );
 
   INST_canola_counters_tmr : entity work.canola_counters_tmr
     generic map (
-      G_SEE_MITIGATION_EN   => G_SEE_MITIGATION_EN,
-      G_MISMATCH_OUTPUT_EN  => G_MISMATCH_OUTPUT_EN,
-      G_COUNTER_WIDTH       => C_COUNTER_REG_WIDTH,
-      G_SATURATING_COUNTERS => true)
+      G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
+      G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
+      G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
+      G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG,
+      G_COUNTER_WIDTH          => C_COUNTER_REG_WIDTH,
+      G_SATURATING_COUNTERS    => true)
     port map (
       CLK   => AXI_CLK,
       RESET => AXI_RESET,
@@ -217,7 +250,8 @@ begin
       RX_FORM_ERROR_COUNT_VALUE  => axi_ro_regs.RX_FORM_ERROR_COUNT,
       RX_STUFF_ERROR_COUNT_VALUE => axi_ro_regs.RX_STUFF_ERROR_COUNT,
 
-      VOTER_MISMATCH => VOTER_MISMATCH_COUNTERS
+      MISMATCH     => MISMATCH_COUNTERS,
+      MISMATCH_2ND => MISMATCH_COUNTERS_2ND
       );
 
   -- User Logic End

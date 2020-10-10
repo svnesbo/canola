@@ -1,3 +1,26 @@
+-------------------------------------------------------------------------------
+-- Title      : AXI Bus slave for Canola CAN controller
+-- Project    : Canola CAN Controller
+-------------------------------------------------------------------------------
+-- File       : canola_axi_slave.vhd
+-- Author     : Simon Voigt Nesbø  <svn@hvl.no>
+-- Company    :
+-- Created    : 2019-12-17
+-- Last update: 2020-10-10
+-- Platform   :
+-- Standard   : VHDL'08
+-------------------------------------------------------------------------------
+-- Description: AXI Bus slave for the Canola CAN controller.
+--              This version of the AXI slave does not allow for Triple Modular
+--              Redundancy (TMR).
+-------------------------------------------------------------------------------
+-- Copyright (c) 2020
+-------------------------------------------------------------------------------
+-- Revisions  :
+-- Date        Version  Author  Description
+-- 2020-02-06  1.0      svn     Created
+-- 2020-10-09  1.1      svn     Modified to use updated voters
+-------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

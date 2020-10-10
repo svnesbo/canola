@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-05-29
+-- Last update: 2020-10-10
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -17,8 +17,9 @@
 -- Copyright (c) 2020
 -------------------------------------------------------------------------------
 -- Revisions  :
--- Date        Version  Author                  Description
--- 2020-01-30  1.0      svn                     Created
+-- Date        Version  Author  Description
+-- 2020-01-30  1.0      svn     Created
+-- 2020-10-09  1.1      svn     Modified to use updated voters
 -------------------------------------------------------------------------------
 
 use std.textio.all;
@@ -116,173 +117,197 @@ begin
   -----------------------------------------------------------------------------
   -- Voters with 3x single inputs and one voted output
   -----------------------------------------------------------------------------
-  INST_tmr_voter_no_mismatch: entity work.tmr_voter
+  INST_tmr_voter_no_mismatch : entity work.tmr_voter
     generic map (
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_single_voter_input(0),
-      INPUT_B   => s_single_voter_input(1),
-      INPUT_C   => s_single_voter_input(2),
-      VOTER_OUT => s_single_voter_no_mismatch_output,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_input(0),
+      INPUT_B      => s_single_voter_input(1),
+      INPUT_C      => s_single_voter_input(2),
+      VOTER_OUT    => s_single_voter_no_mismatch_output,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
   INST_tmr_voter_mismatch_unreg : entity work.tmr_voter
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_single_voter_input(0),
-      INPUT_B   => s_single_voter_input(1),
-      INPUT_C   => s_single_voter_input(2),
-      VOTER_OUT => s_single_voter_mismatch_unreg_output,
-      MISMATCH  => s_single_voter_mismatch_unreg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_input(0),
+      INPUT_B      => s_single_voter_input(1),
+      INPUT_C      => s_single_voter_input(2),
+      VOTER_OUT    => s_single_voter_mismatch_unreg_output,
+      MISMATCH     => s_single_voter_mismatch_unreg_val,
+      MISMATCH_2ND => open);
 
   INST_tmr_voter_mismatch_reg : entity work.tmr_voter
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_single_voter_input(0),
-      INPUT_B   => s_single_voter_input(1),
-      INPUT_C   => s_single_voter_input(2),
-      VOTER_OUT => s_single_voter_mismatch_reg_output,
-      MISMATCH  => s_single_voter_mismatch_reg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_input(0),
+      INPUT_B      => s_single_voter_input(1),
+      INPUT_C      => s_single_voter_input(2),
+      VOTER_OUT    => s_single_voter_mismatch_reg_output,
+      MISMATCH     => s_single_voter_mismatch_reg_val,
+      MISMATCH_2ND => open);
 
 
   -----------------------------------------------------------------------------
   -- Voters with 3x single inputs and 3x voted outputs
   -----------------------------------------------------------------------------
-  INST_tmr_voter_triplicated_no_mismatch: entity work.tmr_voter_triplicated
+  INST_tmr_voter_triplicated_no_mismatch : entity work.tmr_voter_triplicated
     generic map (
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_single_voter_tri_input(0),
-      INPUT_B     => s_single_voter_tri_input(1),
-      INPUT_C     => s_single_voter_tri_input(2),
-      VOTER_OUT_A => s_single_voter_tri_no_mismatch_output(0),
-      VOTER_OUT_B => s_single_voter_tri_no_mismatch_output(1),
-      VOTER_OUT_C => s_single_voter_tri_no_mismatch_output(2),
-      MISMATCH    => open);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_tri_input(0),
+      INPUT_B      => s_single_voter_tri_input(1),
+      INPUT_C      => s_single_voter_tri_input(2),
+      VOTER_OUT_A  => s_single_voter_tri_no_mismatch_output(0),
+      VOTER_OUT_B  => s_single_voter_tri_no_mismatch_output(1),
+      VOTER_OUT_C  => s_single_voter_tri_no_mismatch_output(2),
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_triplicated_mismatch_unreg: entity work.tmr_voter_triplicated
+  INST_tmr_voter_triplicated_mismatch_unreg : entity work.tmr_voter_triplicated
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_single_voter_tri_input(0),
-      INPUT_B     => s_single_voter_tri_input(1),
-      INPUT_C     => s_single_voter_tri_input(2),
-      VOTER_OUT_A => s_single_voter_tri_mismatch_unreg_output(0),
-      VOTER_OUT_B => s_single_voter_tri_mismatch_unreg_output(1),
-      VOTER_OUT_C => s_single_voter_tri_mismatch_unreg_output(2),
-      MISMATCH    => s_single_voter_tri_mismatch_unreg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_tri_input(0),
+      INPUT_B      => s_single_voter_tri_input(1),
+      INPUT_C      => s_single_voter_tri_input(2),
+      VOTER_OUT_A  => s_single_voter_tri_mismatch_unreg_output(0),
+      VOTER_OUT_B  => s_single_voter_tri_mismatch_unreg_output(1),
+      VOTER_OUT_C  => s_single_voter_tri_mismatch_unreg_output(2),
+      MISMATCH     => s_single_voter_tri_mismatch_unreg_val,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_triplicated_mismatch_reg: entity work.tmr_voter_triplicated
+  INST_tmr_voter_triplicated_mismatch_reg : entity work.tmr_voter_triplicated
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_single_voter_tri_input(0),
-      INPUT_B     => s_single_voter_tri_input(1),
-      INPUT_C     => s_single_voter_tri_input(2),
-      VOTER_OUT_A => s_single_voter_tri_mismatch_reg_output(0),
-      VOTER_OUT_B => s_single_voter_tri_mismatch_reg_output(1),
-      VOTER_OUT_C => s_single_voter_tri_mismatch_reg_output(2),
-      MISMATCH    => s_single_voter_tri_mismatch_reg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_single_voter_tri_input(0),
+      INPUT_B      => s_single_voter_tri_input(1),
+      INPUT_C      => s_single_voter_tri_input(2),
+      VOTER_OUT_A  => s_single_voter_tri_mismatch_reg_output(0),
+      VOTER_OUT_B  => s_single_voter_tri_mismatch_reg_output(1),
+      VOTER_OUT_C  => s_single_voter_tri_mismatch_reg_output(2),
+      MISMATCH     => s_single_voter_tri_mismatch_reg_val,
+      MISMATCH_2ND => open);
 
 
   -----------------------------------------------------------------------------
   -- Voters with 3x array inputs and one voted array output
   -----------------------------------------------------------------------------
-  INST_tmr_voter_array_no_mismatch: entity work.tmr_voter_array
+  INST_tmr_voter_array_no_mismatch : entity work.tmr_voter_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_array_voter_input(0),
-      INPUT_B   => s_array_voter_input(1),
-      INPUT_C   => s_array_voter_input(2),
-      VOTER_OUT => s_array_voter_no_mismatch_output,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_input(0),
+      INPUT_B      => s_array_voter_input(1),
+      INPUT_C      => s_array_voter_input(2),
+      VOTER_OUT    => s_array_voter_no_mismatch_output,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_array_mismatch_unreg: entity work.tmr_voter_array
+  INST_tmr_voter_array_mismatch_unreg : entity work.tmr_voter_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_array_voter_input(0),
-      INPUT_B   => s_array_voter_input(1),
-      INPUT_C   => s_array_voter_input(2),
-      VOTER_OUT => s_array_voter_mismatch_unreg_output,
-      MISMATCH  => s_array_voter_mismatch_unreg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_input(0),
+      INPUT_B      => s_array_voter_input(1),
+      INPUT_C      => s_array_voter_input(2),
+      VOTER_OUT    => s_array_voter_mismatch_unreg_output,
+      MISMATCH     => s_array_voter_mismatch_unreg_val,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_array_mismatch_reg: entity work.tmr_voter_array
+  INST_tmr_voter_array_mismatch_reg : entity work.tmr_voter_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK       => s_clk,
-      INPUT_A   => s_array_voter_input(0),
-      INPUT_B   => s_array_voter_input(1),
-      INPUT_C   => s_array_voter_input(2),
-      VOTER_OUT => s_array_voter_mismatch_reg_output,
-      MISMATCH  => s_array_voter_mismatch_reg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_input(0),
+      INPUT_B      => s_array_voter_input(1),
+      INPUT_C      => s_array_voter_input(2),
+      VOTER_OUT    => s_array_voter_mismatch_reg_output,
+      MISMATCH     => s_array_voter_mismatch_reg_val,
+      MISMATCH_2ND => open);
 
 
   -----------------------------------------------------------------------------
   -- Voters with 3x array inputs and 3x voted array outputs
   -----------------------------------------------------------------------------
-  INST_tmr_voter_triplicated_array_no_mismatch: entity work.tmr_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_no_mismatch : entity work.tmr_voter_triplicated_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_array_voter_tri_input(0),
-      INPUT_B     => s_array_voter_tri_input(1),
-      INPUT_C     => s_array_voter_tri_input(2),
-      VOTER_OUT_A => s_array_voter_tri_no_mismatch_output(0),
-      VOTER_OUT_B => s_array_voter_tri_no_mismatch_output(1),
-      VOTER_OUT_C => s_array_voter_tri_no_mismatch_output(2),
-      MISMATCH    => open);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_tri_input(0),
+      INPUT_B      => s_array_voter_tri_input(1),
+      INPUT_C      => s_array_voter_tri_input(2),
+      VOTER_OUT_A  => s_array_voter_tri_no_mismatch_output(0),
+      VOTER_OUT_B  => s_array_voter_tri_no_mismatch_output(1),
+      VOTER_OUT_C  => s_array_voter_tri_no_mismatch_output(2),
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_triplicated_array_mismatch_unreg: entity work.tmr_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_mismatch_unreg : entity work.tmr_voter_triplicated_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => false)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_array_voter_tri_input(0),
-      INPUT_B     => s_array_voter_tri_input(1),
-      INPUT_C     => s_array_voter_tri_input(2),
-      VOTER_OUT_A => s_array_voter_tri_mismatch_unreg_output(0),
-      VOTER_OUT_B => s_array_voter_tri_mismatch_unreg_output(1),
-      VOTER_OUT_C => s_array_voter_tri_mismatch_unreg_output(2),
-      MISMATCH    => s_array_voter_tri_mismatch_unreg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_tri_input(0),
+      INPUT_B      => s_array_voter_tri_input(1),
+      INPUT_C      => s_array_voter_tri_input(2),
+      VOTER_OUT_A  => s_array_voter_tri_mismatch_unreg_output(0),
+      VOTER_OUT_B  => s_array_voter_tri_mismatch_unreg_output(1),
+      VOTER_OUT_C  => s_array_voter_tri_mismatch_unreg_output(2),
+      MISMATCH     => s_array_voter_tri_mismatch_unreg_val,
+      MISMATCH_2ND => open);
 
-  INST_tmr_voter_triplicated_array_mismatch_reg: entity work.tmr_voter_triplicated_array
+  INST_tmr_voter_triplicated_array_mismatch_reg : entity work.tmr_voter_triplicated_array
     generic map (
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK         => s_clk,
-      INPUT_A     => s_array_voter_tri_input(0),
-      INPUT_B     => s_array_voter_tri_input(1),
-      INPUT_C     => s_array_voter_tri_input(2),
-      VOTER_OUT_A => s_array_voter_tri_mismatch_reg_output(0),
-      VOTER_OUT_B => s_array_voter_tri_mismatch_reg_output(1),
-      VOTER_OUT_C => s_array_voter_tri_mismatch_reg_output(2),
-      MISMATCH    => s_array_voter_tri_mismatch_reg_val);
+      CLK          => s_clk,
+      INPUT_A      => s_array_voter_tri_input(0),
+      INPUT_B      => s_array_voter_tri_input(1),
+      INPUT_C      => s_array_voter_tri_input(2),
+      VOTER_OUT_A  => s_array_voter_tri_mismatch_reg_output(0),
+      VOTER_OUT_B  => s_array_voter_tri_mismatch_reg_output(1),
+      VOTER_OUT_C  => s_array_voter_tri_mismatch_reg_output(2),
+      MISMATCH     => s_array_voter_tri_mismatch_reg_val,
+      MISMATCH_2ND => open);
 
 
 

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2019-08-05
--- Last update: 2020-09-12
+-- Last update: 2020-10-10
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -16,8 +16,9 @@
 -- Copyright (c) 2019
 -------------------------------------------------------------------------------
 -- Revisions  :
--- Date        Version  Author                  Description
--- 2019-08-05  1.0      svn                     Created
+-- Date        Version  Author  Description
+-- 2019-08-05  1.0      svn     Created
+-- 2020-10-09  1.1      svn     Modified to use updated voters
 -------------------------------------------------------------------------------
 
 use std.textio.all;
@@ -40,7 +41,7 @@ use work.can_uvvm_bfm_pkg.all;
 entity canola_top_tb is
   generic (
     G_TMR_TOP_MODULE_EN : boolean := false;  -- Use canola_top_tmr instead of canola_top
-    G_SEE_MITIGATION_EN : boolean := false); -- Enable TMR in canola_top_tmr
+    G_SEE_MITIGATION_EN : integer := 0); -- Enable TMR in canola_top_tmr
 end canola_top_tb;
 
 architecture tb of canola_top_tb is
@@ -359,7 +360,8 @@ begin
         RX_FORM_ERROR_COUNT_UP     => s_can_ctrl1_rx_form_error_count_up,
         RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl1_rx_stuff_error_count_up,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
     INST_canola_top_2 : entity work.canola_top_tmr
@@ -411,7 +413,8 @@ begin
         RX_FORM_ERROR_COUNT_UP     => s_can_ctrl2_rx_form_error_count_up,
         RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl2_rx_stuff_error_count_up,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
     INST_canola_top_3 : entity work.canola_top_tmr
@@ -463,7 +466,8 @@ begin
         RX_FORM_ERROR_COUNT_UP     => s_can_ctrl3_rx_form_error_count_up,
         RX_STUFF_ERROR_COUNT_UP    => s_can_ctrl3_rx_stuff_error_count_up,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
     INST_canola_counters_1 : entity work.canola_counters_tmr
@@ -508,7 +512,8 @@ begin
         RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl1_reg_rx_form_error_count,
         RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl1_reg_rx_stuff_error_count,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
     INST_canola_counters_2 : entity work.canola_counters_tmr
@@ -553,7 +558,8 @@ begin
         RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl2_reg_rx_form_error_count,
         RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl2_reg_rx_stuff_error_count,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
     INST_canola_counters_3 : entity work.canola_counters_tmr
@@ -598,18 +604,19 @@ begin
         RX_FORM_ERROR_COUNT_VALUE  => s_can_ctrl3_reg_rx_form_error_count,
         RX_STUFF_ERROR_COUNT_VALUE => s_can_ctrl3_reg_rx_stuff_error_count,
 
-        VOTER_MISMATCH => open
+        MISMATCH     => open,
+        MISMATCH_2ND => open
         );
 
-    if_NOMITIGATION_generate : if not G_SEE_MITIGATION_EN generate
+    if_NOMITIGATION_generate : if G_SEE_MITIGATION_EN = 0 generate
       -- Aliases to some signals deep in the controller hierarchy
       -- that the testbench needs access to.
       -- Have to do this separately with/without G_SEE_MITIGATION_EN,
       -- because the hierarchy differs based on that generic.
       process is
-        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_btl.s_sample_point_tx : std_logic >>;
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_NOMITIGATION_generate.INST_canola_btl.s_sample_point_tx : std_logic >>;
 
-        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_NOMITIGATION_generate.no_tmr_block.INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_NOMITIGATION_generate.INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
 
         alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
       begin
@@ -628,15 +635,15 @@ begin
     end generate if_NOMITIGATION_generate;
 
 
-    if_MITIGATION_generate : if G_SEE_MITIGATION_EN generate
+    if_MITIGATION_generate : if G_SEE_MITIGATION_EN = 1 generate
       -- Aliases to some signals deep in the controller hierarchy
       -- that the testbench needs access to.
       -- Have to do this separately with/without G_SEE_MITIGATION_EN,
       -- because the hierarchy differs based on that generic.
       process is
-        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_btl.s_sample_point_tx : std_logic >>;
+        alias a_can_ctrl1_sample_point_tx is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_btl_tmr.if_TMR_generate.for_TMR_generate(0).INST_canola_btl.s_sample_point_tx : std_logic >>;
 
-        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_TMR_generate.tmr_block.for_TMR_generate(0).INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
+        alias a_can_ctrl1_tx_fsm_state is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.INST_canola_frame_tx_fsm_tmr.if_TMR_generate.for_TMR_generate(0).INST_canola_frame_tx_fsm.s_fsm_state_voted : work.canola_pkg.can_frame_tx_fsm_state_t >>;
 
         alias a_can_ctrl1_recessive_bits_count is << signal .canola_top_tb.if_TMR_generate.INST_canola_top_1.s_eml_recessive_bit_count_value : std_logic_vector(C_ERROR_COUNT_LENGTH-1 downto 0) >>;
       begin
@@ -1137,9 +1144,9 @@ begin
 
     enable_log_msg(ALL_MESSAGES);
 
-    if G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN then
+    if G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN = 1 then
       set_log_file_name("log/canola_top_tb_tmr_wrap_tmr_log.txt");
-    elsif G_TMR_TOP_MODULE_EN and not G_SEE_MITIGATION_EN then
+    elsif G_TMR_TOP_MODULE_EN and G_SEE_MITIGATION_EN = 0 then
       set_log_file_name("log/canola_top_tb_tmr_wrap_no_tmr_log.txt");
     else
       set_log_file_name("log/canola_top_tb_no_tmr_log.txt");

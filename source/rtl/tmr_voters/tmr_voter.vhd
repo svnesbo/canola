@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-02-13
+-- Last update: 2020-10-10
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -21,6 +21,8 @@
 -- Date        Version  Author  Description
 -- 2020-01-24  1.0      svn     Created
 -- 2020-02-13  1.1      svn     Renamed tmr_voter
+-- 2020-10-09  1.2      svn     Update to have similar interface to voters in
+--                              ALICE ITS Upgrade Readout Unit firmware
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -29,15 +31,18 @@ use ieee.std_logic_1164.all;
 
 entity tmr_voter is
   generic (
-    G_MISMATCH_OUTPUT_EN  : boolean := false;
-    G_MISMATCH_OUTPUT_REG : boolean := false);
+    G_MISMATCH_OUTPUT_EN     : integer := 0;  -- Enable MISMATCH output
+    G_MISMATCH_OUTPUT_2ND_EN : integer := 0;  -- Enable MISMATCH_2ND output
+    G_MISMATCH_OUTPUT_REG    : integer := 0   -- Register on MISMATCH outputs
+    );
   port (
-    CLK       : in  std_logic;
-    INPUT_A   : in  std_logic;
-    INPUT_B   : in  std_logic;
-    INPUT_C   : in  std_logic;
-    VOTER_OUT : out std_logic;
-    MISMATCH  : out std_logic
+    CLK          : in  std_logic;
+    INPUT_A      : in  std_logic;
+    INPUT_B      : in  std_logic;
+    INPUT_C      : in  std_logic;
+    VOTER_OUT    : out std_logic;
+    MISMATCH     : out std_logic;
+    MISMATCH_2ND : out std_logic
     );
 
   attribute DONT_TOUCH            : string;
@@ -65,7 +70,12 @@ begin  -- architecture rtl
   end process proc_voter;
 
 
-  GEN_unregistered_mismatch: if G_MISMATCH_OUTPUT_EN and not G_MISMATCH_OUTPUT_REG generate
+  GEN_no_mismatch: if G_MISMATCH_OUTPUT_EN = 0 generate
+    MISMATCH <= '0';
+  end generate GEN_no_mismatch;
+
+
+  GEN_unregistered_mismatch: if G_MISMATCH_OUTPUT_EN = 1 and G_MISMATCH_OUTPUT_REG = 0 generate
     -- Mismatch output - unregistered
     proc_unreg_mismatch: process (INPUT_A, INPUT_B, INPUT_C) is
     begin
@@ -80,7 +90,7 @@ begin  -- architecture rtl
   end generate GEN_unregistered_mismatch;
 
 
-  GEN_registered_mismatch: if G_MISMATCH_OUTPUT_EN and G_MISMATCH_OUTPUT_REG generate
+  GEN_registered_mismatch: if G_MISMATCH_OUTPUT_EN = 1 and G_MISMATCH_OUTPUT_REG = 1 generate
     -- Mismatch output - registered
     proc_reg_mismatch: process (CLK) is
     begin
@@ -95,5 +105,42 @@ begin  -- architecture rtl
       end if;
     end process proc_reg_mismatch;
   end generate GEN_registered_mismatch;
+
+
+  GEN_no_mismatch_2nd: if G_MISMATCH_OUTPUT_2ND_EN = 0 generate
+    MISMATCH_2ND <= '0';
+  end generate GEN_no_mismatch_2nd;
+
+
+  GEN_unregistered_mismatch_2nd: if G_MISMATCH_OUTPUT_2ND_EN = 1 and G_MISMATCH_OUTPUT_REG = 0 generate
+    -- Additional mismatch output - unregistered
+    proc_unreg_mismatch_2nd: process (INPUT_A, INPUT_B, INPUT_C) is
+    begin
+      if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+        MISMATCH_2ND <= '0';
+      elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+        MISMATCH_2ND <= '0';
+      else
+        MISMATCH_2ND <= '1';
+      end if;
+    end process proc_unreg_mismatch_2nd;
+  end generate GEN_unregistered_mismatch_2nd;
+
+
+  GEN_registered_mismatch_2nd: if G_MISMATCH_OUTPUT_2ND_EN = 1 and G_MISMATCH_OUTPUT_REG = 1 generate
+    -- Additional mismatch output - registered
+    proc_reg_mismatch_2nd: process (CLK) is
+    begin
+      if rising_edge(clk) then
+        if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+          MISMATCH_2ND <= '0';
+        elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+          MISMATCH_2ND <= '0';
+        else
+          MISMATCH_2ND <= '1';
+        end if;
+      end if;
+    end process proc_reg_mismatch_2nd;
+  end generate GEN_registered_mismatch_2nd;
 
 end architecture rtl;

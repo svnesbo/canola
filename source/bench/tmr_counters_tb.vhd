@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-31
--- Last update: 2020-05-29
+-- Last update: 2020-10-10
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -20,8 +20,9 @@
 -- Copyright (c) 2020
 -------------------------------------------------------------------------------
 -- Revisions  :
--- Date        Version  Author                  Description
--- 2020-01-31  1.0      svn                     Created
+-- Date        Version  Author  Description
+-- 2020-01-31  1.0      svn     Created
+-- 2020-10-09  1.1      svn     Modified to use updated voters
 -------------------------------------------------------------------------------
 
 use std.textio.all;
@@ -97,113 +98,125 @@ begin
   clock_gen(s_clk, C_CLK_PERIOD);
 
 
-  INST_up_counter_non_saturating_no_tmr : entity work.up_counter_tmr_wrapper
+  INST_up_counter_non_saturating_no_tmr : configuration work.up_counter_tmr_wrapper_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      IS_SATURATING         => false,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => false,
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      IS_SATURATING            => false,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 0,
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      RESET     => s_reset,
-      CLEAR     => s_clear,
-      COUNT_UP  => s_count_up,
-      COUNT_OUT => s_upcounter_non_saturating_no_tmr_out,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      COUNT_UP     => s_count_up,
+      COUNT_OUT    => s_upcounter_non_saturating_no_tmr_out,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_up_counter_non_saturating_tmr : entity work.up_counter_tmr_wrapper
+  INST_up_counter_non_saturating_tmr : configuration work.up_counter_tmr_wrapper_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      IS_SATURATING         => false,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => true,
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      IS_SATURATING            => false,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 1,
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK       => s_clk,
-      RESET     => s_reset,
-      CLEAR     => s_clear,
-      COUNT_UP  => s_count_up,
-      COUNT_OUT => s_upcounter_non_saturating_tmr_out,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      COUNT_UP     => s_count_up,
+      COUNT_OUT    => s_upcounter_non_saturating_tmr_out,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_up_counter_saturating_no_tmr : entity work.up_counter_tmr_wrapper
+  INST_up_counter_saturating_no_tmr : configuration work.up_counter_tmr_wrapper_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      IS_SATURATING         => true,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => false,
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      IS_SATURATING            => true,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 0,
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK       => s_clk,
-      RESET     => s_reset,
-      CLEAR     => s_clear,
-      COUNT_UP  => s_count_up,
-      COUNT_OUT => s_upcounter_saturating_no_tmr_out,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      COUNT_UP     => s_count_up,
+      COUNT_OUT    => s_upcounter_saturating_no_tmr_out,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_up_counter_saturating_tmr : entity work.up_counter_tmr_wrapper
+  INST_up_counter_saturating_tmr : configuration work.up_counter_tmr_wrapper_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      IS_SATURATING         => true,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => true,
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      IS_SATURATING            => true,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 1,
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK       => s_clk,
-      RESET     => s_reset,
-      CLEAR     => s_clear,
-      COUNT_UP  => s_count_up,
-      COUNT_OUT => s_upcounter_saturating_tmr_out,
-      MISMATCH  => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      COUNT_UP     => s_count_up,
+      COUNT_OUT    => s_upcounter_saturating_tmr_out,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_counter_saturating_no_tmr : entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_counter_saturating_no_tmr : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      INCR_WIDTH            => C_INCR_WIDTH,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => false,
-      G_MISMATCH_OUTPUT_EN  => false,
-      G_MISMATCH_OUTPUT_REG => false)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      INCR_WIDTH               => C_INCR_WIDTH,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 0,
+      G_MISMATCH_OUTPUT_EN     => 0,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 0)
     port map (
-      CLK         => s_clk,
-      RESET       => s_reset,
-      CLEAR       => s_clear,
-      SET         => s_set,
-      SET_VALUE   => s_set_value,
-      COUNT_UP    => s_count_up,
-      COUNT_DOWN  => s_count_down,
-      COUNT_INCR  => s_counter_incr,
-      COUNT_OUT_A => s_counter_saturating_no_tmr_out_a,
-      COUNT_OUT_B => s_counter_saturating_no_tmr_out_b,
-      COUNT_OUT_C => s_counter_saturating_no_tmr_out_c,
-      MISMATCH    => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      SET          => s_set,
+      SET_VALUE    => s_set_value,
+      COUNT_UP     => s_count_up,
+      COUNT_DOWN   => s_count_down,
+      COUNT_INCR   => s_counter_incr,
+      COUNT_OUT_A  => s_counter_saturating_no_tmr_out_a,
+      COUNT_OUT_B  => s_counter_saturating_no_tmr_out_b,
+      COUNT_OUT_C  => s_counter_saturating_no_tmr_out_c,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
-  INST_counter_saturating_tmr : entity work.counter_saturating_tmr_wrapper_triplicated
+  INST_counter_saturating_tmr : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
     generic map (
-      BIT_WIDTH             => C_BIT_WIDTH,
-      INCR_WIDTH            => C_INCR_WIDTH,
-      VERBOSE               => false,
-      G_SEE_MITIGATION_EN   => true,
-      G_MISMATCH_OUTPUT_EN  => true,
-      G_MISMATCH_OUTPUT_REG => true)
+      BIT_WIDTH                => C_BIT_WIDTH,
+      INCR_WIDTH               => C_INCR_WIDTH,
+      VERBOSE                  => false,
+      G_SEE_MITIGATION_EN      => 1,
+      G_MISMATCH_OUTPUT_EN     => 1,
+      G_MISMATCH_OUTPUT_2ND_EN => 0,
+      G_MISMATCH_OUTPUT_REG    => 1)
     port map (
-      CLK         => s_clk,
-      RESET       => s_reset,
-      CLEAR       => s_clear,
-      SET         => s_set,
-      SET_VALUE   => s_set_value,
-      COUNT_UP    => s_count_up,
-      COUNT_DOWN  => s_count_down,
-      COUNT_INCR  => s_counter_incr,
-      COUNT_OUT_A => s_counter_saturating_tmr_out_a,
-      COUNT_OUT_B => s_counter_saturating_tmr_out_b,
-      COUNT_OUT_C => s_counter_saturating_tmr_out_c,
-      MISMATCH    => open);
+      CLK          => s_clk,
+      RESET        => s_reset,
+      CLEAR        => s_clear,
+      SET          => s_set,
+      SET_VALUE    => s_set_value,
+      COUNT_UP     => s_count_up,
+      COUNT_DOWN   => s_count_down,
+      COUNT_INCR   => s_counter_incr,
+      COUNT_OUT_A  => s_counter_saturating_tmr_out_a,
+      COUNT_OUT_B  => s_counter_saturating_tmr_out_b,
+      COUNT_OUT_C  => s_counter_saturating_tmr_out_c,
+      MISMATCH     => open,
+      MISMATCH_2ND => open);
 
 
 
