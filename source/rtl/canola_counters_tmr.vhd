@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-12
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -30,6 +30,7 @@ use ieee.numeric_std.all;
 library work;
 use work.canola_pkg.all;
 use work.tmr_voter_pkg.all;
+use work.tmr_wrapper_pkg.all;
 
 entity canola_counters_tmr is
   generic (
@@ -88,6 +89,9 @@ end entity canola_counters_tmr;
 
 architecture struct of canola_counters_tmr is
 
+  for all : up_counter_tmr_wrapper
+    use configuration work.up_counter_tmr_wrapper_cfg;
+
   -- Voter mismatch for status counters
   constant C_mismatch_tx_msg_sent_count    : integer := 0;
   constant C_mismatch_tx_failed_count      : integer := 1;
@@ -108,7 +112,7 @@ begin  -- architecture struct
   -----------------------------------------------------------------------------
   -- Status counters (messages sent/received, error counts)
   -----------------------------------------------------------------------------
-  INST_tx_msg_sent_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_msg_sent_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -126,7 +130,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_msg_sent_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_msg_sent_count));
 
-  INST_tx_failed_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_failed_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -144,7 +148,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_failed_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_failed_count));
 
-  INST_tx_ack_error_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_ack_error_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -162,7 +166,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_ack_error_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_ack_error_count));
 
-  INST_tx_arb_lost_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_arb_lost_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -180,7 +184,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_arb_lost_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_arb_lost_count));
 
-  INST_tx_bit_error_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_bit_error_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -198,7 +202,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_bit_error_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_bit_error_count));
 
-  INST_tx_retransmit_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_tx_retransmit_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -216,7 +220,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_tx_retransmit_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tx_retransmit_count));
 
-  INST_rx_msg_recv_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_rx_msg_recv_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -234,7 +238,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_rx_msg_recv_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rx_msg_recv_count));
 
-  INST_rx_crc_error_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_rx_crc_error_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -252,7 +256,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_rx_crc_error_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rx_crc_error_count));
 
-  INST_rx_form_error_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_rx_form_error_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,
@@ -270,7 +274,7 @@ begin  -- architecture struct
       MISMATCH     => s_mismatch_array(C_mismatch_rx_form_error_count),
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rx_form_error_count));
 
-  INST_rx_stuff_error_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_rx_stuff_error_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => G_COUNTER_WIDTH,
       IS_SATURATING            => G_SATURATING_COUNTERS,

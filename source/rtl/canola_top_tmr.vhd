@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -34,6 +34,7 @@ use ieee.numeric_std.all;
 
 library work;
 use work.canola_pkg.all;
+use work.tmr_wrapper_pkg.all;
 
 entity canola_top_tmr is
   generic (
@@ -101,6 +102,31 @@ entity canola_top_tmr is
 end entity canola_top_tmr;
 
 architecture struct of canola_top_tmr is
+
+  for all : canola_frame_tx_fsm_tmr_wrapper
+    use configuration work.canola_frame_tx_fsm_tmr_wrapper_cfg;
+
+  for all : canola_frame_rx_fsm_tmr_wrapper
+    use configuration work.canola_frame_rx_fsm_tmr_wrapper_cfg;
+
+  for all : canola_bsp_tmr_wrapper
+    use configuration work.canola_bsp_tmr_wrapper_cfg;
+
+  for all : canola_btl_tmr_wrapper
+    use configuration work.canola_btl_tmr_wrapper_cfg;
+
+  for all : canola_time_quanta_gen_tmr_wrapper
+    use configuration work.canola_time_quanta_gen_tmr_wrapper_cfg;
+
+  for all : canola_eml_tmr_wrapper
+    use configuration work.canola_eml_tmr_wrapper_cfg;
+
+  for all : counter_saturating_tmr_wrapper_triplicated
+    use configuration work.counter_saturating_tmr_wrapper_triplicated_cfg;
+
+  for all : up_counter_tmr_wrapper
+    use configuration work.up_counter_tmr_wrapper_cfg;
+
 
   -- Signals for Tx Frame FSM
   signal s_tx_fsm_arb_lost                    : std_logic;  -- Arbitration was lost
@@ -225,7 +251,7 @@ begin  -- architecture struct
   s_bsp_send_error_flag <= s_bsp_send_error_flag_tx_fsm or s_bsp_send_error_flag_rx_fsm;
 
   -- Transmit state machine
-  INST_canola_frame_tx_fsm_tmr : configuration work.canola_frame_tx_fsm_tmr_wrapper_cfg
+  INST_canola_frame_tx_fsm_tmr : canola_frame_tx_fsm_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
@@ -267,7 +293,7 @@ begin  -- architecture struct
       MISMATCH_2ND                       => s_mismatch_2nd_array(C_mismatch_frame_tx));
 
   -- Receive state machine
-  INST_canola_frame_rx_fsm_tmr : configuration work.canola_frame_rx_fsm_tmr_wrapper_cfg
+  INST_canola_frame_rx_fsm_tmr : canola_frame_rx_fsm_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
@@ -309,7 +335,7 @@ begin  -- architecture struct
   -- Responsible for bit stuffing/destuffing and
   -- CRC calculation of larger stream of bits.
   -- Acts as a layer between the BTL and Tx/Rx state machines
-  INST_canola_bsp_tmr : configuration work.canola_bsp_tmr_wrapper_cfg
+  INST_canola_bsp_tmr : canola_bsp_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
@@ -360,7 +386,7 @@ begin  -- architecture struct
   -- Bit Timing Logic (BTL)
   -- Responsible for bit timing, synchronization
   -- and input/output of individual bits.
-  INST_canola_btl_tmr : configuration work.canola_btl_tmr_wrapper_cfg
+  INST_canola_btl_tmr : canola_btl_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
@@ -392,7 +418,7 @@ begin  -- architecture struct
       MISMATCH_2ND        => s_mismatch_2nd_array(C_mismatch_btl));
 
   -- Generates a 1 (system) clock cycle pulse for each time quanta
-  INST_canola_time_quanta_gen_tmr : configuration work.canola_time_quanta_gen_tmr_wrapper_cfg
+  INST_canola_time_quanta_gen_tmr : canola_time_quanta_gen_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN       => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN      => G_MISMATCH_OUTPUT_EN,
@@ -413,7 +439,7 @@ begin  -- architecture struct
   -- and calculates an "error state" for the whole system,
   -- which determines to what degree the controller is allowed to interface
   -- with the BUS.
-  INST_canola_eml_tmr: configuration work.canola_eml_tmr_wrapper_cfg
+  INST_canola_eml_tmr: canola_eml_tmr_wrapper
     generic map (
       G_SEE_MITIGATION_EN      => G_SEE_MITIGATION_EN,
       G_MISMATCH_OUTPUT_EN     => G_MISMATCH_OUTPUT_EN,
@@ -461,7 +487,7 @@ begin  -- architecture struct
   -----------------------------------------------------------------------------
 
   -- Receive Error Counter (REC) used by EML
-  INST_receive_error_counter : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
+  INST_receive_error_counter : counter_saturating_tmr_wrapper_triplicated
     generic map (
       BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
       INCR_WIDTH               => C_ERROR_COUNT_INCR_LENGTH,
@@ -486,7 +512,7 @@ begin  -- architecture struct
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec));
 
   -- Transmit Error Counter (TEC) used by EML
-  INST_transmit_error_counter : configuration work.counter_saturating_tmr_wrapper_triplicated_cfg
+  INST_transmit_error_counter : counter_saturating_tmr_wrapper_triplicated
     generic map (
       BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
       INCR_WIDTH               => C_ERROR_COUNT_INCR_LENGTH,
@@ -511,7 +537,7 @@ begin  -- architecture struct
       MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tec));
 
   -- Counter for sequences of 11 recessive bits used by EML
-  INST_recessive_bit_counter : configuration work.up_counter_tmr_wrapper_cfg
+  INST_recessive_bit_counter : up_counter_tmr_wrapper
     generic map (
       BIT_WIDTH                => C_ERROR_COUNT_LENGTH,
       IS_SATURATING            => true,
