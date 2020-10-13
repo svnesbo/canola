@@ -66,6 +66,7 @@ eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_eml_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_frame_rx_fsm_tmr_wrapper.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/canola_frame_tx_fsm_tmr_wrapper.vhd
+eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/tmr_wrapper_pkg.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/tmr_wrappers/tmr_wrapper_cfg.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/canola_top_tmr.vhd
 eval vcom  $compdirectives_vhdl  $util_part_path/source/rtl/canola_counters_tmr.vhd

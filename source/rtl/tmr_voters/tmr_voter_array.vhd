@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -73,9 +73,7 @@ begin  -- architecture rtl
         G_MISMATCH_OUTPUT_REG    => 0)  -- It will be registered below
       port map (
         CLK          => CLK,
-        INPUT_A      => INPUT_A(i),
-        INPUT_B      => INPUT_B(i),
-        INPUT_C      => INPUT_C(i),
+        INPUT        => INPUT_A(i) & INPUT_B(i) & INPUT_C(i),
         VOTER_OUT    => VOTER_OUT(i),
         MISMATCH     => s_mismatch(i),
         MISMATCH_2ND => s_mismatch_2nd(i));

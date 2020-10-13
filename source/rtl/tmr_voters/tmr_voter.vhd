@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-24
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -28,6 +28,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+library work;
+use work.tmr_pkg.all;
+
 
 entity tmr_voter is
   generic (
@@ -37,18 +40,14 @@ entity tmr_voter is
     );
   port (
     CLK          : in  std_logic;
-    INPUT_A      : in  std_logic;
-    INPUT_B      : in  std_logic;
-    INPUT_C      : in  std_logic;
+    INPUT        : in  std_logic_vector(C_K_TMR-1 downto 0);
     VOTER_OUT    : out std_logic;
     MISMATCH     : out std_logic;
     MISMATCH_2ND : out std_logic
     );
 
-  attribute DONT_TOUCH            : string;
-  attribute DONT_TOUCH of INPUT_A : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_B : signal is "TRUE";
-  attribute DONT_TOUCH of INPUT_C : signal is "TRUE";
+  attribute DONT_TOUCH          : string;
+  attribute DONT_TOUCH of INPUT : signal is "TRUE";
 end entity tmr_voter;
 
 architecture rtl of tmr_voter is
@@ -56,13 +55,13 @@ architecture rtl of tmr_voter is
 begin  -- architecture rtl
 
   -- Majority vote of the inputs
-  proc_voter : process (INPUT_A, INPUT_B, INPUT_C) is
+  proc_voter : process (INPUT) is
   begin
-    if INPUT_A = '1' and INPUT_B = '1' then
+    if INPUT(0) = '1' and INPUT(1) = '1' then
       VOTER_OUT <= '1';
-    elsif INPUT_A = '1' and INPUT_C = '1' then
+    elsif INPUT(0) = '1' and INPUT(2) = '1' then
       VOTER_OUT <= '1';
-    elsif INPUT_B = '1' and INPUT_C = '1' then
+    elsif INPUT(1) = '1' and INPUT(2) = '1' then
       VOTER_OUT <= '1';
     else
       VOTER_OUT <= '0';
@@ -77,11 +76,11 @@ begin  -- architecture rtl
 
   GEN_unregistered_mismatch: if G_MISMATCH_OUTPUT_EN = 1 and G_MISMATCH_OUTPUT_REG = 0 generate
     -- Mismatch output - unregistered
-    proc_unreg_mismatch: process (INPUT_A, INPUT_B, INPUT_C) is
+    proc_unreg_mismatch: process (INPUT) is
     begin
-      if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+      if INPUT(0) = '1' and INPUT(1) = '1' and INPUT(2) = '1' then
         MISMATCH <= '0';
-      elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+      elsif INPUT(0) = '0' and INPUT(1) = '0' and INPUT(2) = '0' then
         MISMATCH <= '0';
       else
         MISMATCH <= '1';
@@ -95,9 +94,9 @@ begin  -- architecture rtl
     proc_reg_mismatch: process (CLK) is
     begin
       if rising_edge(clk) then
-        if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+        if INPUT(0) = '1' and INPUT(1) = '1' and INPUT(2) = '1' then
           MISMATCH <= '0';
-        elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+        elsif INPUT(0) = '0' and INPUT(1) = '0' and INPUT(2) = '0' then
           MISMATCH <= '0';
         else
           MISMATCH <= '1';
@@ -114,11 +113,11 @@ begin  -- architecture rtl
 
   GEN_unregistered_mismatch_2nd: if G_MISMATCH_OUTPUT_2ND_EN = 1 and G_MISMATCH_OUTPUT_REG = 0 generate
     -- Additional mismatch output - unregistered
-    proc_unreg_mismatch_2nd: process (INPUT_A, INPUT_B, INPUT_C) is
+    proc_unreg_mismatch_2nd: process (INPUT) is
     begin
-      if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+      if INPUT(0) = '1' and INPUT(1) = '1' and INPUT(2) = '1' then
         MISMATCH_2ND <= '0';
-      elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+      elsif INPUT(0) = '0' and INPUT(1) = '0' and INPUT(2) = '0' then
         MISMATCH_2ND <= '0';
       else
         MISMATCH_2ND <= '1';
@@ -132,9 +131,9 @@ begin  -- architecture rtl
     proc_reg_mismatch_2nd: process (CLK) is
     begin
       if rising_edge(clk) then
-        if INPUT_A = '1' and INPUT_B = '1' and INPUT_C = '1' then
+        if INPUT(0) = '1' and INPUT(1) = '1' and INPUT(2) = '1' then
           MISMATCH_2ND <= '0';
-        elsif INPUT_A = '0' and INPUT_B = '0' and INPUT_C = '0' then
+        elsif INPUT(0) = '0' and INPUT(1) = '0' and INPUT(2) = '0' then
           MISMATCH_2ND <= '0';
         else
           MISMATCH_2ND <= '1';

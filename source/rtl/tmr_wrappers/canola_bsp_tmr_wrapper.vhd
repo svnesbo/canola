@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -350,9 +350,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_tx_rx_mismatch_tmr(0),
-        INPUT_B      => s_bsp_tx_rx_mismatch_tmr(1),
-        INPUT_C      => s_bsp_tx_rx_mismatch_tmr(2),
+        INPUT        => s_bsp_tx_rx_mismatch_tmr,
         VOTER_OUT    => BSP_TX_RX_MISMATCH,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_tx_rx_mismatch),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_tx_rx_mismatch));
@@ -365,9 +363,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_tx_rx_stuff_mismatch_tmr(0),
-        INPUT_B      => s_bsp_tx_rx_stuff_mismatch_tmr(1),
-        INPUT_C      => s_bsp_tx_rx_stuff_mismatch_tmr(2),
+        INPUT        => s_bsp_tx_rx_stuff_mismatch_tmr,
         VOTER_OUT    => BSP_TX_RX_STUFF_MISMATCH,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_tx_rx_stuff_mismatch),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_tx_rx_stuff_mismatch));
@@ -380,9 +376,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_tx_done_tmr(0),
-        INPUT_B      => s_bsp_tx_done_tmr(1),
-        INPUT_C      => s_bsp_tx_done_tmr(2),
+        INPUT        => s_bsp_tx_done_tmr,
         VOTER_OUT    => BSP_TX_DONE,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_tx_done),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_tx_done));
@@ -427,9 +421,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_active_tmr(0),
-        INPUT_B      => s_bsp_rx_active_tmr(1),
-        INPUT_C      => s_bsp_rx_active_tmr(2),
+        INPUT        => s_bsp_rx_active_tmr,
         VOTER_OUT    => BSP_RX_ACTIVE,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_active),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_active));
@@ -442,9 +434,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_ifs_tmr(0),
-        INPUT_B      => s_bsp_rx_ifs_tmr(1),
-        INPUT_C      => s_bsp_rx_ifs_tmr(2),
+        INPUT        => s_bsp_rx_ifs_tmr,
         VOTER_OUT    => BSP_RX_IFS,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_ifs),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_ifs));
@@ -489,9 +479,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_data_overflow_tmr(0),
-        INPUT_B      => s_bsp_rx_data_overflow_tmr(1),
-        INPUT_C      => s_bsp_rx_data_overflow_tmr(2),
+        INPUT        => s_bsp_rx_data_overflow_tmr,
         VOTER_OUT    => BSP_RX_DATA_OVERFLOW,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_data_overflow),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_data_overflow));
@@ -504,9 +492,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_active_error_flag_tmr(0),
-        INPUT_B      => s_bsp_rx_active_error_flag_tmr(1),
-        INPUT_C      => s_bsp_rx_active_error_flag_tmr(2),
+        INPUT        => s_bsp_rx_active_error_flag_tmr,
         VOTER_OUT    => BSP_RX_ACTIVE_ERROR_FLAG,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_active_error_flag),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_active_error_flag));
@@ -519,9 +505,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_passive_error_flag_tmr(0),
-        INPUT_B      => s_bsp_rx_passive_error_flag_tmr(1),
-        INPUT_C      => s_bsp_rx_passive_error_flag_tmr(2),
+        INPUT        => s_bsp_rx_passive_error_flag_tmr,
         VOTER_OUT    => BSP_RX_PASSIVE_ERROR_FLAG,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_passive_error_flag),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_passive_error_flag));
@@ -534,9 +518,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_error_flag_done_tmr(0),
-        INPUT_B      => s_bsp_error_flag_done_tmr(1),
-        INPUT_C      => s_bsp_error_flag_done_tmr(2),
+        INPUT        => s_bsp_error_flag_done_tmr,
         VOTER_OUT    => BSP_ERROR_FLAG_DONE,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_error_flag_done),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_error_flag_done));
@@ -549,9 +531,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_active_error_flag_bit_error_tmr(0),
-        INPUT_B      => s_bsp_active_error_flag_bit_error_tmr(1),
-        INPUT_C      => s_bsp_active_error_flag_bit_error_tmr(2),
+        INPUT        => s_bsp_active_error_flag_bit_error_tmr,
         VOTER_OUT    => BSP_ACTIVE_ERROR_FLAG_BIT_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_active_error_flag_bit_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_active_error_flag_bit_error));
@@ -564,9 +544,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_recv_11_recessive_bits_tmr(0),
-        INPUT_B      => s_eml_recv_11_recessive_bits_tmr(1),
-        INPUT_C      => s_eml_recv_11_recessive_bits_tmr(2),
+        INPUT        => s_eml_recv_11_recessive_bits_tmr,
         VOTER_OUT    => EML_RECV_11_RECESSIVE_BITS,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_recv_11_recessive_bits),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_recv_11_recessive_bits));
@@ -579,9 +557,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_tx_bit_value_tmr(0),
-        INPUT_B      => s_btl_tx_bit_value_tmr(1),
-        INPUT_C      => s_btl_tx_bit_value_tmr(2),
+        INPUT        => s_btl_tx_bit_value_tmr,
         VOTER_OUT    => BTL_TX_BIT_VALUE,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_tx_bit_value),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_tx_bit_value));
@@ -594,9 +570,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_tx_bit_valid_tmr(0),
-        INPUT_B      => s_btl_tx_bit_valid_tmr(1),
-        INPUT_C      => s_btl_tx_bit_valid_tmr(2),
+        INPUT        => s_btl_tx_bit_valid_tmr,
         VOTER_OUT    => BTL_TX_BIT_VALID,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_tx_bit_valid),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_tx_bit_valid));
@@ -609,9 +583,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_rx_stop_tmr(0),
-        INPUT_B      => s_btl_rx_stop_tmr(1),
-        INPUT_C      => s_btl_rx_stop_tmr(2),
+        INPUT        => s_btl_rx_stop_tmr,
         VOTER_OUT    => BTL_RX_STOP,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_rx_stop),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_rx_stop));

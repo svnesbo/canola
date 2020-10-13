@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-08-26
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -149,9 +149,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_time_quanta_pulse_tmr(0),
-        INPUT_B      => s_time_quanta_pulse_tmr(1),
-        INPUT_C      => s_time_quanta_pulse_tmr(2),
+        INPUT        => s_time_quanta_pulse_tmr,
         VOTER_OUT    => TIME_QUANTA_PULSE,
         MISMATCH     => s_mismatch_array(C_mismatch_time_quanta_pulse),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_time_quanta_pulse));

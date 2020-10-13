@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-10-10
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -41,9 +41,7 @@ configuration canola_btl_tmr_wrapper_cfg of canola_btl_tmr_wrapper is
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);
@@ -87,9 +85,7 @@ configuration canola_bsp_tmr_wrapper_cfg of canola_bsp_tmr_wrapper is
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);
@@ -148,9 +144,7 @@ configuration canola_eml_tmr_wrapper_cfg of canola_eml_tmr_wrapper is
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);
@@ -192,9 +186,7 @@ configuration canola_frame_rx_fsm_tmr_wrapper_cfg of canola_frame_rx_fsm_tmr_wra
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);
@@ -253,9 +245,7 @@ configuration canola_frame_tx_fsm_tmr_wrapper_cfg of canola_frame_tx_fsm_tmr_wra
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);
@@ -314,9 +304,7 @@ configuration canola_time_quanta_gen_tmr_wrapper_cfg of canola_time_quanta_gen_t
             G_MISMATCH_OUTPUT_2ND_EN => G_MISMATCH_OUTPUT_2ND_EN,
             G_MISMATCH_OUTPUT_REG    => G_MISMATCH_OUTPUT_REG)
           port map (CLK          => CLK,
-                    INPUT_A      => INPUT_A,
-                    INPUT_B      => INPUT_B,
-                    INPUT_C      => INPUT_C,
+                    INPUT        => INPUT,
                     VOTER_OUT    => VOTER_OUT,
                     MISMATCH     => MISMATCH,
                     MISMATCH_2ND => MISMATCH_2ND);

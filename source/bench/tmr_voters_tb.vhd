@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    :
 -- Created    : 2020-01-30
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Target     : Questasim
 -- Standard   : VHDL'08
@@ -124,9 +124,7 @@ begin
       G_MISMATCH_OUTPUT_REG    => 0)
     port map (
       CLK          => s_clk,
-      INPUT_A      => s_single_voter_input(0),
-      INPUT_B      => s_single_voter_input(1),
-      INPUT_C      => s_single_voter_input(2),
+      INPUT        => s_single_voter_input,
       VOTER_OUT    => s_single_voter_no_mismatch_output,
       MISMATCH     => open,
       MISMATCH_2ND => open);
@@ -138,9 +136,7 @@ begin
       G_MISMATCH_OUTPUT_REG    => 0)
     port map (
       CLK          => s_clk,
-      INPUT_A      => s_single_voter_input(0),
-      INPUT_B      => s_single_voter_input(1),
-      INPUT_C      => s_single_voter_input(2),
+      INPUT        => s_single_voter_input,
       VOTER_OUT    => s_single_voter_mismatch_unreg_output,
       MISMATCH     => s_single_voter_mismatch_unreg_val,
       MISMATCH_2ND => open);
@@ -152,9 +148,7 @@ begin
       G_MISMATCH_OUTPUT_REG    => 1)
     port map (
       CLK          => s_clk,
-      INPUT_A      => s_single_voter_input(0),
-      INPUT_B      => s_single_voter_input(1),
-      INPUT_C      => s_single_voter_input(2),
+      INPUT        => s_single_voter_input,
       VOTER_OUT    => s_single_voter_mismatch_reg_output,
       MISMATCH     => s_single_voter_mismatch_reg_val,
       MISMATCH_2ND => open);

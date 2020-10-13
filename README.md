@@ -1,6 +1,6 @@
 # Canola
 
-A radiation-tolerant CAN bus controller for FPGA's written in VHDL.
+A radiation-tolerant CAN bus controller for FPGAs written in VHDL.
 
 ![Canola CAN Controller Block Diagram](doc/canola_block_diagram.png)
 

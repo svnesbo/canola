@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -222,9 +222,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_can_tx_tmr(0),
-        INPUT_B      => s_can_tx_tmr(1),
-        INPUT_C      => s_can_tx_tmr(2),
+        INPUT        => s_can_tx_tmr,
         VOTER_OUT    => CAN_TX,
         MISMATCH     => s_mismatch_array(C_mismatch_can_tx),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_can_tx));
@@ -237,9 +235,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_tx_rdy_tmr(0),
-        INPUT_B      => s_btl_tx_rdy_tmr(1),
-        INPUT_C      => s_btl_tx_rdy_tmr(2),
+        INPUT        => s_btl_tx_rdy_tmr,
         VOTER_OUT    => BTL_TX_RDY,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_tx_rdy),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_tx_rdy));
@@ -252,9 +248,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_tx_done_tmr(0),
-        INPUT_B      => s_btl_tx_done_tmr(1),
-        INPUT_C      => s_btl_tx_done_tmr(2),
+        INPUT        => s_btl_tx_done_tmr,
         VOTER_OUT    => BTL_TX_DONE,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_tx_done),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_tx_done));
@@ -267,9 +261,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_rx_bit_value_tmr(0),
-        INPUT_B      => s_btl_rx_bit_value_tmr(1),
-        INPUT_C      => s_btl_rx_bit_value_tmr(2),
+        INPUT        => s_btl_rx_bit_value_tmr,
         VOTER_OUT    => BTL_RX_BIT_VALUE,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_rx_bit_value),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_rx_bit_value));
@@ -282,9 +274,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_rx_bit_valid_tmr(0),
-        INPUT_B      => s_btl_rx_bit_valid_tmr(1),
-        INPUT_C      => s_btl_rx_bit_valid_tmr(2),
+        INPUT        => s_btl_rx_bit_valid_tmr,
         VOTER_OUT    => BTL_RX_BIT_VALID,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_rx_bit_valid),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_rx_bit_valid));
@@ -297,9 +287,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_btl_rx_synced_tmr(0),
-        INPUT_B      => s_btl_rx_synced_tmr(1),
-        INPUT_C      => s_btl_rx_synced_tmr(2),
+        INPUT        => s_btl_rx_synced_tmr,
         VOTER_OUT    => BTL_RX_SYNCED,
         MISMATCH     => s_mismatch_array(C_mismatch_btl_rx_synced),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_btl_rx_synced));
@@ -312,9 +300,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_time_quanta_restart_tmr(0),
-        INPUT_B      => s_time_quanta_restart_tmr(1),
-        INPUT_C      => s_time_quanta_restart_tmr(2),
+        INPUT        => s_time_quanta_restart_tmr,
         VOTER_OUT    => TIME_QUANTA_RESTART,
         MISMATCH     => s_mismatch_array(C_mismatch_time_quanta_restart),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_time_quanta_restart));

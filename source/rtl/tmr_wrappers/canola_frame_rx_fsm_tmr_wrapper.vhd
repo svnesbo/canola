@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-28
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -289,9 +289,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_rx_msg_valid_tmr(0),
-        INPUT_B      => s_rx_msg_valid_tmr(1),
-        INPUT_C      => s_rx_msg_valid_tmr(2),
+        INPUT        => s_rx_msg_valid_tmr,
         VOTER_OUT    => RX_MSG_VALID,
         MISMATCH     => s_mismatch_array(C_mismatch_rx_msg_valid),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rx_msg_valid));
@@ -304,9 +302,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_data_clear_tmr(0),
-        INPUT_B      => s_bsp_rx_data_clear_tmr(1),
-        INPUT_C      => s_bsp_rx_data_clear_tmr(2),
+        INPUT        => s_bsp_rx_data_clear_tmr,
         VOTER_OUT    => BSP_RX_DATA_CLEAR,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_data_clear),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_data_clear));
@@ -319,9 +315,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_bit_destuff_en_tmr(0),
-        INPUT_B      => s_bsp_rx_bit_destuff_en_tmr(1),
-        INPUT_C      => s_bsp_rx_bit_destuff_en_tmr(2),
+        INPUT        => s_bsp_rx_bit_destuff_en_tmr,
         VOTER_OUT    => BSP_RX_BIT_DESTUFF_EN,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_bit_destuff_en),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_bit_destuff_en));
@@ -334,9 +328,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_stop_tmr(0),
-        INPUT_B      => s_bsp_rx_stop_tmr(1),
-        INPUT_C      => s_bsp_rx_stop_tmr(2),
+        INPUT        => s_bsp_rx_stop_tmr,
         VOTER_OUT    => BSP_RX_STOP,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_stop),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_stop));
@@ -349,9 +341,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_rx_send_ack_tmr(0),
-        INPUT_B      => s_bsp_rx_send_ack_tmr(1),
-        INPUT_C      => s_bsp_rx_send_ack_tmr(2),
+        INPUT        => s_bsp_rx_send_ack_tmr,
         VOTER_OUT    => BSP_RX_SEND_ACK,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_rx_send_ack),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_rx_send_ack));
@@ -364,9 +354,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_bsp_send_error_flag_tmr(0),
-        INPUT_B      => s_bsp_send_error_flag_tmr(1),
-        INPUT_C      => s_bsp_send_error_flag_tmr(2),
+        INPUT        => s_bsp_send_error_flag_tmr,
         VOTER_OUT    => BSP_SEND_ERROR_FLAG,
         MISMATCH     => s_mismatch_array(C_mismatch_bsp_send_error_flag),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_bsp_send_error_flag));
@@ -379,9 +367,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_tx_bit_error_tmr(0),
-        INPUT_B      => s_eml_tx_bit_error_tmr(1),
-        INPUT_C      => s_eml_tx_bit_error_tmr(2),
+        INPUT        => s_eml_tx_bit_error_tmr,
         VOTER_OUT    => EML_TX_BIT_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_tx_bit_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_tx_bit_error));
@@ -394,9 +380,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_rx_stuff_error_tmr(0),
-        INPUT_B      => s_eml_rx_stuff_error_tmr(1),
-        INPUT_C      => s_eml_rx_stuff_error_tmr(2),
+        INPUT        => s_eml_rx_stuff_error_tmr,
         VOTER_OUT    => EML_RX_STUFF_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_rx_stuff_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_rx_stuff_error));
@@ -409,9 +393,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_rx_crc_error_tmr(0),
-        INPUT_B      => s_eml_rx_crc_error_tmr(1),
-        INPUT_C      => s_eml_rx_crc_error_tmr(2),
+        INPUT        => s_eml_rx_crc_error_tmr,
         VOTER_OUT    => EML_RX_CRC_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_rx_crc_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_rx_crc_error));
@@ -424,9 +406,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_rx_form_error_tmr(0),
-        INPUT_B      => s_eml_rx_form_error_tmr(1),
-        INPUT_C      => s_eml_rx_form_error_tmr(2),
+        INPUT        => s_eml_rx_form_error_tmr,
         VOTER_OUT    => EML_RX_FORM_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_rx_form_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_rx_form_error));
@@ -439,9 +419,7 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_eml_rx_active_error_flag_bit_error_tmr(0),
-        INPUT_B      => s_eml_rx_active_error_flag_bit_error_tmr(1),
-        INPUT_C      => s_eml_rx_active_error_flag_bit_error_tmr(2),
+        INPUT        => s_eml_rx_active_error_flag_bit_error_tmr,
         VOTER_OUT    => EML_RX_ACTIVE_ERROR_FLAG_BIT_ERROR,
         MISMATCH     => s_mismatch_array(C_mismatch_eml_rx_active_error_flag_bit_error),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_eml_rx_active_error_flag_bit_error));

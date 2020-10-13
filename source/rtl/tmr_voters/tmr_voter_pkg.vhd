@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-10-06
--- Last update: 2020-10-10
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -22,6 +22,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+library work;
+use work.tmr_pkg.all;
+
 
 package tmr_voter_pkg is
 
@@ -33,9 +36,7 @@ package tmr_voter_pkg is
     port (
       CLK          : in  std_logic;
       RST          : in  std_logic;
-      INPUT_A      : in  std_logic;
-      INPUT_B      : in  std_logic;
-      INPUT_C      : in  std_logic;
+      INPUT        : in  std_logic_vector(C_K_TMR-1 downto 0);
       VOTER_OUT    : out std_logic;
       MISMATCH     : out std_logic;
       MISMATCH_2ND : out std_logic);

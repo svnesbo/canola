@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-10-10
+-- Last update: 2020-10-11
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -275,10 +275,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_tec_count_up_tmr(0),
-        INPUT_B      => s_tec_count_up_tmr(1),
-        INPUT_C      => s_tec_count_up_tmr(2),
-        VOTER_OUT       => TEC_COUNT_UP,
+        INPUT        => s_tec_count_up_tmr,
+        VOTER_OUT    => TEC_COUNT_UP,
         MISMATCH     => s_mismatch_array(C_mismatch_tec_count_up),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tec_count_up));
 
@@ -290,10 +288,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_tec_count_down_tmr(0),
-        INPUT_B      => s_tec_count_down_tmr(1),
-        INPUT_C      => s_tec_count_down_tmr(2),
-        VOTER_OUT       => TEC_COUNT_DOWN,
+        INPUT        => s_tec_count_down_tmr,
+        VOTER_OUT    => TEC_COUNT_DOWN,
         MISMATCH     => s_mismatch_array(C_mismatch_tec_count_down),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tec_count_down));
 
@@ -305,10 +301,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_tec_clear_tmr(0),
-        INPUT_B      => s_tec_clear_tmr(1),
-        INPUT_C      => s_tec_clear_tmr(2),
-        VOTER_OUT       => TEC_CLEAR,
+        INPUT        => s_tec_clear_tmr,
+        VOTER_OUT    => TEC_CLEAR,
         MISMATCH     => s_mismatch_array(C_mismatch_tec_clear),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_tec_clear));
 
@@ -324,7 +318,7 @@ begin  -- architecture structural
         INPUT_A      => s_rec_count_incr_tmr(0),
         INPUT_B      => s_rec_count_incr_tmr(1),
         INPUT_C      => s_rec_count_incr_tmr(2),
-        VOTER_OUT       => REC_COUNT_INCR,
+        VOTER_OUT    => REC_COUNT_INCR,
         MISMATCH     => s_mismatch_array(C_mismatch_rec_count_incr),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec_count_incr));
 
@@ -336,10 +330,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_rec_count_up_tmr(0),
-        INPUT_B      => s_rec_count_up_tmr(1),
-        INPUT_C      => s_rec_count_up_tmr(2),
-        VOTER_OUT       => REC_COUNT_UP,
+        INPUT        => s_rec_count_up_tmr,
+        VOTER_OUT    => REC_COUNT_UP,
         MISMATCH     => s_mismatch_array(C_mismatch_rec_count_up),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec_count_up));
 
@@ -351,10 +343,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_rec_count_down_tmr(0),
-        INPUT_B      => s_rec_count_down_tmr(1),
-        INPUT_C      => s_rec_count_down_tmr(2),
-        VOTER_OUT       => REC_COUNT_DOWN,
+        INPUT        => s_rec_count_down_tmr,
+        VOTER_OUT    => REC_COUNT_DOWN,
         MISMATCH     => s_mismatch_array(C_mismatch_rec_count_down),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec_count_down));
 
@@ -366,10 +356,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_rec_clear_tmr(0),
-        INPUT_B      => s_rec_clear_tmr(1),
-        INPUT_C      => s_rec_clear_tmr(2),
-        VOTER_OUT       => REC_CLEAR,
+        INPUT        => s_rec_clear_tmr,
+        VOTER_OUT    => REC_CLEAR,
         MISMATCH     => s_mismatch_array(C_mismatch_rec_clear),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec_clear));
 
@@ -381,10 +369,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_rec_set_tmr(0),
-        INPUT_B      => s_rec_set_tmr(1),
-        INPUT_C      => s_rec_set_tmr(2),
-        VOTER_OUT       => REC_SET,
+        INPUT        => s_rec_set_tmr,
+        VOTER_OUT    => REC_SET,
         MISMATCH     => s_mismatch_array(C_mismatch_rec_set),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_rec_set));
 
@@ -396,10 +382,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_recessive_bit_count_up_tmr(0),
-        INPUT_B      => s_recessive_bit_count_up_tmr(1),
-        INPUT_C      => s_recessive_bit_count_up_tmr(2),
-        VOTER_OUT       => RECESSIVE_BIT_COUNT_UP,
+        INPUT        => s_recessive_bit_count_up_tmr,
+        VOTER_OUT    => RECESSIVE_BIT_COUNT_UP,
         MISMATCH     => s_mismatch_array(C_mismatch_recessive_bit_count_up),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_recessive_bit_count_up));
 
@@ -411,10 +395,8 @@ begin  -- architecture structural
       port map (
         CLK          => CLK,
         RST          => RESET,
-        INPUT_A      => s_recessive_bit_count_clear_tmr(0),
-        INPUT_B      => s_recessive_bit_count_clear_tmr(1),
-        INPUT_C      => s_recessive_bit_count_clear_tmr(2),
-        VOTER_OUT       => RECESSIVE_BIT_COUNT_CLEAR,
+        INPUT        => s_recessive_bit_count_clear_tmr,
+        VOTER_OUT    => RECESSIVE_BIT_COUNT_CLEAR,
         MISMATCH     => s_mismatch_array(C_mismatch_recessive_bit_count_clear),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_recessive_bit_count_clear));
 
@@ -430,7 +412,7 @@ begin  -- architecture structural
         INPUT_A      => s_error_state_tmr(0),
         INPUT_B      => s_error_state_tmr(1),
         INPUT_C      => s_error_state_tmr(2),
-        VOTER_OUT       => ERROR_STATE,
+        VOTER_OUT    => ERROR_STATE,
         MISMATCH     => s_mismatch_array(C_mismatch_error_state),
         MISMATCH_2ND => s_mismatch_2nd_array(C_mismatch_error_state));
 
