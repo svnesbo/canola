@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2019-07-01
--- Last update: 2020-09-12
+-- Last update: 2020-10-13
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -132,6 +132,10 @@ architecture rtl of canola_btl is
   -- for the bit that is currently being processed
   signal s_got_rx_bit_falling_edge : std_logic;
 
+  -- Indicates that we have synchronized the receiver with a falling edge
+  -- The BTL_RX_SYNCED output is a slightly delay version of this signal
+  signal s_btl_rx_synced : std_logic;
+
   -- Previous 2 bit values - for triple sampling and for falling edge detection
   signal s_quanta_sampled_bits : std_logic_vector(1 downto 0);
 
@@ -173,6 +177,7 @@ begin  -- architecture rtl
       -- Synchronous reset
       if RESET = '1' then
         BTL_RX_SYNCED             <= '0';
+        s_btl_rx_synced           <= '0';
         s_resync_allowed          <= '0';
         s_resync_done             <= '0';
         s_got_rx_bit_falling_edge <= '0';
@@ -192,20 +197,21 @@ begin  -- architecture rtl
 
         if BTL_RX_STOP = '1' then
           -- Go out of sync when instructed to (by BSP)
-          BTL_RX_SYNCED <= '0';
-        elsif BTL_RX_SYNCED = '0' and v_got_rx_bit_falling_edge = '1' then
+          s_btl_rx_synced <= '0';
+          BTL_RX_SYNCED   <= '0';
+        elsif s_btl_rx_synced = '0' and v_got_rx_bit_falling_edge = '1' then
           -- Enable Rx when falling edge is detected
-          BTL_RX_SYNCED <= '1';
+          s_btl_rx_synced <= '1';
         end if;
 
         -----------------------------------------------------------------------
         -- Hard sync (ie. jump to SYNC_SEG, reset time quanta gen) to incoming frame
         -- when we are not already receiving a frame, and not transmitting
         -----------------------------------------------------------------------
-        if BTL_RX_SYNCED = '0' and v_got_rx_bit_falling_edge = '1' and BTL_TX_ACTIVE = '0' then
+        if s_btl_rx_synced = '0' and v_got_rx_bit_falling_edge = '1' and BTL_TX_ACTIVE = '0' then
           -- This will reset the time quanta generator, and next time quanta pulse
           -- should be in exactly one time quanta from now.
-          -- BTL_RX_SYNCED and s_got_rx_bit_falling_edge should both be '1' by then,
+          -- s_btl_rx_synced and s_got_rx_bit_falling_edge should both be '1' by then,
           -- so that ST_SYNC_SEG knows that we are in sync with falling edge
           -- and a resync should not be performed for the current (SOF) bit
             TIME_QUANTA_RESTART   <= '1';
@@ -223,7 +229,7 @@ begin  -- architecture rtl
           case s_sync_fsm_state_voted is
             when ST_SYNC_SEG =>
 
-              if BTL_RX_SYNCED = '1' and s_got_rx_bit_falling_edge = '0' then
+              if s_btl_rx_synced = '1' and s_got_rx_bit_falling_edge = '0' then
                 -- Falling edge not detected during synchronization segment
                 -- We are allowed to resync if falling edge is detected later
                 -- (unless we are transmitting)
@@ -265,6 +271,12 @@ begin  -- architecture rtl
               s_phase_error <= v_phase_error;
               s_segment     <= v_segment;
 
+              -- BTL and RX_VALID output is always running. If the rx sample point
+              -- comes at the beginning of the SOF bit, before we've had time to
+              -- reset time quanta gen, then we would receive an extra dominant
+              -- bit. To avoid this we wait till PROP_SEG before we set the
+              -- RX_SYNCED output.
+              BTL_RX_SYNCED <= s_btl_rx_synced;
 
             when ST_PHASE_SEG1 =>
               v_phase_error             := s_phase_error;

@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbo (svn@hvl.no)
 -- Company    : Western Norway University of Applied Sciences
 -- Created    : 2020-01-06
--- Last update: 2020-09-18
+-- Last update: 2020-10-14
 -- Platform   :
 -- Target     :
 -- Standard   : VHDL'08
@@ -47,9 +47,13 @@ end canola_vs_opencores_can_tb;
 
 architecture tb of canola_vs_opencores_can_tb is
 
-  constant C_CLK_PERIOD : time    := 6.25 ns;  -- 160 Mhz
-  constant C_CLK_FREQ   : integer := 1e9 ns / C_CLK_PERIOD;
-  signal s_clk_period   : time    := C_CLK_PERIOD;
+  constant C_CLK_FREQ     : integer := 160000000;
+  constant C_CLK_PERIOD   : time    := 1e9 ns / C_CLK_FREQ;
+  signal s_clk_period     : time    := C_CLK_PERIOD;
+
+  constant C_WB_CLK_PERIOD : time    := 6.25 ns;  -- 160 Mhz
+  constant C_WB_CLK_FREQ   : integer := 1e9 ns / C_WB_CLK_PERIOD;
+  signal s_wb_clk_period   : time    := C_WB_CLK_PERIOD;
 
   constant WB_DATA_WIDTH : natural := 8;
   constant WB_ADDR_WIDTH : natural := 8;
@@ -57,7 +61,7 @@ architecture tb of canola_vs_opencores_can_tb is
   constant C_WB_CFG : t_wishbone_bfm_config := (
     max_wait_cycles          => 20,
     max_wait_cycles_severity => failure,
-    clock_period             => C_CLK_PERIOD,
+    clock_period             => C_WB_CLK_PERIOD,
     clock_period_margin      => 0 ns,
     clock_margin_severity    => TB_ERROR,
     setup_time               => 1 ns,
@@ -69,11 +73,16 @@ architecture tb of canola_vs_opencores_can_tb is
   constant C_CAN_BAUD_PERIOD_250kbit  : time    := 4000 ns;  -- 250 kHz
   constant C_CAN_BAUD_FREQ_250kbit    : integer := 1e9 ns / C_CAN_BAUD_PERIOD_250kbit;
 
-  constant C_CAN_BAUD_PERIOD_1000kbit  : time    := 1000 ns;  -- 250 kHz
+  constant C_CAN_BAUD_PERIOD_1000kbit  : time    := 1000 ns;  -- 1000 kHz
   constant C_CAN_BAUD_FREQ_1000kbit    : integer := 1e9 ns / C_CAN_BAUD_PERIOD_1000kbit;
 
   signal s_can_baud_period : time    := C_CAN_BAUD_PERIOD_1000kbit;
   signal s_can_baud_freq   : integer := C_CAN_BAUD_FREQ_1000kbit;
+
+  constant C_RAND_DELAY_BAUDS_MIN : real := 10.0;
+  constant C_RAND_DELAY_BAUDS_MAX : real := 30.0;
+
+  constant C_CANOLA_RECV_CLK_ERROR_SCALE : real := 1.01; -- 1% error
 
   signal s_can_ctrl1_to_ctrl2_delay : time := 0 ns;
 
@@ -86,7 +95,7 @@ architecture tb of canola_vs_opencores_can_tb is
   constant C_TIME_QUANTA_CLOCK_SCALE_WIDTH    : natural := integer(ceil(log2(1.0+real(C_TIME_QUANTA_CLOCK_SCALE_250kbit))));
 
   constant C_DATA_LENGTH_MAX : natural := 1000;
-  constant C_NUM_ITERATIONS  : natural := 1000;
+  constant C_NUM_ITERATIONS  : natural := 100;
 
   constant C_COUNTER_WIDTH : natural := 16;
 
@@ -183,6 +192,7 @@ architecture tb of canola_vs_opencores_can_tb is
   signal s_clock_ena    : boolean   := false;
   signal s_can_baud_clk : std_logic := '0';
   signal s_clk          : std_logic := '0';
+  signal s_wb_clk       : std_logic := '0';
 
   -- CAN signals used by BFM
   signal s_can_bfm_tx        : std_logic                      := '1';
@@ -203,6 +213,7 @@ begin
 
   -- Set up clock generators
   clock_gen(s_clk, s_clock_ena, s_clk_period);
+  clock_gen(s_wb_clk, s_clock_ena, s_wb_clk_period);
   clock_gen(s_can_baud_clk, s_clock_ena, s_can_baud_period);
 
   s_can_ctrl1_to_ctrl2_delay <= 0.5*(s_can_baud_period/10);
@@ -317,13 +328,13 @@ begin
   INST_opencores_can : entity work.can_top
     port map
     (
-      clk_i      => s_clk,
+      clk_i      => s_wb_clk,
       rx_i       => s_opcores_can_rx,
       tx_o       => s_opcores_can_tx,
       bus_off_on => s_opcores_can_bus_off_on,
       irq_on     => s_opcores_can_irq_n,
       clkout_o   => open,
-      wb_clk_i   => s_clk,
+      wb_clk_i   => s_wb_clk,
       wb_rst_i   => s_opcores_can_reset,
       wb_dat_i   => wbm_opcores_can_if.dat_o,
       wb_dat_o   => wbm_opcores_can_if.dat_i,
@@ -476,9 +487,9 @@ begin
       constant config       : in    t_wishbone_bfm_config := C_WB_CFG
       ) is
     begin
-      wishbone_check(to_unsigned(addr_value, WB_ADDR_WIDTH), data_exp, msg, s_clk, wb_if, alert_level, scope, msg_id_panel, config);
+      wishbone_check(to_unsigned(addr_value, WB_ADDR_WIDTH), data_exp, msg, s_wb_clk, wb_if, alert_level, scope, msg_id_panel, config);
       -- Wait a clock cycle before next transaction
-      wait until rising_edge(s_clk);
+      wait until rising_edge(s_wb_clk);
     end procedure wb_check;
 
     procedure wb_write (
@@ -491,9 +502,9 @@ begin
       constant config       : in    t_wishbone_bfm_config := C_WB_CFG
       ) is
     begin
-      wishbone_write(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      wishbone_write(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_wb_clk, wb_if, scope, msg_id_panel, config);
       -- Wait a clock cycle before next transaction
-      wait until rising_edge(s_clk);
+      wait until rising_edge(s_wb_clk);
     end procedure wb_write;
 
     procedure wb_read (
@@ -506,9 +517,9 @@ begin
       constant config       : in    t_wishbone_bfm_config := C_WB_CFG
       ) is
     begin
-      wishbone_read(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_clk, wb_if, scope, msg_id_panel, config);
+      wishbone_read(to_unsigned(addr_value, WB_ADDR_WIDTH), data_value, msg, s_wb_clk, wb_if, scope, msg_id_panel, config);
       -- Wait a clock cycle before next transaction
-      wait until rising_edge(s_clk);
+      wait until rising_edge(s_wb_clk);
     end procedure wb_read;
 
     procedure can_ctrl_enable_basic_mode_operation (
@@ -978,8 +989,8 @@ begin
     variable v_rx_stuff_error_count : std_logic_vector(C_COUNTER_WIDTH-1 downto 0);
     variable v_receive_error_count  : unsigned(C_ERROR_COUNT_LENGTH-1 downto 0);
 
-    variable v_rand_baud_delay : natural;
     variable v_rand_real       : real;
+    variable v_rand_delay      : time;
   begin
     -- Print the configuration to the log
     report_global_ctrl(VOID);
@@ -1009,6 +1020,8 @@ begin
         s_can_baud_freq         <= C_CAN_BAUD_FREQ_250kbit;
       end if;
 
+      -- Simulate clock error when receiving with Canola
+      s_clk_period <= C_CLK_PERIOD*C_CANOLA_RECV_CLK_ERROR_SCALE;
 
       ---------------------------------------------------------------------------------------------
       log(ID_LOG_HDR, "Simulate basic-frame from OpenCores --> Canola controller", C_SCOPE);
@@ -1016,7 +1029,7 @@ begin
 
       s_clock_ena <= true;              -- to start clock generator
       pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_wb_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
       can_ctrl_enable_basic_mode_operation(x"AA", x"FF", s_can_baud_freq);
 
@@ -1026,7 +1039,7 @@ begin
       for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
         log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
 
-        wait for 200 ns;
+        --wait for 200 ns;
 
         log(ID_SEQUENCER, "Generate random msg and transmit with OpenCores controller", C_SCOPE);
         ------------------------------------------------------------
@@ -1080,6 +1093,11 @@ begin
         end if;
 
         pulse(s_msg_reset, s_clk, 1, "Reset received message signal");
+
+        v_rand_delay := random(C_RAND_DELAY_BAUDS_MIN*s_can_baud_period,
+                               C_RAND_DELAY_BAUDS_MAX*s_can_baud_period);
+        wait for v_rand_delay;
+
         log(ID_SEQUENCER, "", C_SCOPE);
 
       end loop;
@@ -1088,9 +1106,14 @@ begin
       ---------------------------------------------------------------------------------------------
       log(ID_LOG_HDR, "Simulate basic-frame from Canola --> OpenCores controller", C_SCOPE);
       ---------------------------------------------------------------------------------------------
+      -- Don't simulate clock error when transmitting with Canola,
+      -- because we're not testing the other controller's ability to adopt
+      -- to a clock error in the transmitter
+      s_clk_period <= C_CLK_PERIOD;
+
       s_clock_ena <= true;              -- to start clock generator
       pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_wb_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
       can_ctrl_enable_basic_mode_operation(x"AA", x"FF", s_can_baud_freq);
 
@@ -1104,7 +1127,7 @@ begin
       for rand_test_num in 0 to C_NUM_ITERATIONS-1 loop
         log(ID_SEQUENCER, "Iteration #" & to_string(rand_test_num), C_SCOPE);
 
-        wait for 200 ns;
+        --wait for 200 ns;
 
         log(ID_SEQUENCER, "Generate random msg and transmit with Canola controller", C_SCOPE);
         ------------------------------------------------------------
@@ -1165,7 +1188,7 @@ begin
       ---------------------------------------------------------------------------------------------
       s_clock_ena <= true;              -- to start clock generator
       pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_wb_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
       -- Accept any ID code
       can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1', s_can_baud_freq);
@@ -1232,7 +1255,7 @@ begin
       ---------------------------------------------------------------------------------------------
       s_clock_ena <= true;              -- to start clock generator
       pulse(s_can_ctrl1_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
-      pulse(s_opcores_can_reset, s_clk, 10, "Pulsed reset-signal - active for 10 cycles");
+      pulse(s_opcores_can_reset, s_wb_clk, 10, "Pulsed reset-signal - active for 10 cycles");
 
       -- Accept any ID code
       can_ctrl_enable_ext_mode_operation(x"FFFFFFF" & '1', x"FFFFFFF" & '1', s_can_baud_freq);
