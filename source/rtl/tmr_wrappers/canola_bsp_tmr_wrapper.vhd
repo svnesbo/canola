@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-27
--- Last update: 2020-10-11
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -248,8 +248,8 @@ begin  -- architecture structural
     constant C_mismatch_btl_rx_stop                     : integer := 19;
     constant C_MISMATCH_WIDTH                           : integer := 20;
 
-    signal s_mismatch_array     : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
-    signal s_mismatch_2nd_array : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_array     : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_2nd_array : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
   begin
 

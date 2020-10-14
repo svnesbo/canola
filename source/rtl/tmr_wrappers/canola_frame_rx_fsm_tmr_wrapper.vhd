@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-01-28
--- Last update: 2020-10-11
+-- Last update: 2020-10-14
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -189,15 +189,12 @@ begin  -- architecture structural
     constant C_mismatch_eml_rx_active_error_flag_bit_error : integer := 12;
     constant C_MISMATCH_WIDTH                              : integer := 13;
 
-    signal s_mismatch_array     : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
-    signal s_mismatch_2nd_array : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_array     : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_2nd_array : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
     type t_can_msg_serialized_tmr is array (0 to C_K_TMR-1) of std_logic_vector(C_CAN_MSG_LENGTH-1 downto 0);
     signal s_rx_msg_out_serialized_tmr : t_can_msg_serialized_tmr;
     signal s_rx_msg_out_serialized_voted : std_logic_vector(C_CAN_MSG_LENGTH-1 downto 0);
-
-
-
 
   begin
 

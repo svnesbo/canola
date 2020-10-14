@@ -158,8 +158,8 @@ begin  -- architecture structural
     constant C_MISMATCH_WIDTH               : integer := 8;
 
     constant C_MISMATCH_NONE    : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0) := (others => '0');
-    signal s_mismatch_array     : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
-    signal s_mismatch_2nd_array : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_array     : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
+    signal s_mismatch_2nd_array : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
   begin
 
