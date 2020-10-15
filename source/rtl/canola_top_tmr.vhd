@@ -6,7 +6,7 @@
 -- Author     : Simon Voigt Nesbø  <svn@hvl.no>
 -- Company    :
 -- Created    : 2020-02-05
--- Last update: 2020-10-11
+-- Last update: 2020-10-15
 -- Platform   :
 -- Standard   : VHDL'08
 -------------------------------------------------------------------------------
@@ -226,8 +226,8 @@ architecture struct of canola_top_tmr is
   constant C_mismatch_tec             : integer := 7;
   constant C_mismatch_recessive_count : integer := 8;
   constant C_MISMATCH_WIDTH           : integer := 9;
-  signal s_mismatch_array             : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
-  signal s_mismatch_2nd_array         : std_logic_vector(C_MISMATCH_WIDTH-1 downto 0);
+  signal s_mismatch_array             : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
+  signal s_mismatch_2nd_array         : std_ulogic_vector(C_MISMATCH_WIDTH-1 downto 0);
 
 begin  -- architecture struct
 
